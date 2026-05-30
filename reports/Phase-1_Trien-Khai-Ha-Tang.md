@@ -39,8 +39,7 @@ sudo sysctl -w vm.max_map_count=262144
 # Ghi cấu hình vĩnh viễn vào tệp cấu hình hệ thống
 echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
 ```
-
-> 🖼️ **[CHÈN HÌNH 1: Ảnh chụp màn hình terminal sau khi chạy lệnh kiểm tra kết quả `cat /proc/sys/vm/max_map_count` hiển thị giá trị 262144]**
+![tăng thông số bộ nhớ ảo `vm.max_map_count`](images/hình%201.png)
 
 ---
 
@@ -72,7 +71,7 @@ sudo systemctl enable docker && sudo systemctl start docker
 
 Kiểm tra trạng thái hoạt động của Docker Compose trên máy ảo bằng lệnh: `sudo docker compose version`.
 
-> 🖼️ **[CHÈN HÌNH 2: Ảnh chụp kết quả lệnh kiểm tra phiên bản Docker Compose thành công trên Terminal]**
+![kiểm tra phiên bản Docker Compose thành công trên Terminal](images/hình%202.png)
 
 ---
 
@@ -156,7 +155,7 @@ Hệ thống hiển thị thông báo: **`Done with success`** (Xác nhận cấ
 
 ---
 
-## V. KIỂM TRÁ ĐỘ ỔN ĐỊNH & KIỂM CHỨNG TRUY CẬP (VALIDATION)
+## V. KIỂM TRA ĐỘ ỔN ĐỊNH & KIỂM CHỨNG TRUY CẬP (VALIDATION)
 
 Chạy lệnh kiểm tra trạng thái sức khỏe toàn hệ thống:
 
@@ -173,13 +172,9 @@ Yêu cầu cả 3 thực thể `wazuh.indexer`, `wazuh.manager`, và `wazuh.dash
 * *Username:* `admin`
 * *Password:* `<MẬT_KHẨU_MỚI_ĐÃ_THIẾT_LẬP>`
 
+![Giao diện Đăng nhập (Login Page) của Wazuh Dashboard hiển thị trên trình duyệt](images/trang%20login.png)
 
-
-> 🖼️ **[CHÈN HÌNH 3: Ảnh chụp màn hình quá trình Terminal tải (Pull) các Image và khởi chạy thành công các container wazuh.indexer, wazuh.manager, wazuh.dashboard]**
-
-> 🖼️ **[CHÈN HÌNH 4: Ảnh chụp màn hình giao diện Đăng nhập (Login Page) của Wazuh Dashboard hiển thị trên trình duyệt]**
-
-> 🖼️ **[CHÈN HÌNH 5: Ảnh chụp màn hình giao diện quản trị chính (Main Dashboard) sau khi đăng nhập thành công bằng thông tin mật khẩu mới, hệ thống hiển thị tổng quan SOC an toàn]**
+![Giao diện quản trị chính (Main Dashboard) sau khi đăng nhập thành công bằng thông tin mật khẩu mới, hệ thống hiển thị tổng quan SOC an toàn](images/trang%20dashboard.png)
 
 ---
 
