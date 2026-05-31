@@ -39,7 +39,7 @@ sudo sysctl -w vm.max_map_count=262144
 # Ghi cấu hình vĩnh viễn vào tệp cấu hình hệ thống
 echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
 ```
-![tăng thông số bộ nhớ ảo `vm.max_map_count`](images/hình%201.png)
+![tăng thông số bộ nhớ ảo `vm.max_map_count`](images/phase1/hình%201.png)
 
 ---
 
@@ -71,7 +71,7 @@ sudo systemctl enable docker && sudo systemctl start docker
 
 Kiểm tra trạng thái hoạt động của Docker Compose trên máy ảo bằng lệnh: `sudo docker compose version`.
 
-![kiểm tra phiên bản Docker Compose thành công trên Terminal](images/hình%202.png)
+![kiểm tra phiên bản Docker Compose thành công trên Terminal](images/phase1/hình%202.png)
 
 ---
 
@@ -172,9 +172,9 @@ Yêu cầu cả 3 thực thể `wazuh.indexer`, `wazuh.manager`, và `wazuh.dash
 * *Username:* `admin`
 * *Password:* `<MẬT_KHẨU_MỚI_ĐÃ_THIẾT_LẬP>`
 
-![Giao diện Đăng nhập (Login Page) của Wazuh Dashboard hiển thị trên trình duyệt](images/trang%20login.png)
+![Giao diện Đăng nhập (Login Page) của Wazuh Dashboard hiển thị trên trình duyệt](images/phase1/trang%20login.png)
 
-![Giao diện quản trị chính (Main Dashboard) sau khi đăng nhập thành công bằng thông tin mật khẩu mới, hệ thống hiển thị tổng quan SOC an toàn](images/trang%20dashboard.png)
+![Giao diện quản trị chính (Main Dashboard) sau khi đăng nhập thành công bằng thông tin mật khẩu mới, hệ thống hiển thị tổng quan SOC an toàn](images/phase1/trang%20dashboard.png)
 
 ---
 
