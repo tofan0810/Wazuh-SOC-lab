@@ -206,3 +206,6 @@ Hạ tầng cụm trung tâm SIEM (Wazuh Stack) đã hoạt động hoàn hảo 
 
 1. Khởi chạy máy trạm **Windows 10 (Victim)**, thực hiện tải và kết nối **Wazuh Agent** đẩy luồng thông tin về địa chỉ máy chủ `192.168.71.128`.
 2. Tích hợp sâu bộ công cụ kiểm toán **Microsoft Sysmon** trên máy mục tiêu, tùy biến cấu hình tệp `ossec.conf` để phân tích sâu các mã sự kiện đặc thù (Event IDs), chuẩn bị cho việc mô phỏng và phát hiện tấn công thực chiến.
+
+## REFERENCES
+- [Cài đặt wazuh docker container](https://documentation.wazuh.com/current/deployment-options/docker/wazuh-container.html)
