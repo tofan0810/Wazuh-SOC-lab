@@ -235,3 +235,4 @@ Mặc dù hệ thống Wazuh sở hữu kho luật mặc định rất đồ s�
 
 ## References
 - [Cài đặt sysmon](https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon)
+- [Cài đặt Wazuh agent](https://documentation.wazuh.com/current/installation-guide/wazuh-agent/index.html)
