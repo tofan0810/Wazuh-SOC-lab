@@ -207,9 +207,11 @@ data.win.eventdata.commandLine
 ```
 ![Kết quả sau sự kiện giả lập](images/phase2/check%20sysmon.png)
 ---
+
+
 ## IV. ĐỊNH HƯỚNG BƯỚC TIẾP THEO (PHASE 3): MÔ PHỎNG TẤN CÔNG THỰC CHIẾN VÀ XÂY DỰNG LUẬT PHÁT HIỆN TÙY BIẾN (DETECTION ENGINEERING)
 
-Sau khi hoàn thành xuất sắc giai đoạn Phase 2 – thông nòng thành công đường ống dẫn log (Log Ingestion Pipeline) từ **Sysmon $\rightarrow$ Wazuh Agent $\rightarrow$ Wazuh Manager $\rightarrow$ Indexer/Dashboard** và hạ ngưỡng lọc an toàn về Level 0, toàn bộ hạ tầng SOC Lab đã sẵn sàng cho giai đoạn cốt lõi tiếp theo.
+Sau khi hoàn thành giai đoạn Phase 2 – thông nòng thành công đường ống dẫn log (Log Ingestion Pipeline) từ **Sysmon $\rightarrow$ Wazuh Agent $\rightarrow$ Wazuh Manager $\rightarrow$ Indexer/Dashboard** và hạ ngưỡng lọc an toàn về Level 0, toàn bộ hạ tầng SOC Lab đã sẵn sàng cho giai đoạn cốt lõi tiếp theo.
 
 Định hướng nghiên cứu và thực thi kỹ thuật trong **Phase 3** sẽ tập trung vào các trục mục tiêu trọng tâm sau:
 

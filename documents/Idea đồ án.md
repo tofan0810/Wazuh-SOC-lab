@@ -44,7 +44,6 @@ Một repo lộn xộn sẽ làm mất điểm. Bạn nên tổ chức thư mụ
 wazuh-soc-lab/
 │
 ├── README.md               # Tài liệu chính: Sơ đồ, cách dựng, kết quả (Quan trọng nhất)
-├── documents/              # Tài liệu lý thuyết
 │
 ├── architecture/           # Chứa ảnh sơ đồ mạng, sơ đồ luồng log (vẽ bằng Draw.io/Figma)
 │
