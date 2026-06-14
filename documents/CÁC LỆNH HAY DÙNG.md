@@ -49,6 +49,11 @@ Xem danh sách container đang hoạt động:
 sudo docker ps
 ```
 
+Kiểm tra tiến trình con
+```
+sudo docker exec -it single-node-wazuh.manager-1 /var/ossec/bin/wazuh-control status
+```
+
 Xem toàn bộ container bao gồm cả container đã dừng:
 
 ```bash
