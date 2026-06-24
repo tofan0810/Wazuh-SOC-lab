@@ -1,3 +1,5 @@
 # Ignore Visual Studio Code settings and workspace files
-*.vscode/
+.vscode/
 
+# Ignore test account file
+account.txt

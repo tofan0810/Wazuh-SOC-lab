@@ -62,7 +62,7 @@ wazuh-soc-lab/
 │   ├── docker-compose.yml  # File triển khai cụm Wazuh Stack bằng Docker
 │   └── sysmon-config.xml   # File cấu hình Sysmon tối ưu hóa bảo mật
 │
-├── custom-rules/           # NƠI KHOE NĂNG LỰC: Chứa các bộ decoder và rule XML tự viết
+├── custom-rules/           # NƠI KHOE NĂNG LỰC: Chứa các bộ decoder và rule XML tự viết -> các file local_rules.xml, ossec.conf.bak
 │   ├── web-lfi-detection.xml
 │   ├── ssh-brute-force-active-response.xml
 │   └── sysmon-powershell-rules.xml

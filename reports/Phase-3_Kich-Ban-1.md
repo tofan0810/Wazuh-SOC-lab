@@ -250,6 +250,10 @@ Rule ID: 657
 
 ---
 
-## 11. Tổng kết kịch bản 1
+## III. Tổng kết kịch bản 1
 
 Kịch bản mô phỏng tấn công Brute Force RDP và kích hoạt Active Response. Hệ thống SIEM triển khai trên Docker không những chứng minh khả năng thu thập log tập trung, phân tích cú pháp thông qua Custom Rule chuẩn định dạng MITRE ATT&CK T1110, mà còn thực thi kịch bản tự động cô lập nguồn nguy hại (Soar Automation Capabilities), bảo vệ an toàn tuyệt đối cho tài nguyên máy trạm Windows.
+
+
+## References
+- https://attack.mitre.org/techniques/T1110/
