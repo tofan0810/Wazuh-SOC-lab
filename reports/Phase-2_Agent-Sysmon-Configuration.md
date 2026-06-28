@@ -1,240 +1,240 @@
-# TRIỂN KHAI CẤU HÌNH WAZUH AGENT TRÊN ENDPOINT (PHASE 2)
+# Deploy Wazuh Agent Configuration on Endpoint (Phase 2)
 
-* **Dự án:** Nghiên cứu Kỹ thuật Phát hiện và Hệ thống Wazuh SIEM
-* **Vị trí giả lập:** SOC Engineer / Detection Engineer
-* **Môi trường thực hiện:** Windows 10 Pro (Máy ảo Victim chạy trên VMware)
-* **Mục tiêu Phase 2:** Thực hiện đóng gói, cài đặt và kích hoạt hệ thống thu thập log (Wazuh Agent) trên máy trạm mục tiêu; thiết lập cơ chế xác thực an toàn (Authentication Key) để thiết lập kênh giao tiếp mã hóa thời gian thực về máy chủ trung tâm.
+* **Project:** Research Detection Techniques and Wazuh SIEM System
+* **Simulated Role:** SOC Engineer / Detection Engineer
+* **Execution Environment:** Windows 10 Pro (Victim VM running on VMware)
+* **Phase 2 Objective:** Package, install, and activate the log collection system (Wazuh Agent) on the target endpoint; establish a secure authentication mechanism (Authentication Key) to set up a real-time encrypted communication channel to the central server.
 
 ---
 
-## I. QUY TRÌNH CÀI ĐẶT VÀ KHỞI TẠO ĐĂNG KÝ XÁC THỰC (AGENT ENROLLMENT)
+## I. Installation and Authentication Registration Workflow (Agent Enrollment)
 
-Bản chất của Wazuh Agent trên Windows hoạt động như một dịch vụ hệ thống chạy ngầm (`WazuhSvc`). Để đảm bảo an toàn thông tin, Agent không thể kết nối tự do mà bắt buộc phải thực hiện thủ tục đăng ký để nhận "Thẻ thông hành" mã hóa từ Wazuh Manager.
+The nature of Wazuh Agent on Windows operates as a background system service (`WazuhSvc`). To ensure information security, Agent cannot connect freely and must perform a registration procedure to receive an encrypted "Passport" from Wazuh Manager.
 
-### 1. Triển khai cài đặt gói phần mềm
+### 1. Deploy Software Package Installation
 
-* **Phiên bản đồng bộ:** `wazuh-agent-4.14.5-1.msi` (Đảm bảo khớp phiên bản với cụm trung tâm để tránh xung đột thư viện điều hướng log).
-* **Yêu cầu hệ thống:** Thực thi dưới quyền quản trị tối cao (`Administrator`) để có quyền can thiệp vào phân hệ quản lý dịch vụ Windows Services.
+* **Synchronized version:** `wazuh-agent-4.14.5-1.msi` (Ensure version matches central cluster to avoid log routing library conflicts).
+* **System requirements:** Execute with highest administrative privileges (`Administrator`) to have permission to intervene in Windows Services management subsystem.
 
-### 2. Chuỗi lệnh cấu hình và ép nạp khóa xác thực (CLI Hardening)
+### 2. Configuration Command Chain and Force Load Authentication Key (CLI Hardening)
 
-Khi cài đặt bằng giao diện hoặc dòng lệnh cơ bản, hệ thống sẽ báo lỗi `Agent: Auth key not imported` và duy trì trạng thái `Not Running`. Tiến hành xử lý dứt điểm bằng cách mở **Command Prompt (CMD)** với quyền **Run as Administrator** và thực thi chuỗi lệnh sau:
+When installing via interface or basic command line, the system will report `Agent: Auth key not imported` error and maintain `Not Running` status. Proceed to resolve completely by opening **Command Prompt (CMD)** with **Run as Administrator** and executing the following command chain:
 
 ```cmd
-:: 1. Di chuyển vào thư mục phân phối gốc của Agent
+:: 1. Navigate to Agent's root distribution directory
 cd "C:\Program Files (x86)\ossec-agent"
 
-:: 2. Khai báo IP máy chủ Manager để kích hoạt tiến trình xin cấp khóa tự động
+:: 2. Declare Manager server IP to activate automatic key request process
 agent-auth.exe -m 192.168.71.128
 
-:: 3. Tái khởi động dịch vụ hệ thống để áp dụng cấu hình mới
+:: 3. Restart system service to apply new configuration
 NET STOP WazuhSvc
 NET START WazuhSvc
 ```
 
-### 3. Kiểm chứng trạng thái hoạt động cục bộ trên Endpoint
+### 3. Validate Local Operational Status on Endpoint
 
-Màn hình Command Prompt xuất hiện thông báo `Valid key received. Merging key and restarting...` và dịch vụ báo `started successfully`. Khi gọi giao diện quản trị nội bộ bằng tệp `win32ui.exe` (hoặc `wazuh-agentui.exe`), hệ thống xác nhận:
+Command Prompt screen displays `Valid key received. Merging key and restarting...` message and service reports `started successfully`. When calling internal management interface via `win32ui.exe` (or `wazuh-agentui.exe`) file, system confirms:
 
-* **Manager IP:** Ghi nhận chính xác địa chỉ `192.168.71.128`.
-* **Authentication Key:** Tự động điền chuỗi khóa băm bảo mật được cấp phát từ máy chủ.
-* **Status:** Chuyển sang trạng thái **`Running`**.
+* **Manager IP:** Correctly records `192.168.71.128` address.
+* **Authentication Key:** Automatically fills secure hash key string issued by server.
+* **Status:** Switches to **`Running`** status.
 
-![CMD thực thi lệnh xin cấp khóa thành công và giao diện đồ họa Wazuh Agent đạt trạng thái Status: Running](images/phase2/Install-wazuh-agent.png)
-
----
-
-## II. KIỂM TRA ĐỘ ỔN ĐỊNH VÀ THÔNG LUỒNG DỮ LIỆU TRÊN SOC DASHBOARD
-
-Sau khi Agent trên máy Victim kích hoạt trạng thái `Running`, luồng dữ liệu an ninh mạng ngay lập tức được đóng gói, mã hóa và đẩy về cổng dịch vụ trung tâm của Wazuh Manager.
-
-### 1. Xác thực kết nối tổng quan (Agents Summary)
-
-Truy cập giao diện Web Dashboard trung tâm tại địa chỉ `https://192.168.71.128`, hệ thống hiển thị biểu đồ trạng thái của toàn bộ hạ tầng giám sát:
-
-* **Mục Active:** Chỉ số nhảy từ `0` lên **`1`** (Xác nhận có 1 Agent kết nối trực tiếp thành công).
-* **Mục Disconnected:** Hiển thị `0` (Không có thiết bị kẹt kết nối hoặc mất tín hiệu).
-
-### 2. Thu nhận tín hiệu Log hệ thống ban đầu
-
-Mặc dù chưa triển khai các kịch bản tấn công thực chiến, phân hệ **Last 24 Hours Alerts** đã bắt đầu ghi nhận các sự kiện an ninh tiêu chuẩn được đẩy về từ máy trạm Windows 10 (bao gồm log kiểm toán hệ thống, sự thay đổi trạng thái tiến trình cục bộ) thuộc các phân lớp cảnh báo trung bình và thấp (`Medium severity` và `Low severity`). Điều này minh chứng kênh truyền thông SOC đã thông suốt 100%.
-
-![Giao diện chính của Wazuh Dashboard với trạng thái Active (1) và biểu đồ cảnh báo đang thu nhận tín hiệu real-time](images/phase2/check-active.png)
-
----
-## III. CÀI ĐẶT VÀ CẤU HÌNH MICROSOFT SYSMON v15.2
-
-### 1. TỔNG QUAN VỀ KHẢ NĂNG CỦA SYSMON
-
-System Monitor (Sysmon) là một dịch vụ hệ thống và trình điều khiển (driver) của Windows. Sau khi cài đặt, Sysmon sẽ chạy ẩn liên tục ngay cả khi khởi động lại máy để giám sát và ghi lại các hành vi chuyên sâu vào Windows Event Log.
-
-Khi kết hợp các sự kiện của Sysmon với các hệ thống SIEM (như Wazuh), chuyên gia phân tích SOC có thể dễ dàng phát hiện các hành vi bất thường và cách thức hoạt động của mã độc. Dịch vụ này chạy dưới dạng một tiến trình được bảo vệ (Protected Process), ngăn chặn hầu hết các hành vi can thiệp trái phép từ phía người dùng.
+![CMD executes key request command successfully and Wazuh Agent graphical interface reaches Status: Running](images/phase2/Install-wazuh-agent.png)
 
 ---
 
-### 2. HƯỚNG DẪN CÀI ĐẶT CHI TIẾT (MÁY WINDOWS VICTIM)
+## II. Check Stability and Data Flow on SOC Dashboard
 
-Để triển khai Sysmon trên máy ảo Windows mục tiêu, bạn thực hiện theo các bước dòng lệnh chuẩn sau đây. **Lưu ý:** Tiến trình cài đặt hoàn toàn không yêu cầu khởi động lại máy ảo.
+After Agent on Victim machine activates `Running` status, network security data flow is immediately packaged, encrypted, and pushed to Wazuh Manager's central service port.
 
-- Bước 1: Khởi chạy môi trường Quyền Quản trị
+### 1. Validate Overall Connection (Agents Summary)
 
-Bấm nút `Start` $\rightarrow$ Gõ `cmd` $\rightarrow$ Nhấp chuột phải vào **Command Prompt** $\rightarrow$ Chọn **Run as administrator**.
+Access central Web Dashboard interface at `https://192.168.71.128` address, system displays status chart of entire monitoring infrastructure:
 
-- Bước 2: Di chuyển đến thư mục chứa bộ cài Sysmon
+* **Active section:** Metric jumps from `0` to **`1`** (Confirm 1 Agent successfully connected directly).
+* **Disconnected section:** Displays `0` (No devices stuck connecting or losing signal).
 
-Sử dụng lệnh `cd` để di chuyển vào thư mục mà bạn đã giải nén tệp tải về (Ví dụ: thư mục Downloads):
+### 2. Receive Initial System Log Signals
+
+Although real attack scenarios have not been deployed, the **Last 24 Hours Alerts** subsystem has started recording standard security events pushed from Windows 10 endpoint (including system audit logs, local process status changes) belonging to medium and low alert severity classes (`Medium severity` and `Low severity`). This proves the SOC communication channel is 100%通畅.
+
+![Wazuh Dashboard main interface with Active (1) status and alert chart receiving real-time signals](images/phase2/check-active.png)
+
+---
+## III. Install and Configure Microsoft Sysmon v15.2
+
+### 1. Overview of Sysmon Capabilities
+
+System Monitor (Sysmon) is a Windows system service and driver. After installation, Sysmon will run hidden continuously even when restarting the machine to monitor and record in-depth behaviors into Windows Event Log.
+
+When combining Sysmon events with SIEM systems (like Wazuh), SOC analysis experts can easily detect abnormal behaviors and how malware operates. This service runs as a protected process (Protected Process), preventing most unauthorized intervention behaviors from users.
+
+---
+
+### 2. Detailed Installation Guide (Windows Victim Machine)
+
+To deploy Sysmon on target Windows VM, you follow the standard command-line steps below. **Note:** The installation process completely does not require restarting the VM.
+
+- Step 1: Launch Administrator Privilege Environment
+
+Press `Start` button → Type `cmd` → Right-click **Command Prompt** → Select **Run as administrator**.
+
+- Step 2: Navigate to Directory Containing Sysmon Installer
+
+Use `cd` command to navigate to the directory where you extracted the downloaded file (Example: Downloads folder):
 
 ```cmd
 cd "C:\Users\testw\Downloads\Sysmon"
 ```
 
-(Tài liệu lưu ý bộ cài chuẩn cho cấu trúc 64-bit sẽ sử dụng tệp tin thực thi mang tên `sysmon64.exe` hoặc `sysmon.exe`).
+(Note that standard installer for 64-bit architecture will use executable file named `sysmon64.exe` or `sysmon.exe`).
 
-- Bước 3: Thực thi lệnh cài đặt hệ thống
-* **Cài đặt đi kèm File cấu hình XML:**
-Áp dụng các bộ lọc nạp sẵn từ tệp cấu hình (ví dụ file `sysmon-config.xml`) để lọc bỏ các tiến trình nhiễu và bật giám sát chuyên sâu
+- Step 3: Execute System Installation Command
+* **Install with accompanying XML Configuration File:**
+Apply pre-loaded filters from configuration file (example `sysmon-config.xml` file) to filter out noisy processes and enable in-depth monitoring
 ```cmd
 sysmon64.exe -c sysmon-config.xml
 ```
-![Cài đặt sysmon](images/phase2/config-sysmon.png)
-* Bạn có thể tham khảo file sysmon-config.xml của mình như sau:
+![Install sysmon](images/phase2/config-sysmon.png)
+* You can refer to your sysmon-config.xml file as follows:
 ```
-<Sysmon schemaversion="4.90">
-  <HashAlgorithms>MD5,SHA256</HashAlgorithms>
-  <EventFiltering>
-    <ProcessCreate onmatch="exclude">
-    </ProcessCreate>
+&lt;Sysmon schemaversion="4.90"&gt;
+  &lt;HashAlgorithms&gt;MD5,SHA256&lt;/HashAlgorithms&gt;
+  &lt;EventFiltering&gt;
+    &lt;ProcessCreate onmatch="exclude"&gt;
+    &lt;/ProcessCreate&gt;
 
-    <NetworkConnect onmatch="include">
-      <Image condition="contains">cmd.exe</Image>
-      <Image condition="contains">powershell.exe</Image>
-    </NetworkConnect>
+    &lt;NetworkConnect onmatch="include"&gt;
+      &lt;Image condition="contains"&gt;cmd.exe&lt;/Image&gt;
+      &lt;Image condition="contains"&gt;powershell.exe&lt;/Image&gt;
+    &lt;/NetworkConnect&gt;
 
-    <FileCreate onmatch="include">
-      <TargetFilename condition="contains">\.exe</TargetFilename>
-      <TargetFilename condition="contains">\.ps1</TargetFilename>
-      <TargetFilename condition="contains">\.bat</TargetFilename>
-    </FileCreate>
-  </EventFiltering>
-</Sysmon>
+    &lt;FileCreate onmatch="include"&gt;
+      &lt;TargetFilename condition="contains"&gt;\.exe&lt;/TargetFilename&gt;
+      &lt;TargetFilename condition="contains"&gt;\.ps1&lt;/TargetFilename&gt;
+      &lt;TargetFilename condition="contains"&gt;\.bat&lt;/TargetFilename&gt;
+    &lt;/FileCreate&gt;
+  &lt;/EventFiltering&gt;
+&lt;/Sysmon&gt;
 ```
 ---
 
-### 3. BẢNG TRA CỨU NHANH CÁC LỆNH QUẢN TRỊ SYSMON
+### 3. Quick Reference Table of Sysmon Administration Commands
 
-Sau khi cài đặt thành công, bạn có thể quản trị dịch vụ Sysmon trực tiếp bằng các cú pháp lệnh sau:
+After successful installation, you can manage Sysmon service directly with the following command syntax:
 
-| Cú pháp dòng lệnh | Mục đích thực thi kỹ thuật |
-| --- | --- |
-| `sysmon64 -c` | Xuất (Dump) toàn bộ cấu hình hiện tại của Sysmon ra màn hình.|
-| `sysmon64 -c <path_to_config.xml>` | Cập nhật/Nạp đè một file cấu hình lọc sự kiện mới vào driver đang chạy.|
-| `sysmon64 -c --` | Xóa bỏ file cấu hình tùy biến, đưa Sysmon về trạng thái cấu hình mặc định.|
-| `sysmon64 -s` | In toàn bộ định dạng sơ đồ cấu trúc dữ liệu (Configuration Schema) của các sự kiện.|
-| `sysmon64 -u` | Gỡ bỏ (Uninstall) hoàn toàn dịch vụ và trình điều khiển Sysmon ra khỏi Windows.|
+| Command-line Syntax | Technical Execution Purpose |
+| ------------------- | ---------------------------- |
+| `sysmon64 -c`       | Dump (Export) entire current Sysmon configuration to screen. |
+| `sysmon64 -c <path_to_config.xml>` | Update/Overwrite a new event filter configuration file into running driver. |
+| `sysmon64 -c --`    | Remove custom configuration file, return Sysmon to default configuration status. |
+| `sysmon64 -s`       | Print entire data structure schema format (Configuration Schema) of events. |
+| `sysmon64 -u`       | Completely uninstall (Remove) Sysmon service and driver from Windows. |
 
 ---
 
-### 4. ĐƯỜNG DẪN KIỂM TRA LOG TRÊN WINDOWS EVENT VIEWER
+### 4. Guide to Check Logs on Windows Event Viewer
 
-Sau khi cài đặt thành công, toàn bộ log do Sysmon kiểm toán sẽ được lưu trữ dưới dạng chuẩn thời gian UTC tại đường dẫn cố định sau trên hệ điều hành Windows (từ phiên bản Windows Vista trở lên):
+After successful installation, all logs audited by Sysmon will be stored in standard UTC time format at the following fixed path on Windows operating system (from Windows Vista onwards):
 
 📂 **`Applications and Services Logs / Microsoft / Windows / Sysmon / Operational`**
 
 ---
 
-### 5. TÓM TẮT CÁC MÃ SỰ KIỆN (EVENT IDs) SỐNG CÒN TRONG LAB TẤN CÔNG
+### 5. Summary of Remaining Live Event IDs (Event IDs) in Attack Lab
 
-Để cấu hình file `ossec.conf` của Wazuh thu giữ chính xác luồng dữ liệu, bạn cần đặc biệt lưu ý các Event ID trọng tâm sau:
+To configure Wazuh's `ossec.conf` file to accurately capture data flow, you need to pay special attention to the following core Event IDs:
 
-* **Event ID 1 (Process creation):** Ghi lại chi tiết mọi tiến trình được tạo ra, bao gồm **toàn bộ dòng lệnh thực thi (Full command line)** của cả tiến trình hiện tại và tiến trình cha. Cực kỳ hữu ích để bắt hành vi hacker chạy lệnh shell.
-
-
-* **Event ID 2 (A process changed a file creation time):** Phát hiện kỹ thuật "đổi dòng thời gian" file (Timestomping). Kỹ thuật này thường được mã độc dùng để sửa ngày tạo tệp tin cắm lén (backdoor) trùng với ngày cài OS nhằm qua mặt người quản trị.
+* **Event ID 1 (Process creation):** Record detailed information of every created process, including **full command line executed** of both current process and parent process. Extremely useful for capturing hacker behavior running shell commands.
 
 
-* **Event ID 3 (Network connection):** Ghi lại toàn bộ các kết nối TCP/UDP trên máy. Cho biết rõ IP nguồn/đích, Port nguồn/đích, và tên tiến trình nào đang thực hiện kết nối mạng (Mặc định bị tắt, phải bật qua file cấu hình).
+* **Event ID 2 (A process changed a file creation time):** Detect file "timestamp manipulation" technique (Timestomping). This technique is often used by malware to modify backdoor file creation date to match OS installation date to evade administrators.
 
 
-* **Event ID 8 (CreateRemoteThread):** Phát hiện kỹ thuật tiêm mã độc (Code Injection) khi một tiến trình tự ý tạo một luồng thực thi (thread) ẩn bên trong một tiến trình hợp pháp khác.
+* **Event ID 3 (Network connection):** Record all TCP/UDP connections on the machine. Clearly shows source/destination IP, source/destination port, and which process name is performing network connection (Disabled by default, must enable via configuration file).
 
 
-* **Event ID 9 (RawAccessRead):** Phát hiện hành vi đọc trực tiếp ổ đĩa bằng ký tự phân định `\\.\`. Kỹ thuật này giúp mã độc bypass (vượt qua) các công cụ kiểm toán tệp tin thông thường để đánh cắp các tệp hệ thống đang bị khóa.
+* **Event ID 8 (CreateRemoteThread):** Detect code injection technique when a process arbitrarily creates an execution thread (thread) hidden inside another legitimate process.
 
 
-* **Event ID 11 (FileCreate):** Ghi nhận mọi hành vi tạo mới hoặc ghi đè tệp tin. Rất quan trọng để giám sát các phân vùng nhạy cảm như thư mục Startup, thư mục Tạm (Temp) hay thư mục Downloads.
+* **Event ID 9 (RawAccessRead):** Detect behavior of directly reading disk with delimiter character `\\.\`. This technique helps malware bypass (evade) regular file audit tools to steal locked system files.
 
 
-* **Event ID 12, 13, 14 (RegistryEvent):** Giám sát các hành vi tạo, xóa, đổi tên hoặc thay đổi giá trị trong Registry. Giúp phát hiện mã độc tạo cơ chế bất tử (Persistence) tại các vùng khởi động tự động (Autostart).
+* **Event ID 11 (FileCreate):** Record every behavior of creating new or overwriting files. Very important for monitoring sensitive partitions like Startup folder, Temp folder or Downloads folder.
 
 
-* **Event ID 22 (DNSEvent):** Ghi lại toàn bộ các truy vấn tên miền DNS của mọi ứng dụng (thành công hoặc thất bại), giúp phát hiện lưu lượng kết nối về máy chủ điều khiển C2 của hacker.
+* **Event ID 12, 13, 14 (RegistryEvent):** Monitor behaviors of creating, deleting, renaming or changing values in Registry. Help detect malware creating persistence mechanism in autostart regions.
 
 
-### 6. QUY TRÌNH THÔNG LUỒNG VÀ KHỞI CHẠY SỰ KIỆN GIẢ LẬP
+* **Event ID 22 (DNSEvent):** Record all DNS domain name queries of every application (successful or failed), help detect connection traffic to hacker's C2 control server.
 
-Để kiểm chứng khả năng bắt log chuyên sâu của Sysmon phối hợp cùng hệ thống SIEM, chúng ta cần thực hiện các bước chuẩn bị hạ tầng nhằm xóa bỏ hoàn toàn các rào cản lọc log mặc định của hệ thống.
 
-#### a. Các bước chuẩn bị tiên quyết (Prerequisites)
-1. **Kích hoạt toàn bộ các container dịch vụ trên máy chủ Ubuntu:**
+### 6. Data Flow Workflow and Launch Simulated Events
+
+To validate Sysmon's deep log capture capability coordinated with SIEM system, we need to perform infrastructure preparation steps to completely remove all default log filter barriers of the system.
+
+#### a. Prerequisite Preparation Steps
+1. **Activate all service containers on Ubuntu server:**
 ```bash
 sudo docker compose up -d
 ```
 
-2. **Kích hoạt lại dịch vụ Wazuh Agent trên máy Windows Victim:**
-Mở CMD với quyền Admin và thực thi:
+2. **Reactivate Wazuh Agent service on Windows Victim machine:**
+Open CMD with Admin privileges and execute:
 ```cmd
 NET START WazuhSvc
 ```
-3. **Hạ ngưỡng chặn cảnh báo trên Wazuh Manager (Ubuntu):** Mặc định, Wazuh Manager chỉ đẩy lên giao diện Web các log có `Rule Level >= 3`. Vì hành vi gõ lệnh thông thường hoặc thiết lập mạng của Sysmon đôi khi bị xếp ở nhóm kiểm toán an toàn (Level thấp từ 0 đến 2), ta cần can thiệp vào file `/var/ossec/etc/ossec.conf` bên trong container `single-node-wazuh.manager-1`, sửa cấu hình thẻ `<log_alert_level>` từ `3` về số **`0`**. Thao tác này ép hệ thống ghi nhận toàn bộ log thực chiến lên Dashboard, tránh việc log bị ẩn ngầm dưới file thô `alerts.json`.
-4. **Vô hiệu hóa Tường lửa vùng biên (Firewall Bypass):** Tắt hoàn toàn Windows Defender Firewall trên máy Victim để đảm bảo cổng mạng kết nối `1514/TCP` (luồng đẩy log mã hóa từ Agent sang Manager) được thông suốt, không bị chặn ngầm bởi chính sách bảo mật cục bộ của Windows.
+3. **Lower alert blocking threshold on Wazuh Manager (Ubuntu):** By default, Wazuh Manager only pushes logs with `Rule Level >= 3` to Web interface. Because normal command typing behavior or Sysmon network setup is sometimes classified in the safe audit group (low Level from 0 to 2), we need to intervene in `/var/ossec/etc/ossec.conf` file inside `single-node-wazuh.manager-1` container, modify `<log_alert_level>` tag configuration from `3` to number **`0`**. This operation forces the system to record all real logs to Dashboard, avoiding logs being hidden silently under raw `alerts.json` file.
+4. **Disable Border Firewall (Firewall Bypass):** Completely turn off Windows Defender Firewall on Victim machine to ensure network connection port `1514/TCP` (encrypted log push flow from Agent to Manager) is通畅, not silently blocked by Windows local security policy.
 
-#### b. Tiến hành tạo sự kiện giả lập trên máy Windows 10 Victim
+#### b. Proceed to Create Simulated Events on Windows 10 Victim Machine
 
-Sau khi xác nhận trạng thái máy trạm hiển thị `Active` trên Dashboard, ta tiến hành tạo ra một hành vi thực thi lệnh (Execution) có độ phủ lớn để ép Sysmon sinh cả Event ID 1 (Process Creation) và Event ID 3 (Network Connection):
+After confirming endpoint status displays `Active` on Dashboard, we proceed to create an execution behavior (Execution) with large coverage to force Sysmon to generate both Event ID 1 (Process Creation) and Event ID 3 (Network Connection):
 
-1. Trên máy Windows 10 Victim, mở cửa sổ **Command Prompt (CMD)** hoặc **PowerShell** thông thường.
-2. Thực thi câu lệnh gọi trình bao lồng nhau và thiết lập phiên kết nối web HTTP/HTTPS ra ngoài Internet:
+1. On Windows 10 Victim machine, open normal **Command Prompt (CMD)** or **PowerShell** window.
+2. Execute command calling nested shell and establish HTTP/HTTPS web session to external Internet:
 ```cmd
 powershell -Command "Invoke-WebRequest -Uri [https://google.com](https://google.com)"
 ```
-- Kiểm tra kết quả trên Web Dashboard 
-    - Bây giờ, bạn mở trình duyệt trên máy thật, truy cập vào giao diện quản trị **Wazuh Dashboard** (`[https://192.168.71.128](https://192.168.71.128)`) để săn tìm đống log vừa sinh ra:
-1. Trên thanh menu điều hướng bên trái (biểu tượng 3 dấu gạch ngang) $\rightarrow$ Chọn **Threat Intelligence (sau chọn Threat Hunting)** $\rightarrow$ Sau đó chọn tab **Events** (nằm ngay cạnh tab Dashboard).
-2. Ta xem Document Details sẽ thấy:
+- Check results on Web Dashboard
+  - Now, you open browser on real machine, access **Wazuh Dashboard** management interface (`[https://192.168.71.128](https://192.168.71.128)`) to hunt for the newly generated logs:
+1. On left navigation menu bar (three horizontal lines icon) → Select **Threat Intelligence (then select Threat Hunting)** → Then select **Events** tab (located right next to Dashboard tab).
+2. We view Document Details will see:
 ```
 data.win.eventdata.commandLine
-\"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -Command \"Invoke-WebRequest -Uri https://google.com\"
+"C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe" -Command "Invoke-WebRequest -Uri https://google.com"
 ```
-![Kết quả sau sự kiện giả lập](images/phase2/check%20sysmon.png)
+![Results after simulated event](images/phase2/check%20sysmon.png)
 ---
 
 
-## IV. ĐỊNH HƯỚNG BƯỚC TIẾP THEO (PHASE 3): MÔ PHỎNG TẤN CÔNG THỰC CHIẾN VÀ XÂY DỰNG LUẬT PHÁT HIỆN TÙY BIẾN (DETECTION ENGINEERING)
+## IV. Next Steps Direction (Phase 3): Simulate Real-World Attacks and Build Custom Detection Rules (Detection Engineering)
 
-Sau khi hoàn thành giai đoạn Phase 2 – thông nòng thành công đường ống dẫn log (Log Ingestion Pipeline) từ **Sysmon $\rightarrow$ Wazuh Agent $\rightarrow$ Wazuh Manager $\rightarrow$ Indexer/Dashboard** và hạ ngưỡng lọc an toàn về Level 0, toàn bộ hạ tầng SOC Lab đã sẵn sàng cho giai đoạn cốt lõi tiếp theo.
+After completing Phase 2 – successfully打通 log pipeline (Log Ingestion Pipeline) from **Sysmon → Wazuh Agent → Wazuh Manager → Indexer/Dashboard** and lowering safety filter threshold to Level 0, the entire SOC Lab infrastructure is ready for the next core phase.
 
-Định hướng nghiên cứu và thực thi kỹ thuật trong **Phase 3** sẽ tập trung vào các trục mục tiêu trọng tâm sau:
+Research and technique execution direction in **Phase 3** will focus on the following core target axes:
 
-### 1. Hiện thực hóa các kịch bản tấn công thực chiến (Attack Simulation)
+### 1. Implement Real-World Attack Scenarios (Attack Simulation)
 
-Thay vì sử dụng các câu lệnh giả lập vô hại mang tính chất kiểm tra thông luồng mạng đơn thuần, Phase 3 sẽ triển khai các kỹ thuật tấn công chuyên sâu mô phỏng theo ma trận **MITRE ATT&CK Framework**, tác động trực tiếp lên hệ điều hành máy trạm Windows 10 Victim:
+Instead of using harmless simulated commands purely for checking network data flow, Phase 3 will deploy in-depth attack techniques simulated according to **MITRE ATT&amp;CK Framework** matrix, directly impacting Windows 10 Victim machine's operating system:
 
-* **Credential Access (Gợi ý dùng Mimikatz):** Giả lập hành vi kết xuất bộ nhớ của tiến trình `lsass.exe` để đánh cắp tài khoản (Credential Dumping), kích hoạt cảnh báo cực kỳ nghiêm trọng liên quan đến Event ID 10 (ProcessAccess) và Event ID 1 của Sysmon.
-* **Persistence (Tạo cơ chế bất tử):** Giả lập hành vi của mã độc khi cố tình cắm rễ vào hệ thống bằng cách tạo các tác vụ chạy ngầm độc hại qua `Schtasks`, hoặc chỉnh sửa các khóa Registry khởi động tự động (`Run/RunOnce`), ép Sysmon kích hoạt chuỗi Event ID 12, 13 (RegistryEvent).
-* **Defense Evasion (Hành vi lẩn trốn):** Thử nghiệm các kỹ thuật bypass của Hacker như tắt dịch vụ bảo mật bằng lệnh `net stop` hoặc sử dụng các tiến trình hợp pháp của Windows để thực thi mã độc (LOLBins).
+* **Credential Access (Recommend using Mimikatz):** Simulate behavior of dumping `lsass.exe` process memory to steal credentials (Credential Dumping), trigger extremely severe alerts related to Sysmon Event ID 10 (ProcessAccess) and Event ID 1.
+* **Persistence (Create persistence mechanism):** Simulate malware behavior when intentionally implanting into system by creating malicious background tasks via `Schtasks`, or modifying autostart Registry keys (`Run/RunOnce`), force Sysmon to trigger Event ID 12, 13 (RegistryEvent) chain.
+* **Defense Evasion (Evasion behavior):** Test hacker bypass techniques like turning off security services via `net stop` command or using legitimate Windows processes to execute malware (LOLBins).
 
-### 2. Phát triển luật phân tích tùy biến (Custom Rules & Decoders)
+### 2. Develop Custom Analysis Rules (Custom Rules &amp; Decoders)
 
-Mặc dù hệ thống Wazuh sở hữu kho luật mặc định rất đồ sộ, nhưng đối với các kỹ thuật tấn công tinh vi (như sử dụng chuỗi EICAR mã độc lưu dưới dạng văn bản bí mật hoặc các câu lệnh PowerShell mồi nâng cao), các luật cơ bản có thể bỏ sót hoặc chỉ đánh giá ở Level thấp:
+Although Wazuh system has a very large default rule repository, for sophisticated attack techniques (like using EICAR malware string stored as secret text file or advanced PowerShell bait commands), basic rules may miss or only evaluate at low Level:
 
-* **Can thiệp tệp tin `local_rules.xml`:** Tiến hành truy cập vào bên trong cấu trúc thư mục cấu hình của Wazuh Manager trên máy chủ Ubuntu để viết thêm các khối luật logic riêng.
-* **Tối ưu hóa mức độ cảnh báo (Rule Level Tuning):** Thiết lập các điều kiện lọc thông minh dựa trên các trường dữ liệu "đắt giá" thu về từ Sysmon như `data.win.eventdata.image`, `data.win.eventdata.commandLine`, hay `data.win.eventdata.parentImage`. Ép hệ thống nâng mức cảnh báo lên **Level 10 - 15 (High/Critical Severity)** ngay khi phát hiện chuỗi ký tự độc hại đặc trưng.
+* **Intervene in `local_rules.xml` file:** Proceed to access inside Wazuh Manager's configuration directory structure on Ubuntu server to write additional custom logic rule blocks.
+* **Optimize alert level (Rule Level Tuning):** Set up intelligent filter conditions based on "valuable" data fields received from Sysmon like `data.win.eventdata.image`, `data.win.eventdata.commandLine`, or `data.win.eventdata.parentImage`. Force system to raise alert level to **Level 10 - 15 (High/Critical Severity)** immediately upon detecting characteristic malicious character strings.
 
-### 3. Chuẩn hóa quy trình vận hành và Giám sát an ninh (SOC Operational Framework)
+### 3. Standardize Operational Workflow and Security Monitoring (SOC Operational Framework)
 
-* **Xây dựng Dashboard trực quan chuyên dụng (Custom Visualization):** Thiết lập các bộ lọc ghim cố định (Pinned Filters), Gom cụm (Aggregations) trên phân hệ Threat Hunting để tạo ra một biểu đồ theo dõi riêng biệt dành cho luồng log Sysmon độc hại.
-* **Nghiên cứu cơ chế Phản ứng chủ động (Active Response):** Khảo sát cấu hình trong file `ossec.conf` của Manager để tự động kích hoạt các đoạn script bọc sẵn (như chạy lệnh cách ly IP, ngắt tiến trình độc hại ngầm dưới máy Windows Victim) ngay khi hệ thống SOC phát hiện cảnh báo ở mức nguy hiểm, hoàn thiện mô hình vòng lặp khép kín: **Phát hiện $\rightarrow$ Phân tích $\rightarrow$ Cảnh báo $\rightarrow$ Ngăn chặn tự động.**
+* **Build dedicated intuitive Dashboard (Custom Visualization):** Set up pinned fixed filters (Pinned Filters), Aggregations on Threat Hunting subsystem to create a separate monitoring chart for malicious Sysmon log flow.
+* **Research Active Response mechanism:** Investigate configuration in Manager's `ossec.conf` file to automatically trigger pre-wrapped scripts (like running IP isolation command, silently terminate malicious process on Windows Victim machine) immediately upon SOC system detecting dangerous level alerts, completing closed-loop cycle model: **Detect → Analyze → Alert → Auto-block**.
 
 ## References
-- [Cài đặt sysmon](https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon)
-- [Cài đặt Wazuh agent](https://documentation.wazuh.com/current/installation-guide/wazuh-agent/index.html)
+- [Install sysmon](https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon)
+- [Install Wazuh agent](https://documentation.wazuh.com/current/installation-guide/wazuh-agent/index.html)

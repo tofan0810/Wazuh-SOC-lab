@@ -1,96 +1,96 @@
-# TRIỂN KHAI HẠ TẦNG WAZUH SIEM (PHASE 1)
+# Deploy Wazuh SIEM Infrastructure (Phase 1)
 
-* **Dự án:** Nghiên cứu Kỹ thuật Phát hiện và Hệ thống Wazuh SIEM
-* **Vị trí giả lập:** SOC Engineer / Detection Engineer
-* **Môi trường thực hiện:** Ubuntu Server v24.04 / v22.04 LTS (Chạy trên VMware Workstation)
-* **Mục tiêu Phase 1:** Triển khai thành công cụm trung tâm Wazuh Stack (Indexer, Manager, Dashboard) bằng Docker Compose, tối ưu hóa tài nguyên phần cứng, mở rộng không gian lưu trữ đĩa và cấu hình thay đổi mật khẩu quản trị bảo mật hệ thống.
+* **Project:** Research Detection Techniques and Wazuh SIEM System
+* **Simulated Role:** SOC Engineer / Detection Engineer
+* **Execution Environment:** Ubuntu Server v24.04 / v22.04 LTS (Running on VMware Workstation)
+* **Phase 1 Objective:** Successfully deploy the central Wazuh Stack cluster (Indexer, Manager, Dashboard) using Docker Compose, optimize hardware resources, expand disk storage space, and configure secure admin password changes.
 
 ---
 
-## I. CHUẨN BỊ TÀI NGUYÊN & CẤU HÌNH NHÂN (KERNEL HARDENING)
+## I. Prepare Resources &amp; Configure Kernel Hardening
 
-Wazuh Indexer sử dụng lõi lưu trữ phân tích dữ liệu lớn dựa trên nền tảng OpenSearch (Java). Hệ thống yêu cầu cấu hình bộ nhớ ảo của nhân Linux cao hơn mức mặc định để tránh hiện tượng nghẽn hoặc sập tiến trình (crash) khi khởi động.
+Wazuh Indexer uses a large data analysis storage core based on the OpenSearch (Java) platform. The system requires configuring the Linux kernel's virtual memory higher than default to avoid bottlenecks or process crashes during startup.
 
-### 1. Phân bổ tài nguyên máy ảo ban đầu (Ubuntu Server)
-* **vCPU:** 2 Cores (tối thiểu).
-* **RAM:** 4GB RAM (Mức tối thiểu vận hành cho môi trường Lab đơn Agent).
-* **Storage:** Cấu hình mở rộng đạt **65GB SSD** (Nới rộng phân vùng hệ thống để đảm bảo không gian lưu trữ log và tệp tin đệm).
+### 1. Allocate Initial VM Resources (Ubuntu Server)
+* **vCPU:** 2 Cores (minimum).
+* **RAM:** 4GB RAM (Minimum operational level for single-agent lab environment).
+* **Storage:** Configure expansion to reach **65GB SSD** (Expand system partition to ensure log storage space and cache files).
 
-### 2. Cấu hình mở rộng không gian ổ đĩa hệ thống (Disk Partition Resizing)
-Sau khi thực hiện mở rộng dung lượng phần cứng trên VMware từ 40GB lên 65GB, tiến hành đồng bộ phân vùng logic của hệ điều hành Ubuntu để nhận trọn vẹn 25GB không gian trống cấp thêm bằng công cụ dòng lệnh:
+### 2. Configure System Disk Space Expansion (Disk Partition Resizing)
+After expanding hardware capacity on VMware from 40GB to 65GB, proceed to synchronize the Ubuntu operating system's logical partition to fully utilize the additional 25GB of free space using command-line tools:
 
 ```bash
-# 1. Yêu cầu nhân Linux quét lại kích thước phân vùng sda2
+# 1. Request Linux kernel to rescan sda2 partition size
 sudo resizepart /dev/sda 2
 
-# 2. Ép hệ thống tệp tin (File System) nới rộng không gian lưu trữ thực tế
+# 2. Force file system to expand actual storage space
 sudo resize2fs /dev/sda2
 ```
-Kiểm tra lại không gian lưu trữ bằng lệnh `df -h /`, hệ thống xác nhận dung lượng phân vùng đạt mức **~63GB** với không gian trống khả dụng lớn (Sẵn sàng chống nghẽn đĩa).
+Check storage space again with `df -h /`, system confirms partition capacity reaches **~63GB** with large available free space (Ready to prevent disk bottlenecks).
 
-### 3. Cấu hình giới hạn bộ nhớ ảo (Virtual Memory Tuning)
+### 3. Configure Virtual Memory Limits (Virtual Memory Tuning)
 
-Tiến hành tăng thông số bộ nhớ ảo `vm.max_map_count` tạm thời và cấu hình ghi đè vĩnh viễn vào tệp cấu hình hệ thống để duy trì trạng thái ổn định sau khi tái khởi động máy ảo:
+Proceed to increase the `vm.max_map_count` virtual memory parameter temporarily and configure permanent override to the system configuration file to maintain stable status after VM restart:
 
 ```bash
-# Thiết lập cấu hình tạm thời trong thời gian thực
+# Set temporary configuration in real-time
 sudo sysctl -w vm.max_map_count=262144
 
-# Ghi cấu hình vĩnh viễn vào tệp cấu hình hệ thống
+# Write permanent configuration to system config file
 echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
 ```
-![tăng thông số bộ nhớ ảo `vm.max_map_count`](images/phase1/pic1.png)
+![Increase vm.max_map_count virtual memory parameter](images/phase1/pic1.png)
 
 ---
 
-## II. ĐỒNG BỘ MÔI TRƯỜNG DOCKER & DOCKER COMPOSE
+## II. Synchronize Docker &amp; Docker Compose Environment
 
-Để đảm bảo tính đóng gói, dễ quản lý cấu hình và không gây xung đột thư viện với hệ điều hành gốc, toàn bộ hạ tầng Wazuh được triển khai thông qua công nghệ Container hóa (Docker Engine).
+To ensure encapsulation, easy configuration management, and no library conflicts with the host operating system, the entire Wazuh infrastructure is deployed via Containerization technology (Docker Engine).
 
-### 1. Chuỗi lệnh cài đặt Docker Engine chính thức
+### 1. Official Docker Engine Installation Command Chain
 
-Cập nhật danh sách gói tin, thiết lập kho lưu trữ bảo mật (Repository GPG Key) và cài đặt Docker cùng công cụ Docker Compose Plugin:
+Update package list, set up secure repository (Repository GPG Key) and install Docker along with Docker Compose Plugin:
 
 ```bash
-# 1. Cập nhật hệ thống và cài đặt gói phụ thuộc
-sudo apt update && sudo apt install -y apt-transport-https ca-certificates curl gnupg lsb-release
+# 1. Update system and install dependency packages
+sudo apt update &amp;&amp; sudo apt install -y apt-transport-https ca-certificates curl gnupg lsb-release
 
-# 2. Thiết lập Docker GPG Key an toàn
+# 2. Set up secure Docker GPG Key
 sudo mkdir -p /etc/apt/keyrings
 curl -fsSL [https://download.docker.com/linux/ubuntu/gpg](https://download.docker.com/linux/ubuntu/gpg) | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
-# 3. Khai báo Docker Repository chuẩn theo phiên bản OS
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] [https://download.docker.com/linux/ubuntu](https://download.docker.com/linux/ubuntu) $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+# 3. Declare Docker Repository standard according to OS version
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] [https://download.docker.com/linux/ubuntu](https://download.docker.com/linux/ubuntu) $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list &gt; /dev/null
 
-# 4. Cài đặt Docker phân hệ chính thức
-sudo apt update && sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+# 4. Install official Docker components
+sudo apt update &amp;&amp; sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-# 5. Kích hoạt và thiết lập Docker khởi động cùng hệ thống
-sudo systemctl enable docker && sudo systemctl start docker
+# 5. Enable and set Docker to start with system
+sudo systemctl enable docker &amp;&amp; sudo systemctl start docker
 ```
 
-Kiểm tra trạng thái hoạt động của Docker Compose trên máy ảo bằng lệnh: `sudo docker compose version`.
+Check Docker Compose operational status on VM with command: `sudo docker compose version`.
 
-![kiểm tra phiên bản Docker Compose thành công trên Terminal](images/phase1/pic2.png)
+![Check Docker Compose version successfully on Terminal](images/phase1/pic2.png)
 
 ---
 
-## III. TRIỂN KHAI CỤM TRUNG TÂM WAZUH STACK (SINGLE-NODE ARCHITECTURE)
+## III. Deploy Central Wazuh Stack Cluster (Single-Node Architecture)
 
-Sử dụng cấu hình kiến trúc Single-node (phù hợp cho môi trường nghiên cứu và Lab doanh nghiệp vừa/nhỏ) nhằm gom toàn bộ các thành phần quản lý về một thực thể xử lý.
+Use Single-node architecture configuration (suitable for research environment and small/medium enterprise labs) to consolidate all management components into one processing entity.
 
-### 1. Đồng bộ mã nguồn cấu hình từ nhà phát hành
+### 1. Synchronize Configuration Source Code from Publisher
 
-Tải cấu hình Docker định hình sẵn từ kho lưu trữ của Wazuh:
+Download pre-defined Docker configuration from Wazuh's repository:
 
 ```bash
 cd ~
 git clone [https://github.com/wazuh/wazuh-docker.git](https://github.com/wazuh/wazuh-docker.git) --depth=1 -b v4.14.5
 cd wazuh-docker/single-node
 ```
-### 2. Thiết lập quy trình giới hạn tệp tin Log hệ thống
+### 2. Set Up System Log File Limiting Process
 
-Để ngăn chặn hiện tượng các container sinh ra vòng lặp log lỗi ghi đè làm cạn kiệt ổ đĩa vô lý khi hệ thống bị ngắt đột ngột, tiến hành bổ sung tham số giới hạn (`logging`) vào tệp tin `docker-compose.yml`:
+To prevent containers from generating infinite error log loops that unreasonably exhaust disk space when the system is abruptly shut down, proceed to add limit parameters (`logging`) to the `docker-compose.yml` file:
 
 ```yaml
 logging:
@@ -102,43 +102,43 @@ logging:
 
 ---
 
-## IV. CẤU HÌNH THAY ĐỔI MẬT KHẨU TÀI KHOẢN QUẢN TRỊ (ADMIN SECURITY HARDENING)
+## IV. Configure Admin Password Change (Admin Security Hardening)
 
-Để đảm bảo an toàn thông tin tối cao cho trung tâm giám sát SOC, mật khẩu mặc định `SecretPassword` cần được thay thế bằng một cơ chế mật khẩu mạnh thông qua chuỗi băm (Hash Key).
+To ensure maximum information security for the SOC monitoring center, the default password `SecretPassword` must be replaced with a strong password mechanism via a hash string (Hash Key).
 
-### Bước 1: Hạ hệ thống và tạo chuỗi mã hóa mật khẩu mới
+### Step 1: Shut down system and create new password hash string
 
-Tiến hành gọi container trung gian để chạy script mật mã OpenSearch nhằm tạo chuỗi băm bảo mật:
+Proceed to call an intermediate container to run the OpenSearch password script to generate a secure hash:
 
 ```bash
 sudo docker compose down
 
 sudo docker run --rm -ti wazuh/wazuh-indexer:4.14.5 bash /usr/share/wazuh-indexer/plugins/opensearch-security/tools/hash.sh
 ```
-*Nhập mật khẩu mới tại dấu nhắc hệ thống để nhận về chuỗi mã hóa đầu ra dạng:* `$2y$12$...`
+*Enter new password at system prompt to receive output hash string in format:* `$2y$12$...`
 
-### Bước 2: Cập nhật tệp cấu hình nội bộ
+### Step 2: Update internal configuration file
 
-1. Cấu hình chuỗi băm mới vào file quản lý người dùng nội bộ:
+1. Configure new hash string into internal user management file:
 ```bash
 nano config/wazuh_indexer/internal_users.yml
 ```
-*Dán chuỗi mã hóa thu được ở Bước 1 vào mục `hash` của tài khoản `admin`.*
-2. Cấu hình mật khẩu thô mới vào tệp `docker-compose.yml` tại các tham số môi trường `INDEXER_PASSWORD` của hai dịch vụ `wazuh.manager` và `wazuh.dashboard`.
+*Paste hash string obtained in Step 1 into the `hash` field of the `admin` account.*
+2. Configure new plaintext password into `docker-compose.yml` file at `INDEXER_PASSWORD` environment parameters of both `wazuh.manager` and `wazuh.dashboard` services.
 
-### Bước 3: Áp dụng thay đổi vào lòng Container Indexer
+### Step 3: Apply changes into Indexer Container Core
 
-Khởi chạy lại cụm dịch vụ và chui vào bên trong container điều hành để ép nạp cấu hình bảo mật:
+Restart service cluster and enter inside the management container to force load security configuration:
 
 ```bash
-# Khởi chạy cụm dịch vụ ở chế độ chạy ngầm (Detached Mode)
+# Start service cluster in detached mode
 sudo docker compose up -d
 
-# Truy cập vào không gian thực thi của container Indexer
+# Access Indexer container's execution space
 sudo docker exec -it single-node-wazuh.indexer-1 bash
 ```
 
-Khi Terminal chuyển sang giao diện `bash-5.2$`, thực thi chuỗi lệnh nạp quyền tối cao:
+When Terminal switches to `bash-5.2$` interface, execute the highest privilege loading command chain:
 
 ```bash
 export INSTALLATION_DIR=/usr/share/wazuh-indexer
@@ -151,45 +151,45 @@ export JAVA_HOME=/usr/share/wazuh-indexer/jdk
 bash /usr/share/wazuh-indexer/plugins/opensearch-security/tools/securityadmin.sh -cd $CONFIG_DIR/opensearch-security/ -nhnv -cacert $CACERT -cert $CERT -key $KEY -p 9200 -icl
 ```
 
-Hệ thống hiển thị thông báo: **`Done with success`** (Xác nhận cấu hình mật khẩu mới chính thức có hiệu lực trên toàn cụm SIEM). Gõ `exit` để thoát khỏi container.
+System displays message: **`Done with success`** (Confirm new password configuration is officially effective across entire SIEM cluster). Type `exit` to leave container.
 
 ---
 
-## V. KIỂM TRA ĐỘ ỔN ĐỊNH & KIỂM CHỨNG TRUY CẬP (VALIDATION)
+## V. Check Stability &amp; Validate Access (Validation)
 
-Chạy lệnh kiểm tra trạng thái sức khỏe toàn hệ thống:
+Run command to check overall system health status:
 
 ```bash
 sudo docker ps
 ```
 
-Yêu cầu cả 3 thực thể `wazuh.indexer`, `wazuh.manager`, và `wazuh.dashboard` đều duy trì trạng thái ổn định lâu dài (`Up` / `healthy`).
+Require all 3 entities `wazuh.indexer`, `wazuh.manager`, and `wazuh.dashboard` to maintain long-term stable status (`Up` / `healthy`).
 
-### Kết quả xác thực quyền điều hành Giao diện Web Trung tâm
+### Validate Central Web Interface Administrative Access
 
-* **Địa chỉ kết nối an toàn:** `https://192.168.71.128` (Thông qua IP tĩnh/động của Card mạng chính `ens33` kết nối mạng Host-Only/NAT của VMware).
-* **Thông tin xác thực mới:**
+* **Secure connection address:** `https://192.168.71.128` (Via static/dynamic IP of main network card `ens33` connected to VMware's Host-Only/NAT network).
+* **New authentication credentials:**
 * *Username:* `admin`
-* *Password:* `<MẬT_KHẨU_MỚI_ĐÃ_THIẾT_LẬP>`
+* *Password:* `<NEWLY_SET_PASSWORD>`
 
-![Giao diện Đăng nhập (Login Page) của Wazuh Dashboard hiển thị trên trình duyệt](images/phase1/login-page.png)
+![Wazuh Dashboard Login Interface displayed in browser](images/phase1/login-page.png)
 
-![Giao diện quản trị chính (Main Dashboard) sau khi đăng nhập thành công bằng thông tin mật khẩu mới, hệ thống hiển thị tổng quan SOC an toàn](images/phase1/dashboard-page.png)
+![Main admin interface (Main Dashboard) after successful login with new password, system displays safe SOC overview](images/phase1/dashboard-page.png)
 
 ---
 
-## VI. QUY TRÌNH VẬN HÀNH VÀ BẢO TRÌ HỆ THỐNG AN TOÀN
+## VI. Safe System Operation &amp; Maintenance Workflow
 
-Để đảm bảo toàn vẹn dữ liệu cơ sở dữ liệu lớn của Indexer và không phát sinh file rác hệ thống, quy trình đóng/mở máy ảo được chuẩn hóa như sau:
+To ensure integrity of Indexer's large database and avoid generating system junk files, VM shutdown/startup workflow is standardized as follows:
 
-* **Trước khi tắt máy ảo/VMware:** Phải chủ động hạ dịch vụ êm ái để lưu tiến trình Java:
+* **Before shutting down VM/VMware:** Must actively gracefully shut down services to save Java process:
 ```bash
 sudo docker compose stop
 ```
 
 
-*(Tuyệt đối không sử dụng lệnh `down -v` trừ khi muốn xóa sạch toàn bộ Lab để làm lại từ đầu).*
-* **Sau khi bật lại máy ảo:** Kích hoạt lại dịch vụ chạy ngầm giải phóng Terminal:
+*(Absolutely do not use `down -v` command unless you want to completely erase the entire lab to start over)*.
+* **After restarting VM:** Activate detached mode services again to free Terminal:
 ```bash
 sudo docker compose up -d
 ```
@@ -198,14 +198,14 @@ sudo docker compose up -d
 
 ---
 
-## VII. ĐỊNH HƯỚNG BƯỚC TIẾP THEO (PHASE 2)
+## VII. Next Steps Direction (Phase 2)
 
-Hạ tầng cụm trung tâm SIEM (Wazuh Stack) đã hoạt động hoàn hảo và sẵn sàng thu nhận thông tin.
+The central SIEM infrastructure (Wazuh Stack) is operating perfectly and ready to receive information.
 
-**Kế hoạch triển khai Phase 2:**
+**Phase 2 Deployment Plan:**
 
-1. Khởi chạy máy trạm **Windows 10 (Victim)**, thực hiện tải và kết nối **Wazuh Agent** đẩy luồng thông tin về địa chỉ máy chủ `192.168.71.128`.
-2. Tích hợp sâu bộ công cụ kiểm toán **Microsoft Sysmon** trên máy mục tiêu, tùy biến cấu hình tệp `ossec.conf` để phân tích sâu các mã sự kiện đặc thù (Event IDs), chuẩn bị cho việc mô phỏng và phát hiện tấn công thực chiến.
+1. Start **Windows 10 (Victim)** VM, perform download and connect **Wazuh Agent** to push information flow to Ubuntu server IP `192.168.71.128`.
+2. Deeply integrate **Microsoft Sysmon** auditing toolset on target machine, customize `ossec.conf` file configuration to analyze specific Event IDs in depth, prepare for simulating and detecting real-world attacks.
 
-## REFERENCES
-- [Cài đặt wazuh docker container](https://documentation.wazuh.com/current/deployment-options/docker/wazuh-container.html)
+## References
+- [Install wazuh docker container](https://documentation.wazuh.com/current/deployment-options/docker/wazuh-container.html)

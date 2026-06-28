@@ -1,98 +1,98 @@
-# CÁC KỊCH BẢN TẤN CÔNG & PHÁT HIỆN THỰC CHIẾN (PHASE 3)
+# Attack Scenarios &amp; Real-World Detection (Phase 3)
 
-## 🔹 KỊCH BẢN 1: T1110 - PHÁT HIỆN TẤN CÔNG BRUTE FORCE & TỰ ĐỘNG KHÓA IP (ACTIVE RESPONSE)
+## 🔹 Scenario 1: T1110 - Detect Brute Force Attack &amp; Auto-Block IP (Active Response)
 
-Kịch bản này chứng minh năng lực **Phản ứng chủ động (Active Response)** của hệ thống SIEM – không chỉ dừng lại ở việc phát hiện mà còn trực tiếp can thiệp vào tường lửa để cô lập kẻ tấn công ngay trong thời gian thực.
+This scenario demonstrates the SIEM system's **Active Response** capability – not just stopping at detection but also directly intervening in the firewall to isolate the attacker in real time.
 
-## Mục tiêu
+## Objective
 
-Mục tiêu của Phase 3 - Kịch bản 1 là mô phỏng một cuộc tấn công Brute Force từ máy Kali Linux vào máy Windows Victim và sử dụng Wazuh để phát hiện các lần xác thực thất bại thông qua Windows Security Event Log.
+The objective of Phase 3 - Scenario 1 is to simulate a Brute Force attack from Kali Linux to the Windows Victim machine and use Wazuh to detect failed authentication attempts via Windows Security Event Log.
 
-Kết quả mong muốn:
+Expected results:
 
-* Windows Agent gửi log về Wazuh Manager.
-* Wazuh phát hiện các lần đăng nhập thất bại.
-* Xây dựng Custom Rule phát hiện Brute Force.
-* Mapping với MITRE ATT&CK T1110 (Brute Force).
+* Windows Agent sends logs to Wazuh Manager.
+* Wazuh detects failed login attempts.
+* Build Custom Rule to detect Brute Force.
+* Map with MITRE ATT&amp;CK T1110 (Brute Force).
 
 ---
 
-## Mô hình triển khai
+## Deployment Model
 
-Mô hình triển khai bao gồm ba thành phần chính:
+Deployment model includes three main components:
 
 ```
-                   ┌─────────────────────┐
-                   │ Kali Linux          │
-                   │ Attacker            │  
-                   │ (IP: 192.168.71.130)│
-                   └───────┬─────────────┘
-                           │
-                           │ RDP Brute Force
-                           ▼
-                   ┌──────────────────────┐
-                   │ Windows 10           │
-                   │ Wazuh Agent          │
-                   │ (IP: 192.168.71.129) │
-                   └───────┬──────────────┘
-                           │
-                           │ Security Logs
-                           ▼
-                   ┌─────────────────────────────┐
-                   │ Wazuh Manager               │
-                   │ Docker                      │
-                   │ (Ubuntu IP: 192.168.71.128) │
-                   └───────┬─────────────────────┘
-                           │
-                           │ Alerts
-                           ▼
-                   ┌───────────────┐
-                   │ Dashboard     │
-                   │ Threat Hunt   │
-                   └───────────────┘
+                    ┌─────────────────────┐
+                    │ Kali Linux          │
+                    │ Attacker            │  
+                    │ (IP: 192.168.71.130)│
+                    └───────┬─────────────┘
+                            │
+                            │ RDP Brute Force
+                            ▼
+                    ┌──────────────────────┐
+                    │ Windows 10           │
+                    │ Wazuh Agent          │
+                    │ (IP: 192.168.71.129) │
+                    └───────┬──────────────┘
+                            │
+                            │ Security Logs
+                            ▼
+                    ┌─────────────────────────────┐
+                    │ Wazuh Manager               │
+                    │ Docker                      │
+                    │ (Ubuntu IP: 192.168.71.128) │
+                    └───────┬─────────────────────┘
+                            │
+                            │ Alerts
+                            ▼
+                    ┌───────────────┐
+                    │ Dashboard     │
+                    │ Threat Hunt   │
+                    └───────────────┘
 ```
 --- 
-## I. Cấu hình Wazuh nhận biết Brute Force
+## I. Configure Wazuh to Recognize Brute Force
 
-### 1. Kiểm tra dịch vụ RDP
+### 1. Check RDP Service
 
-Từ Kali Linux tiến hành quét cổng RDP của máy Windows.
+From Kali Linux proceed to scan Windows machine's RDP port.
 ```bash
 nmap -Pn -p 3389 192.168.71.129
 ```
 
-Kết quả:
+Result:
 ```text
 3389/tcp open ms-wbt-server
 ```
 
-=> Điều này xác nhận dịch vụ Remote Desktop đang hoạt động và sẵn sàng tiếp nhận kết nối từ xa.
-![Kết quả quét cổng 3389 bằng Nmap](images/phase3/scenario1/checkRDP.png)
+=&gt; This confirms Remote Desktop service is active and ready to receive remote connections.
+![Scan port 3389 with Nmap result](images/phase3/scenario1/checkRDP.png)
 
 ---
 
-### 2. Mô phỏng đăng nhập thất bại qua RDP
+### 2. Simulate Failed Login via RDP
 
-Sử dụng công cụ xfreerdp trên Kali Linux.
+Use xfreerdp tool on Kali Linux.
 ```bash
 xfreerdp /u:testw /p:wrongpassword /v:192.168.71.129 /cert:ignore
 ```
 
-Kết quả:
+Result:
 ```text
 ERRCONNECT_LOGON_FAILURE
 ```
 
-=> Điều này chứng minh máy Windows đã tiếp nhận yêu cầu xác thực và từ chối đăng nhập do mật khẩu không chính xác.
-![Đăng nhập RDP thất bại bằng xfreerdp](images/phase3/scenario1/simulationRDP.png)
+=&gt; This proves Windows machine received authentication request and rejected login due to incorrect password.
+![Failed RDP login with xfreerdp](images/phase3/scenario1/simulationRDP.png)
 
-### 3. Xây dựng Custom Rule phát hiện Brute Force
+### 3. Build Custom Rule to Detect Brute Force
 
-Bổ sung Rule trong file local_rules.xml, xem tại **link dẫn đến local_rules.xml trong custom-rules/**:
+Add Rule in local_rules.xml file, see at **link to local_rules.xml in custom-rules/**:
 
-### 4. Mô phỏng tấn công Brute Force
+### 4. Simulate Brute Force Attack
 
-Tiến hành gửi nhiều yêu cầu xác thực sai liên tiếp.
+Proceed to send many consecutive wrong authentication requests.
 ```bash
 for i in {1..10}; do
     xfreerdp /u:testw \
@@ -102,32 +102,32 @@ for i in {1..10}; do
 done
 ```
 
-Lệnh trên tạo ra nhiều sự kiện đăng nhập thất bại trong thời gian ngắn trên hệ thống Windows.
-![Mô phỏng Brute Force RDP](images/phase3/scenario1/simulationBruteForce.png)
+Above command generates many failed login events in short time on Windows system.
+![Simulate Brute Force RDP](images/phase3/scenario1/simulationBruteForce.png)
 
 ---
 
-### 5. Kiểm tra Event Log trên Windows
+### 5. Check Event Log on Windows
 
-Sau khi thực hiện tấn công mô phỏng, kiểm tra Security Event Log.
+After performing simulated attack, check Security Event Log.
 ```powershell
 Get-WinEvent -FilterHashtable @{LogName='Security'; Id=4625}
 ```
 
-Kết quả xuất hiện nhiều sự kiện:
+Result shows many events:
 ```text
 Event ID: 4625
 An account failed to log on
 ```
 
-Event ID 4625 là sự kiện chuẩn của Windows dùng để ghi nhận các lần đăng nhập thất bại.
-![Event ID 4625 trên Windows Security Log](images/phase3/scenario1/CheckWinEventLog.png)
+Event ID 4625 is Windows standard event used to record failed login attempts.
+![Event ID 4625 on Windows Security Log](images/phase3/scenario1/CheckWinEventLog.png)
 
 ---
 
-### 6. Phân tích log trên Wazuh Dashboard
+### 6. Analyze Logs on Wazuh Dashboard
 
-Truy cập Threat Hunting và ta thấy được rule.id là 100001 ta vừa tạo
+Access Threat Hunting and we see rule.id is 100001 we just created
 
 ```text
 Windows Brute Force Attack Detected
@@ -135,113 +135,113 @@ Rule ID: 100001
 Level : 12
 ```
 
-![Wazuh ghi nhận các lần đăng nhập thất bại](images/phase3/scenario1/100001.png)
+![Wazuh records failed login attempts](images/phase3/scenario1/100001.png)
 
 ---
 
 
-## II. Triển khai cấu hình tự động khóa IP (Active Response)
+## II. Deploy Auto-Block IP Configuration (Active Response)
 
-Để nâng cấp hệ thống từ năng lực giám sát bị động sang phòng thủ chủ động, cơ chế **Active Response** được tích hợp nhằm ra lệnh cho Windows Agent tự động kích hoạt tường lửa, cách ly hoàn toàn IP của kẻ tấn công ngay khi Rule `100001` bị kích hoạt.
+To upgrade the system from passive monitoring capability to active defense, **Active Response** mechanism is integrated to instruct Windows Agent to automatically activate firewall, completely isolating attacker's IP immediately upon Rule `100001` being triggered.
 
-### Bước 1: Cấu hình Active Response trên Wazuh Manager (Ubuntu)
+### Step 1: Configure Active Response on Wazuh Manager (Ubuntu)
 
-Để đảm bảo an toàn hệ thống và tránh các lỗi phân quyền làm ảnh hưởng đến tiến trình ngầm (`wazuh-db`), quy trình trích xuất, chỉnh sửa và đẩy đè file cấu hình từ máy thật Ubuntu vào Docker được thực hiện như sau:
+To ensure system security and avoid permission errors affecting background process (`wazuh-db`), workflow to extract, edit and push configuration file from Ubuntu real machine to Docker is performed as follows:
 
-1. **Trích xuất file cấu hình gốc:** Tại Terminal của máy Ubuntu, chạy lệnh sao chép file cấu hình tổng quát từ bên trong Container ra bên ngoài:
+1. **Extract original configuration file:** On Ubuntu's Terminal, run command to copy general configuration file from inside Container to outside:
 ```bash
 sudo docker cp single-node-wazuh.manager-1:/var/ossec/etc/ossec.conf ./ossec.conf.bak
 ```
 
 
-2. **Chỉnh sửa file cấu hình:** Mở file `ossec.conf.bak` vừa copy ra bằng trình soạn thảo `gedit`:
+2. **Edit configuration file:** Open `ossec.conf.bak` file just copied out with `gedit` editor:
 ```bash
 gedit ./ossec.conf.bak
 ```
 
 
-Kéo xuống cuối file, tìm đến trước thẻ đóng `</ossec_config>` và chèn đoạn cấu hình Active Response gọi lệnh `netsh` của Windows vào:
+Scroll to end of file, find before closing `</ossec_config>` tag and insert Active Response configuration block calling Windows' `netsh` command:
 ```xml
-  <active-response>
-    <command>netsh</command>
-    <location>local</location> 
-    <rules_id>100001</rules_id>
-    <timeout>600</timeout> 
-  </active-response>
+  &lt;active-response&gt;
+    &lt;command&gt;netsh&lt;/command&gt;
+    &lt;location&gt;local&lt;/location&gt; 
+    &lt;rules_id&gt;100001&lt;/rules_id&gt;
+    &lt;timeout&gt;600&lt;/timeout&gt; 
+  &lt;/active-response&gt;
 ```
 
 
-*Nhấn **Save** và tắt trình soạn thảo.*
-3. **Đẩy file vào Container và thiết lập phân quyền nghiêm ngặt:** Chạy chuỗi lệnh sau để cập nhật file, gán lại quyền sở hữu chính chủ cho user `wazuh` trong Docker để tránh lỗi sập dịch vụ:
+*Press **Save** and close editor.*
+3. **Push file into Container and set strict permissions:** Run following command chain to update file, reassign correct ownership to `wazuh` user in Docker to avoid service crash error:
 ```bash
-# Đẩy file đã cấu hình vào lòng container
+# Push configured file into container core
 sudo docker cp ./ossec.conf.bak single-node-wazuh.manager-1:/var/ossec/etc/ossec.conf
 
-# Sửa quyền sở hữu và quyền đọc ghi ngay lập tức
+# Change ownership and read-write permissions immediately
 sudo docker exec -it single-node-wazuh.manager-1 chown wazuh:wazuh /var/ossec/etc/ossec.conf
 sudo docker exec -it single-node-wazuh.manager-1 chmod 660 /var/ossec/etc/ossec.conf
 
-# Khởi động lại nội bộ Wazuh để áp dụng cấu hình mới tinh
+# Restart Wazuh internally to apply new fine-tuned configuration
 sudo docker exec -it single-node-wazuh.manager-1 /var/ossec/bin/wazuh-control restart
 ```
 
-### Bước 2: Kích hoạt quyền thực thi lệnh trên Windows Agent
+### Step 2: Activate Command Execution Permission on Windows Agent
 
-Mặc định, nhằm đảm bảo an toàn, Wazuh Agent trên Windows sẽ khóa không cho phép Manager ra lệnh chạy script từ xa. Cần mở khóa tính năng này cục bộ trên máy nạn nhân:
+By default, to ensure security, Wazuh Agent on Windows will lock and not allow Manager to issue remote script execution commands. Need to unlock this feature locally on victim machine:
 
-1. Trên máy **Windows 10 Victim**, mở Notepad với quyền Quản trị viên (**Run as Administrator**).
-2. Mở tệp tin theo đường dẫn: `C:\Program Files (x86)\ossec-agent\local_internal_options.conf`.
-3. Di chuyển xuống cuối file, chèn thêm dòng lệnh sau để cho phép nhận lệnh từ xa:
+1. On **Windows 10 Victim** machine, open Notepad with **Run as Administrator** privileges.
+2. Open file at path: `C:\Program Files (x86)\ossec-agent\local_internal_options.conf`.
+3. Navigate to end of file, insert additional following command line to allow receiving remote commands:
 ```text
 wazuh_command.remote_commands=1
 ```
-![Chèn dòng lệnh vào file local_internal_options.conf](images/phase3/scenario1/local_internal_options.png)
+![Insert command line into local_internal_options.conf file](images/phase3/scenario1/local_internal_options.png)
 
-4. Lưu file lại (`Ctrl + S`).
-5. Mở Command Prompt (CMD) quyền Admin trên Windows và thực hiện tái khởi động dịch vụ Agent:
+4. Save file (`Ctrl + S`).
+5. Open Command Prompt (CMD) with Admin privileges on Windows and perform Agent service restart:
 ```cmd
-NET STOP WazuhSvc && NET START WazuhSvc
+NET STOP WazuhSvc &amp;&amp; NET START WazuhSvc
 ```
 ---
 
-### Bước 3: Kiểm chứng thực tế và Thu nhập minh chứng pháp y (PoC)
+### Step 3: Validate Practicality and Collect Forensic Evidence (PoC)
 
-Sau khi hạ tầng SIEM và Agent Windows đã thông suốt cấu hình, tiến hành kích hoạt lại kịch bản tấn công Brute Force từ máy **Kali Linux** bằng lệnh vòng lặp giãn cách:
+After SIEM infrastructure and Windows Agent have synchronized configuration, proceed to reactivate Brute Force attack scenario from **Kali Linux** machine with spaced loop command:
 
 ```bash
 for i in {1..10}; do xfreerdp /u:testw /p:wrongpassword /v:192.168.71.129 /cert:ignore; sleep 1; done
 ```
 
-![Log máy tấn công Kali Linux](images/phase3/scenario1/KaliLog.png)
+![Kali Linux attacker machine log](images/phase3/scenario1/KaliLog.png)
 
-Đến khoảng lần thử thứ 6 hoặc thứ 8, khi số lượng log Event ID 4625 đẩy về dồn dập làm kích hoạt Rule `100001`, cơ chế phản kháng lập tức nổ ra. Hệ thống Windows từ chối xác thực ngay từ tầng mạng (NLA) và trả thẳng về Terminal của Kali Linux mã lỗi hệ thống chí mạng:
+Around 6th or 8th attempt, when number of Event ID 4625 logs pushed in dense triggers Rule `100001`, defense mechanism immediately detonates. Windows system rejects authentication right from network layer (NLA) and returns straight to Kali Linux's Terminal with system network error code:
 
 ```text
 [ERROR][com.freerdp.core] - [nla_recv_pdu]: ERRCONNECT_ACCOUNT_LOCKED_OUT [0x00020018]
 ```
 
-Điều này chứng minh cuộc tấn công Brute Force đã bị bẻ gãy hoàn toàn, hacker không thể tiếp tục thực hiện hành vi dò quét mật khẩu.
+This proves Brute Force attack has been completely broken, hacker cannot continue performing password guessing behavior.
 
 
-![file nhật ký thực thi Active Response của Agent](images/phase3/scenario1/AddIPKali.png)
+![Agent's Active Response execution log file](images/phase3/scenario1/AddIPKali.png)
 
-Kiểm tra file nhật ký thực thi Active Response của Agent tại đường dẫn `C:\Program Files (x86)\ossec-agent\active-responses.log` trên máy **Windows 10**, hệ thống ghi nhận dòng log thực thi tệp tin hệ thống theo thời gian thực:
+Check Agent's Active Response execution log file at path `C:\Program Files (x86)\ossec-agent\active-responses.log` on **Windows 10** machine, system records log line executing system file in real time:
 
 ```text
 active-response/bin/netsh.exe add - 192.168.71.130
 ```
 
-Log này chứng minh Agent đã tiếp nhận lệnh từ bộ não SIEM Ubuntu thành công và lập tức gọi `netsh.exe` để thiết lập hàng rào bảo vệ.
+This log proves Agent successfully received command from Ubuntu SIEM brain and immediately called `netsh.exe` to set up protective barrier.
 
 
-![Check inbound rules trên máy Victim](images/phase3/scenario1/Inbound%20Rules%20on%20agent.png)
+![Check inbound rules on Victim machine](images/phase3/scenario1/Inbound%20Rules%20on%20agent.png)
 
-Truy cập vào giao diện quản trị *Windows Defender Firewall with Advanced Security* $\rightarrow$ *Inbound Rules* trên máy nạn nhân. Hệ thống tự động sinh ra một quy tắc khẩn cấp mang tên **`WAZUH ACTIVE RESPONSE BLOCKED IP`**. Khi kiểm tra thuộc tính trong tab *Scope*, địa chỉ IP của máy Kali Linux (`192.168.71.130`) đã bị ghim chặt vào danh sách cấm (**Block**) kết nối.
+Access *Windows Defender Firewall with Advanced Security* → *Inbound Rules* management interface on victim machine. System automatically generates an emergency rule named **`WAZUH ACTIVE RESPONSE BLOCKED IP`**. When checking properties in *Scope* tab, Kali Linux machine's IP address (`192.168.71.130`) has been firmly pinned to blocked connection list (**Block**).
 
 
-![Thông báo Active Response trên Wazuh Dashboard](images/phase3/scenario1/active%20response%20on%20dashboard.png)
+![Active Response notification on Wazuh Dashboard](images/phase3/scenario1/active%20response%20on%20dashboard.png)
 
-Trên giao diện **Wazuh Dashboard** (`Threat Hunting` $\rightarrow$ `Events`), song song với cảnh báo đỏ rực mức độ 12 của Rule `100001` phát hiện Brute Force, hệ thống đồng thời ghi nhận một Alert mức độ 3 xác nhận lệnh phản kháng đã được thực thi thành công:
+On **Wazuh Dashboard** interface (`Threat Hunting` → `Events`), parallel to bright red alert of Rule `100001` level 12 detecting Brute Force, system simultaneously records a level 3 Alert confirming defense command was executed successfully:
 
 ```text
 Active response: active-response/bin/netsh.exe - add
@@ -250,9 +250,9 @@ Rule ID: 657
 
 ---
 
-## III. Tổng kết kịch bản 1
+## III. Summary of Scenario 1
 
-Kịch bản mô phỏng tấn công Brute Force RDP và kích hoạt Active Response. Hệ thống SIEM triển khai trên Docker không những chứng minh khả năng thu thập log tập trung, phân tích cú pháp thông qua Custom Rule chuẩn định dạng MITRE ATT&CK T1110, mà còn thực thi kịch bản tự động cô lập nguồn nguy hại (Soar Automation Capabilities), bảo vệ an toàn tuyệt đối cho tài nguyên máy trạm Windows.
+Scenario simulates RDP Brute Force attack and activates Active Response. SIEM infrastructure deployed on Docker not only demonstrates centralized log collection capability, syntax analysis via Custom Rule standardized in MITRE ATT&amp;CK T1110 format, but also executes automatic isolation workflow of threat source (SOAR Automation Capabilities), absolutely protecting Windows endpoint resources.
 
 
 ## References
