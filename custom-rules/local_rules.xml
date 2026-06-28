@@ -1,0 +1,25 @@
+<!-- Local rules -->
+
+<group name="local_rules,">
+
+  <rule id="100001" level="12" frequency="5" timeframe="60">
+    <if_matched_sid>60122</if_matched_sid>
+    <description>Windows Brute Force Attack Detected</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+  </rule>
+
+  <rule id="100002" level="10">
+    <if_sid>31100</if_sid>
+    <match>win.ini|boot.ini|..%2f|..%252f|../</match>
+    <description>WARNING: Local File Inclusion (LFI) / Directory Traversal Attempt Detected on Windows Endpoint</description>
+    <mitre>
+      <id>T1190</id>
+    </mitre>
+  </rule>
+
+</group>
+
+
+

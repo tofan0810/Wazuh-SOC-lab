@@ -67,7 +67,7 @@ Kết quả:
 ```
 
 => Điều này xác nhận dịch vụ Remote Desktop đang hoạt động và sẵn sàng tiếp nhận kết nối từ xa.
-![Kết quả quét cổng 3389 bằng Nmap](images/phase3/kichban1/checkRDP.png)
+![Kết quả quét cổng 3389 bằng Nmap](images/phase3/scenario1/checkRDP.png)
 
 ---
 
@@ -84,7 +84,7 @@ ERRCONNECT_LOGON_FAILURE
 ```
 
 => Điều này chứng minh máy Windows đã tiếp nhận yêu cầu xác thực và từ chối đăng nhập do mật khẩu không chính xác.
-![Đăng nhập RDP thất bại bằng xfreerdp](images/phase3/kichban1/simulationRDP.png)
+![Đăng nhập RDP thất bại bằng xfreerdp](images/phase3/scenario1/simulationRDP.png)
 
 ### 3. Xây dựng Custom Rule phát hiện Brute Force
 
@@ -103,7 +103,7 @@ done
 ```
 
 Lệnh trên tạo ra nhiều sự kiện đăng nhập thất bại trong thời gian ngắn trên hệ thống Windows.
-![Mô phỏng Brute Force RDP](images/phase3/kichban1/simulationBruteForce.png)
+![Mô phỏng Brute Force RDP](images/phase3/scenario1/simulationBruteForce.png)
 
 ---
 
@@ -121,7 +121,7 @@ An account failed to log on
 ```
 
 Event ID 4625 là sự kiện chuẩn của Windows dùng để ghi nhận các lần đăng nhập thất bại.
-![Event ID 4625 trên Windows Security Log](images/phase3/kichban1/CheckWinEventLog.png)
+![Event ID 4625 trên Windows Security Log](images/phase3/scenario1/CheckWinEventLog.png)
 
 ---
 
@@ -135,7 +135,7 @@ Rule ID: 100001
 Level : 12
 ```
 
-![Wazuh ghi nhận các lần đăng nhập thất bại](images/phase3/kichban1/100001.png)
+![Wazuh ghi nhận các lần đăng nhập thất bại](images/phase3/scenario1/100001.png)
 
 ---
 
@@ -195,7 +195,7 @@ Mặc định, nhằm đảm bảo an toàn, Wazuh Agent trên Windows sẽ khó
 ```text
 wazuh_command.remote_commands=1
 ```
-![Chèn dòng lệnh vào file local_internal_options.conf](images/phase3/kichban1/local_internal_options.png)
+![Chèn dòng lệnh vào file local_internal_options.conf](images/phase3/scenario1/local_internal_options.png)
 
 4. Lưu file lại (`Ctrl + S`).
 5. Mở Command Prompt (CMD) quyền Admin trên Windows và thực hiện tái khởi động dịch vụ Agent:
@@ -212,7 +212,7 @@ Sau khi hạ tầng SIEM và Agent Windows đã thông suốt cấu hình, tiế
 for i in {1..10}; do xfreerdp /u:testw /p:wrongpassword /v:192.168.71.129 /cert:ignore; sleep 1; done
 ```
 
-![Log máy tấn công Kali Linux](images/phase3/kichban1/KaliLog.png)
+![Log máy tấn công Kali Linux](images/phase3/scenario1/KaliLog.png)
 
 Đến khoảng lần thử thứ 6 hoặc thứ 8, khi số lượng log Event ID 4625 đẩy về dồn dập làm kích hoạt Rule `100001`, cơ chế phản kháng lập tức nổ ra. Hệ thống Windows từ chối xác thực ngay từ tầng mạng (NLA) và trả thẳng về Terminal của Kali Linux mã lỗi hệ thống chí mạng:
 
@@ -223,7 +223,7 @@ for i in {1..10}; do xfreerdp /u:testw /p:wrongpassword /v:192.168.71.129 /cert:
 Điều này chứng minh cuộc tấn công Brute Force đã bị bẻ gãy hoàn toàn, hacker không thể tiếp tục thực hiện hành vi dò quét mật khẩu.
 
 
-![file nhật ký thực thi Active Response của Agent](images/phase3/kichban1/AddIPKali.png)
+![file nhật ký thực thi Active Response của Agent](images/phase3/scenario1/AddIPKali.png)
 
 Kiểm tra file nhật ký thực thi Active Response của Agent tại đường dẫn `C:\Program Files (x86)\ossec-agent\active-responses.log` trên máy **Windows 10**, hệ thống ghi nhận dòng log thực thi tệp tin hệ thống theo thời gian thực:
 
@@ -234,12 +234,12 @@ active-response/bin/netsh.exe add - 192.168.71.130
 Log này chứng minh Agent đã tiếp nhận lệnh từ bộ não SIEM Ubuntu thành công và lập tức gọi `netsh.exe` để thiết lập hàng rào bảo vệ.
 
 
-![Check inbound rules trên máy Victim](images/phase3/kichban1/Inbound%20Rules%20on%20agent.png)
+![Check inbound rules trên máy Victim](images/phase3/scenario1/Inbound%20Rules%20on%20agent.png)
 
 Truy cập vào giao diện quản trị *Windows Defender Firewall with Advanced Security* $\rightarrow$ *Inbound Rules* trên máy nạn nhân. Hệ thống tự động sinh ra một quy tắc khẩn cấp mang tên **`WAZUH ACTIVE RESPONSE BLOCKED IP`**. Khi kiểm tra thuộc tính trong tab *Scope*, địa chỉ IP của máy Kali Linux (`192.168.71.130`) đã bị ghim chặt vào danh sách cấm (**Block**) kết nối.
 
 
-![Thông báo Active Response trên Wazuh Dashboard](images/phase3/kichban1/active%20response%20on%20dashboard.png)
+![Thông báo Active Response trên Wazuh Dashboard](images/phase3/scenario1/active%20response%20on%20dashboard.png)
 
 Trên giao diện **Wazuh Dashboard** (`Threat Hunting` $\rightarrow$ `Events`), song song với cảnh báo đỏ rực mức độ 12 của Rule `100001` phát hiện Brute Force, hệ thống đồng thời ghi nhận một Alert mức độ 3 xác nhận lệnh phản kháng đã được thực thi thành công:
 

@@ -35,7 +35,7 @@ Tại thư mục mã nguồn `C:\xampp\htdocs\`, xây dựng tệp tin mã ngu�
 ```
 
 Kích hoạt dịch vụ **Apache** từ giao diện điều khiển XAMPP Control Panel, đảm bảo trạng thái chuyển sang màu xanh lá và lắng nghe trên cổng mặc định (80, 443).
-![Dịch vụ Apache lắng nghe](images/phase3/kichban2/XAMPP-control-panel.png)
+![Dịch vụ Apache lắng nghe](images/phase3/scenario2/XAMPP-control-panel.png)
 
 ### 2. Điều hướng Wazuh Agent thu thập nhật ký truy cập
 
@@ -168,9 +168,9 @@ Tiếp tục giả lập kỹ thuật ẩn mình tinh vi bằng đòn tấn côn
 ```bash
 curl -G "http://192.168.71.129/index.php" --data-urlencode "page=..%252f..%252f..%252fWindows%252fwin.ini"
 ```
-![Attacker tấn công máy victim](images/phase3/kichban2/kaliattack.png)
+![Attacker tấn công máy victim](images/phase3/scenario2/kaliattack.png)
 Mặc dù ứng dụng trả về cảnh báo lỗi do không tự giải mã chuỗi từ hàm `include()`, tuy nhiên toàn bộ chuỗi dấu vết độc hại gài bẫy này đã bị tóm gọn và ghi nhận toàn vẹn vào file nhật ký `access.log` của Apache.
-![File nhật ký của Apache](images/phase3/kichban2/access-log.png)
+![File nhật ký của Apache](images/phase3/scenario2/access-log.png)
 ### 2. Xác thực cấu trúc phân tích thông qua `wazuh-logtest`
 
 Gọi công cụ kiểm thử nội bộ trên Ubuntu Manager để đánh giá chất lượng phân tích dòng log độc hại:
@@ -198,8 +198,8 @@ Dán dòng log Double Encoding thực tế ghi nhận từ Apache vào, kết qu
 Truy cập trung tâm giám sát **Wazuh Dashboard** (`Threat Hunting` $\rightarrow$ `Events`), Hệ thống kích hoạt đồng thời hai loại cảnh báo đắt giá:
 
 * **Cảnh báo phát hiện tấn công (Rule 100002):** Nổ dòng Alert màu cam mức độ 10 cảnh báo rõ hành vi duyệt thư mục trái phép nhắm vào Windows Endpoint. Khi kiểm tra trường chi tiết `Document Details`, hai giá trị `data.srcip: 192.168.71.130` và payload biến dị `data.url` được hiển thị rõ ràng, chứng minh năng lực bóc tách của Custom Decoder.
-![Kết quả alert của hành vi trên Dashboard](images/phase3/kichban2/dashboard.png)
-![Chi tiết alert](images/phase3/kichban2/alert-detail.png)
+![Kết quả alert của hành vi trên Dashboard](images/phase3/scenario2/dashboard.png)
+![Chi tiết alert](images/phase3/scenario2/alert-detail.png)
 
 
 * **Cảnh báo phản kháng chủ động (Rule 657):** Hệ thống ghi nhận sự kiện kích hoạt lệnh chặn `netsh.exe - add` thành công.
@@ -207,13 +207,13 @@ Kiểm tra tệp tin nhật ký `active-responses.log` cục bộ tại đườn
 ```text
 active-response/bin/netsh.exe add - 192.168.71.130
 ```
-![Active response trên Dashboard](images/phase3/kichban2/active-response.png)
+![Active response trên Dashboard](images/phase3/scenario2/active-response.png)
 
 Đồng thời, khi kiểm tra bảng quy tắc *Inbound Rules* tại giao diện tường lửa Windows Defender Firewall của nạn nhân, một quy tắc khẩn cấp mang tên **`WAZUH ACTIVE RESPONSE BLOCKED IP`** tự động sinh ra, ghim chặt IP máy Kali (`192.168.71.130`) vào danh sách cấm kết nối.
-![Block IP máy tấn công](images/phase3/kichban2/block-attacker-check.png)
+![Block IP máy tấn công](images/phase3/scenario2/block-attacker-check.png)
 
 Minh chứng cuối cùng, khi đứng từ máy Kali thực hiện gửi yêu cầu tấn công hoặc trinh sát lần thứ 3 đến Web Server, toàn bộ gói tin bị chặn đứng hoàn toàn ngay từ tầng biên mạng, lệnh `curl` rơi vào trạng thái đóng băng:
-![Chặn đứng máy kali](images/phase3/kichban2/block-attacker.png)
+![Chặn đứng máy kali](images/phase3/scenario2/block-attacker.png)
 
 ---
 

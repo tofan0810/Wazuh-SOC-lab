@@ -56,22 +56,24 @@ Kho lưu trữ này chứa sơ đồ kiến trúc, các file cấu hình và chi
 ```text
 wazuh-soc-lab/
 │
-├── architecture/           # Sơ đồ hạ tầng và bản đồ luồng đi của log
+├── README.md               # Tài liệu chính: Sơ đồ, cách dựng, kết quả (Quan trọng nhất)
+├── documents/              # Tài liệu lý thuyết
 │
-├── deployment/             # Các script triển khai và file cấu hình máy trạm
-│   ├── docker-compose.yml  # File triển khai cụm Wazuh Stack bằng Docker
-│   └── sysmon-config.xml   # File cấu hình Sysmon tối ưu hóa bảo mật
+├── architecture/           # Chứa ảnh sơ đồ mạng, sơ đồ luồng log (vẽ bằng Draw.io/Figma)
 │
-├── custom-rules/           # NƠI KHOE NĂNG LỰC: Chứa các bộ decoder và rule XML tự viết -> các file local_rules.xml, ossec.conf.bak
+├── deployment/             # Hướng dẫn hoặc script cài đặt
+│   ├── docker-compose.yml  # (Nếu bạn dựng Wazuh bằng Docker)
+│   └── sysmon-config.xml   # File cấu hình Sysmon tối ưu (như SwiftOnSecurity) bạn nạp vào máy Windows
+│
+├── custom-rules/           # NƠI KHOE TRÌNH ĐỘ: Chứa các rule XML do bạn tự viết
 │   ├── web-lfi-detection.xml
 │   ├── ssh-brute-force-active-response.xml
 │   └── sysmon-powershell-rules.xml
 │
-├── integrations/           # Script tự động hóa quy trình đẩy alert
-│   └── wazuh-telegram-alert.py
+├── integrations/           # Code tích hợp gửi alert
+│   └── ossec-slack-telegram.js / python # Script đẩy cảnh báo về Telegram/Discord
 │
-└── reports/                # Báo cáo phân tích sự cố và kết quả thực hiện lab
-
+└── reports/                # File PDF báo cáo một case study điều tra cụ thể từ Lab này
 ```
 
 ---

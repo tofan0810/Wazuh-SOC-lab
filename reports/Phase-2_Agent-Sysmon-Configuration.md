@@ -96,7 +96,7 @@ cd "C:\Users\testw\Downloads\Sysmon"
 ```cmd
 sysmon64.exe -c sysmon-config.xml
 ```
-![Cài đặt sysmon](images/phase2/cài%20đặt%20sysmon.png)
+![Cài đặt sysmon](images/phase2/config-sysmon.png)
 * Bạn có thể tham khảo file sysmon-config.xml của mình như sau:
 ```
 <Sysmon schemaversion="4.90">

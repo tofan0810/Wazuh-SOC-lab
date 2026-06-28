@@ -1,0 +1,18 @@
+<Sysmon schemaversion="4.90">
+  <HashAlgorithms>MD5,SHA256</HashAlgorithms>
+  <EventFiltering>
+    <ProcessCreate onmatch="exclude">
+    </ProcessCreate>
+
+    <NetworkConnect onmatch="include">
+      <Image condition="contains">cmd.exe</Image>
+      <Image condition="contains">powershell.exe</Image>
+    </NetworkConnect>
+
+    <FileCreate onmatch="include">
+      <TargetFilename condition="contains">\.exe</TargetFilename>
+      <TargetFilename condition="contains">\.ps1</TargetFilename>
+      <TargetFilename condition="contains">\.bat</TargetFilename>
+    </FileCreate>
+  </EventFiltering>
+</Sysmon>
