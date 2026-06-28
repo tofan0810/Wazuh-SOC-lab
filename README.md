@@ -76,14 +76,15 @@ wazuh-soc-lab/
 ├── README.md               # Tài liệu chính
 ├── documents/              # Tài liệu lý thuyết và lệnh thường dùng
 │
-├── architecture/           # Chứa ảnh sơ đồ mạng (nếu có)
+├── architecture/           # Chứa ảnh sơ đồ mạng (mô hình topology)
 │
 ├── deployment/             # Hướng dẫn hoặc script cài đặt
-│   ├── docker-compose.yml  # (Nếu bạn dựng Wazuh bằng Docker)
+│   ├── docker-compose.yml  # File cấu hình Docker Compose để triển khai Wazuh bằng Docker Compose
 │   └── sysmon-config.xml   # File cấu hình Sysmon tối ưu
 │
-├── custom-rules/           # NƠI KHOE TRÌNH ĐỘ: Chứa các rule XML do bạn tự viết
-│   ├── (Chứa các file local_rules.xml và local_decoder.xml)
+├── custom-rules/           # Chứa các rule XML do tôi tự viết
+│   ├── local_rules.xml
+│   └── local_decoder.xml
 │
 ├── integrations/           # Code tích hợp gửi alert **(Sẽ được phát triển trong tương lai)**
 │
