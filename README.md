@@ -37,18 +37,19 @@ Kho lưu trữ này chứa sơ đồ kiến trúc, các file cấu hình và chi
                            │
                            │ Logs (Sysmon/Security/Apache)
                            ▼
-                   ┌─────────────────────────────┐
-                   │ Ubuntu Server (Wazuh Manager) │
-                   │ Docker Single-Node         │
-                   │ (IP: 192.168.71.128) │
-                   ├── Wazuh Indexer (Lưu trữ log) │
-                   └── Wazuh Dashboard (Giao diện)│
+                   ┌────────────────────────────────┐
+                   │ Ubuntu Server (Wazuh Manager)  │
+                   │ Docker Single-Node             │
+                   │ (IP: 192.168.71.128)           │
+                   │ Wazuh Indexer (Lưu trữ log)    │
+                   │ Wazuh Dashboard (Giao diện)    │
+                   └───────┬────────────────────────┘
                            │
                            │ Alerts
                            ▼
                    ┌─────────────────┐
-                   │ Wazuh  │
-                   │ Dashboard │
+                   │ Wazuh           │
+                   │ Dashboard       │
                    └─────────────────┘
 ```
 
