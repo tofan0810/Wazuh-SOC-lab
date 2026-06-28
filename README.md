@@ -77,14 +77,15 @@ wazuh-soc-lab/
 ├── README.md               # Main documentation
 ├── documents/              # Theoretical documentation and common commands
 │
-├── architecture/           # Contains network diagram images (if any)
+├── architecture/           # Contains network diagram images (topology model)
 │
 ├── deployment/             # Installation guides or scripts
-│   ├── docker-compose.yml  # (If Wazuh is deployed with Docker)
+│   ├── docker-compose.yml  # Docker Compose configuration file to deploy the Wazuh Docker Compose stack
 │   └── sysmon-config.xml   # Optimized Sysmon configuration file
 │
-├── custom-rules/           # SHOWCASE: Contains custom XML rules written from scratch
-│   ├── (Contains local_rules.xml and local_decoder.xml files)
+├── custom-rules/           # Contains custom XML rules written from scratch
+│   ├── local_rules.xml
+│   └── local_decoder.xml
 │
 ├── integrations/           # Alert integration code **(To be developed in the future)**
 │
