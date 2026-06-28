@@ -37,12 +37,14 @@ This repository contains architecture diagrams, configuration files, and deploym
                            │
                            │ Logs (Sysmon/Security/Apache)
                            ▼
-                   ┌─────────────────────────────┐
+                   ┌───────────────────────────────┐
                    │ Ubuntu Server (Wazuh Manager) │
                    │ Docker Single-Node            │
                    │ (IP: 192.168.71.128)          │
-                   ├── Wazuh Indexer (Log Storage) │
-                   └── Wazuh Dashboard (UI)        │
+                   │ Wazuh Indexer (Log Storage)   │
+                   │ Wazuh Dashboard (UI)          │
+                   └───────┬───────────────────────┘
+                           │
                            │
                            │ Alerts
                            ▼
