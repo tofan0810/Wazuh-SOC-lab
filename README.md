@@ -4,6 +4,8 @@
 [![Wazuh](https://img.shields.io/badge/SIEM-Wazuh-blue)](https://wazuh.com/)
 [![Framework](https://img.shields.io/badge/Framework-MITRE%20ATT%26CK-orange)](https://attack.mitre.org/)
 
+> 🌐 Switch to the [main](https://github.com/tofan0810/Wazuh-SOC-lab) branch to view this documentation in Vietnamese.
+
 ## 📝 Project Overview
 
 This repository contains architecture diagrams, configuration files, and deployment details of a **Centralized Network Security Monitoring & Incident Response System** built on the **Wazuh SIEM/XDR** platform. Designed to simulate a real enterprise operational environment, this project focuses deeply on log collection, custom attack detection rule authoring (**Detection Engineering**) standardized according to the **MITRE ATT&CK** framework, defense automation (**Active Response**), and real-time alert triggering.
