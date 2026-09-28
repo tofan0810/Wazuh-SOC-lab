@@ -19,4 +19,4 @@ python -m pip install -r requirements-e2e.txt
 python tests/e2e/scenario_rdp_bruteforce.py --execute
 ```
 
-The default accounts are `./socrunner` for WinRM and `regression-test` for the RDP test user. No passwords are stored in the repository.
+The default accounts are `.\testw` for WinRM and `testw` for the RDP test user. No passwords are stored in the repository.

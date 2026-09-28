@@ -1,5 +1,11 @@
 # Ignore Visual Studio Code settings and workspace files
 .vscode/
 
-# Ignore test account file
-account.txt
+# Ignore personal workspace
+wazuh_share/
+.wazuh_share/
+wazuh-share/
+
+# Python cache
+__pycache__/
+*.py[cod]

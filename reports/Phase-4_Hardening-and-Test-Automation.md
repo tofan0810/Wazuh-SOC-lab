@@ -30,8 +30,8 @@ Makefile
 Runner mặc định dùng:
 
 ```text
-WinRM user: .\socrunner
-RDP test user: regression-test
+WinRM user: .\testw
+RDP test user: testw
 ```
 
 Không lưu password trong repository.
@@ -129,16 +129,7 @@ Kết quả đạt:
 
 Firewall rule có thể đã tự xóa sau timeout 600 giây; runner dùng Agent `active-responses.log` để xác nhận Active Response đã thực thi.
 
-## 6. Phân biệt Phase 3 và Phase 4
 
-| Nội dung | Report |
-|---|---|
-| PoC tấn công thủ công, Event Viewer, Dashboard chi tiết, firewall UI | Phase 3 |
-| Static Rule/Decoder test | Phase 4 |
-| Health check ba VM | Phase 4 |
-| Python regression runner | Phase 4 |
-| PASS/FAIL sau mỗi lần chạy | Phase 4 |
-
-## 7. Kết luận
+## 6. Kết luận
 
 Phase 3 chứng minh Wazuh hoạt động. Phase 4 chứng minh chuỗi phát hiện và phản ứng có thể được kiểm tra lại tự động, nhanh chóng và nhất quán sau mỗi lần thay đổi.
