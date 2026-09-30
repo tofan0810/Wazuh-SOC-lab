@@ -27,7 +27,14 @@ def winrm(host, user, password, command):
     except ImportError as error:
         raise ScenarioError("Install pywinrm with: python -m pip install -r requirements-e2e.txt") from error
     auth_user = user[2:] if user.startswith((".\\", "./")) else user
-    session = winrm.Session(f"http://{host}:5985/wsman", auth=(auth_user, password), transport="ntlm", server_cert_validation="ignore")
+    session = winrm.Session(
+        f"http://{host}:5985/wsman",
+        auth=(auth_user, password),
+        transport="ntlm",
+        server_cert_validation="ignore",
+        read_timeout_sec=60,
+        operation_timeout_sec=50,
+    )
     result = session.run_ps(command)
     output = result.std_out.decode("utf-8", errors="replace").strip()
     if result.status_code:
@@ -88,7 +95,7 @@ def main():
     parser.add_argument("--kali", default=os.getenv("LAB_KALI_HOST", "kali-vm"))
     parser.add_argument("--wazuh", default=os.getenv("LAB_WAZUH_HOST", "wazuh-vm"))
     parser.add_argument("--windows-ip", default=os.getenv("LAB_WINDOWS_IP", "192.168.71.129"))
-    parser.add_argument("--windows-user", default=os.getenv("LAB_WINDOWS_USER", "testw"))
+    parser.add_argument("--windows-user", default=os.getenv("LAB_WINDOWS_USER", "socrunner"))
     parser.add_argument("--rdp-user", default=os.getenv("LAB_RDP_USER", "testw"))
     parser.add_argument("--count", type=int, default=10)
     parser.add_argument("--wait", type=int, default=30)

@@ -95,6 +95,7 @@ wazuh-soc-lab/
     ├── Phase-2_Agent-Sysmon-Configuration.md
     ├── Phase-3_Scenario-1.md
     ├── Phase-3_Scenario-2.md
+    ├── Phase-4_Regression-Test-Automation.md
     └── images/
 ```
 
@@ -130,6 +131,7 @@ Xem chi tiết các bước tại các báo cáo trong thư mục `reports/`:
 1. Triển khai hạ tầng Wazuh Stack: `reports/Phase-1_Infrastructure-Deployment.md`
 2. Cấu hình Agent và Sysmon: `reports/Phase-2_Agent-Sysmon-Configuration.md`
 3. Triển khai kịch bản tấn công và phát hiện: `reports/Phase-3_Scenario-1.md` và `reports/Phase-3_Scenario-2.md`
+4. Tự động hóa kiểm thử hồi quy (Detection-as-Code): `reports/Phase-4_Regression-Test-Automation.md`
 
 ### Điều kiện tiên quyết:
 *   Phần mềm máy ảo: VMware Workstation hoặc VirtualBox.

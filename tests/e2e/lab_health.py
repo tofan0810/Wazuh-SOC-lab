@@ -51,9 +51,11 @@ def main():
         if status not in {"200", "302"}:
             raise HealthError(f"Dashboard HTTP {status}")
         print(f"[OK] Dashboard HTTPS: HTTP {status}")
-        logs = ssh(args.wazuh, "cd ~/wazuh-docker/single-node; docker compose logs --since=6h wazuh.manager")
-        if "Connection to backoff(elasticsearch(https://wazuh.indexer:9200)) established" not in logs:
-            raise HealthError("Manager-to-Indexer connection not found")
+        fb_check = ssh(args.wazuh, "cd ~/wazuh-docker/single-node; docker compose exec -T wazuh.manager filebeat test output 2>&1")
+        if "talk to server... OK" not in fb_check:
+            logs = ssh(args.wazuh, "cd ~/wazuh-docker/single-node; docker compose logs --tail=2000 wazuh.manager")
+            if "Connection to backoff(elasticsearch(https://wazuh.indexer:9200)) established" not in logs:
+                raise HealthError("Manager-to-Indexer connection not found")
         print("[OK] Manager connected to Indexer")
         print("[PASS] Three-VM Wazuh lab health check")
         return 0
