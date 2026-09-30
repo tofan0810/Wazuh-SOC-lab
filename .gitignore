@@ -9,3 +9,5 @@ wazuh-share/
 # Python cache
 __pycache__/
 *.py[cod]
+
+.env
