@@ -87,6 +87,7 @@ wazuh-soc-lab/
 │
 ├── deployment/             # Hướng dẫn và file cấu hình triển khai
 │   ├── docker-compose.yml  # Triển khai Wazuh Manager, Indexer, Dashboard
+│   ├── ossec.conf          # File cấu hình chuẩn mẫu của Wazuh
 │   └── sysmon-config.xml   # Cấu hình Sysmon v15.2 tối ưu
 │
 ├── custom-rules/           # Chứa các rule và decoder tùy chỉnh
