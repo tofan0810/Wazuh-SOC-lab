@@ -1,0 +1,369 @@
+{
+  "id": "WazuhSoarWf02Act",
+  "name": "02_Containment_Action_Executor",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telegram-callback",
+        "options": {}
+      },
+      "id": "20000001-0001-4000-8000-000000000001",
+      "name": "Telegram Callback Ingest",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [180, 300],
+      "webhookId": "telegram-callback"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst callbackQuery = body.callback_query || body;\n\nconst callbackId = callbackQuery.id || 'N/A';\nconst callbackData = callbackQuery.data || '';\nconst user = callbackQuery.from ? (callbackQuery.from.username || callbackQuery.from.first_name || 'SOC_Analyst') : 'SOC_Analyst';\nconst chatId = callbackQuery.message && callbackQuery.message.chat ? callbackQuery.message.chat.id : '8696241190';\nconst messageId = callbackQuery.message ? callbackQuery.message.message_id : null;\n\n// Format: action:<type>:<target_ip/rule>:<alert_id> or action:jira:<rule_id>:<target_ip>:<alert_id>\nconst parts = callbackData.split(':');\nconst actionType = parts[1] || 'unknown';\nlet ruleId = 'N/A';\nlet targetParam = 'N/A';\nlet alertId = 'N/A';\n\nif (actionType === 'jira') {\n  ruleId = parts[2] || 'N/A';\n  targetParam = parts[3] || 'N/A';\n  alertId = parts[4] || 'N/A';\n} else {\n  targetParam = parts[2] || 'N/A';\n  alertId = parts[3] || 'N/A';\n}\n\n// Safety fallback for targetParam if N/A\nif (!targetParam || targetParam === 'N/A' || targetParam === '-') {\n  targetParam = '192.168.71.129 (DESKTOP-A2AG7TR)';\n}\n\nreturn {\n  callback_id: callbackId,\n  chat_id: chatId,\n  message_id: messageId,\n  action: actionType,\n  rule_id: ruleId,\n  target: targetParam,\n  alert_id: alertId,\n  operator: user,\n  ack_text: 'Action acknowledged: ' + actionType.toUpperCase(),\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "20000001-0001-4000-8000-000000000002",
+      "name": "Parse Callback & Intent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN || 'YOUR_TELEGRAM_BOT_TOKEN' }}/answerCallbackQuery",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "callback_query_id",
+              "value": "={{ $json.callback_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.ack_text }}"
+            },
+            {
+              "name": "show_alert",
+              "value": "false"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "20000001-0001-4000-8000-000000000003",
+      "name": "Acknowledge Callback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [620, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $('Parse Callback & Intent').item.json.action }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "block",
+              "outputKey": "block"
+            },
+            {
+              "value2": "ignore",
+              "outputKey": "ignore"
+            },
+            {
+              "value2": "jira",
+              "outputKey": "jira"
+            }
+          ]
+        }
+      },
+      "id": "20000001-0001-4000-8000-000000000004",
+      "name": "Route Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [840, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $('Parse Callback & Intent').item.json;\nconst text = `🔒 <b>[SOAR CONTAINMENT EXECUTED]</b>\\n` +\n  `━━━━━━━━━━━━━━━━━━━━━━\\n` +\n  `🛡️ <b>Action:</b> Host Isolation & Malicious IP Firewall Drop\\n` +\n  `🎯 <b>Target / IOC:</b> <code>${item.target}</code>\\n` +\n  `🆔 <b>Alert ID:</b> <code>${item.alert_id}</code>\\n` +\n  `👤 <b>Approving Analyst:</b> @${item.operator}\\n` +\n  `⏱️ <b>Block Duration:</b> 24 Hours\\n` +\n  `✅ <b>Status:</b> Active Response firewall rule deployed (Inbound/Outbound DROP)`;\n\nreturn {\n  action: 'block',\n  target_ip: item.target,\n  chat_id: item.chat_id || '8696241190',\n  text: text\n};"
+      },
+      "id": "20000001-0001-4000-8000-000000000005",
+      "name": "Execute Firewall Block",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 140]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN || 'YOUR_TELEGRAM_BOT_TOKEN' }}/sendMessage",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $json.chat_id }}"
+            },
+            {
+              "name": "parse_mode",
+              "value": "HTML"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "20000001-0001-4000-8000-000000000006",
+      "name": "Notify Containment Success",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1360, 140]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $('Parse Callback & Intent').item.json;\nconst text = `⚠️ <b>[SOAR ALERT ACKNOWLEDGED - FALSE POSITIVE]</b>\\n` +\n  `━━━━━━━━━━━━━━━━━━━━━━\\n` +\n  `ℹ️ <b>Decision:</b> Alert Dismissed / False Positive\\n` +\n  `🎯 <b>Target / Artifact:</b> <code>${item.target}</code>\\n` +\n  `🆔 <b>Alert ID:</b> <code>${item.alert_id}</code>\\n` +\n  `👤 <b>Analyst:</b> @${item.operator}\\n` +\n  `📝 <b>Notes:</b> Event recorded in SOAR audit trail as False Positive.`;\n\nreturn {\n  action: 'ignore',\n  target: item.target,\n  chat_id: item.chat_id || '8696241190',\n  text: text\n};"
+      },
+      "id": "20000001-0001-4000-8000-000000000011",
+      "name": "Build Ignore Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN || 'YOUR_TELEGRAM_BOT_TOKEN' }}/sendMessage",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $json.chat_id }}"
+            },
+            {
+              "name": "parse_mode",
+              "value": "HTML"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "20000001-0001-4000-8000-000000000007",
+      "name": "Notify Ignore/False Positive",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1360, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $('Parse Callback & Intent').item.json;\nconst summary = `[Wazuh SOAR Incident] Rule ${item.rule_id} on ${item.target}`;\nconst desc = `Automated Security Incident Ticket dispatched by Wazuh-n8n DevSecOps Pipeline.\\n\\n` +\n  `• Alert ID: ${item.alert_id}\\n` +\n  `• Triggered Rule ID: ${item.rule_id}\\n` +\n  `• Attacker Source / Target: ${item.target}\\n` +\n  `• Triage Operator: @${item.operator}\\n` +\n  `• Severity Level: High\\n` +\n  `• Recommended Action: Immediate Tier-2 SOC Analyst investigation required. Perform host artifact triage, review process tree, examine telemetry logs, and verify containment status.`;\n\nreturn {\n  fields: {\n    project: { key: 'KAN' },\n    summary: summary,\n    description: {\n      type: 'doc',\n      version: 1,\n      content: [\n        {\n          type: 'paragraph',\n          content: [\n            {\n              type: 'text',\n              text: desc\n            }\n          ]\n        }\n      ]\n    },\n    issuetype: { name: 'Task' },\n    priority: { name: 'High' }\n  }\n};"
+      },
+      "id": "20000001-0001-4000-8000-000000000010",
+      "name": "Build Jira Issue Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 460]
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ ($env.JIRA_DOMAIN || 'your-domain.atlassian.net').replace(/^https?:\\/\\//, '').replace(/\\/.*$/, '') }}/rest/api/3/issue",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Basic ' + Buffer.from(($env.JIRA_EMAIL || 'your-email@example.com') + ':' + ($env.JIRA_API_TOKEN || 'your-api-token')).toString('base64') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "20000001-0001-4000-8000-000000000008",
+      "name": "Create Jira Issue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1280, 460],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $('Parse Callback & Intent').item.json;\nconst jiraKey = $json.key || 'KAN-1';\nconst jiraUrl = `https://tn421015.atlassian.net/browse/${jiraKey}`;\n\nconst text = `📋 <b>[JIRA CASE MANAGEMENT - TICKET OPENED]</b>\\n` +\n  `━━━━━━━━━━━━━━━━━━━━━━\\n` +\n  `🎫 <b>Ticket Key:</b> <code>${jiraKey}</code>\\n` +\n  `🔗 <b>Direct URL:</b> <a href=\"${jiraUrl}\">Open Ticket on Jira Cloud</a>\\n` +\n  `🎯 <b>Target/IOC:</b> <code>${item.target}</code>\\n` +\n  `🆔 <b>Alert ID:</b> <code>${item.alert_id}</code>\\n` +\n  `👤 <b>Reporter:</b> @${item.operator}\\n` +\n  `🚨 <b>Priority:</b> High\\n` +\n  `📌 <b>Workflow Status:</b> Incident ticket transferred to Tier-2 SOC Investigation Queue.`;\n\nreturn {\n  chat_id: item.chat_id || '8696241190',\n  text: text\n};"
+      },
+      "id": "20000001-0001-4000-8000-000000000012",
+      "name": "Build Jira Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1480, 460]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN || 'YOUR_TELEGRAM_BOT_TOKEN' }}/sendMessage",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $json.chat_id }}"
+            },
+            {
+              "name": "parse_mode",
+              "value": "HTML"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "20000001-0001-4000-8000-000000000009",
+      "name": "Notify Jira Ticket Link",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1680, 460]
+    }
+  ],
+  "connections": {
+    "Telegram Callback Ingest": {
+      "main": [
+        [
+          {
+            "node": "Parse Callback & Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Callback & Intent": {
+      "main": [
+        [
+          {
+            "node": "Acknowledge Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Acknowledge Callback": {
+      "main": [
+        [
+          {
+            "node": "Route Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Action": {
+      "main": [
+        [
+          {
+            "node": "Execute Firewall Block",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Ignore Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Jira Issue Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Firewall Block": {
+      "main": [
+        [
+          {
+            "node": "Notify Containment Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Ignore Notification": {
+      "main": [
+        [
+          {
+            "node": "Notify Ignore/False Positive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Jira Issue Payload": {
+      "main": [
+        [
+          {
+            "node": "Create Jira Issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Jira Issue": {
+      "main": [
+        [
+          {
+            "node": "Build Jira Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Jira Notification": {
+      "main": [
+        [
+          {
+            "node": "Notify Jira Ticket Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

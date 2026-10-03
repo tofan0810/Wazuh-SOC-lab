@@ -95,25 +95,40 @@ wazuh-soc-lab/
 │   └── local_decoder.xml   # Decoder bóc tách log Apache Web Server
 │
 ├── integrations/           # Phân hệ tích hợp mở rộng
+│   ├── n8n/                # SOAR Automation Engine, Webhooks & Jira Case Management
+│   │   ├── workflows/      # Workflows mẫu (Threat Enrichment, Containment, Jira, Cron)
+│   │   ├── custom-n8n.py   # Script chuẩn hóa alert và dispatch tới n8n Webhook
+│   │   └── README.md       # Hướng dẫn cấu hình n8n, AbuseIPDB, Jira Cloud API
 │   ├── telegram/           # ChatOps cảnh báo thời gian thực về Telegram Bot
 │   └── virustotal/         # Tự động tra cứu danh tiếng file lạ qua VirusTotal API
 │
 ├── playbooks/              # Quy trình chuẩn ứng phó sự cố (SOP) theo NIST / SANS
 │   ├── README.md           # Hướng dẫn vận hành và ma trận phân loại sự cố
 │   ├── SOP-01_RDP_Brute_Force_Response.md
-│   └── SOP-02_Web_LFI_Mitigation.md
+│   ├── SOP-02_Web_LFI_Mitigation.md
+│   └── SOP-03_SOAR_Automated_Containment.md # Ứng phó tự động hóa qua SOAR & ChatOps
 │
 ├── tests/                  # Bộ công cụ tự động hóa kiểm thử (Detection-as-Code)
 │   ├── e2e/                # Kịch bản kiểm thử End-to-End từ Attacker -> Victim -> SIEM
+│   │   ├── test_soar_webhook.py      # Kiểm thử toàn trình pipeline SOAR n8n Webhook
+│   │   └── scenario_full_killchain.py # Kiểm thử trọn bộ 4 stages Kill Chain
 │   └── unit/               # Kiểm thử cú pháp XML Rules và Decoders
 │
-└── reports/                # File báo cáo chi tiết các giai đoạn triển khai
+└── reports/                # Báo cáo chi tiết các giai đoạn triển khai
     ├── Phase-1_Infrastructure-Deployment.md
     ├── Phase-2_Agent-Sysmon-Configuration.md
-    ├── Phase-3_Scenario-1.md
-    ├── Phase-3_Scenario-2.md
-    ├── Phase-4_Regression-Test-Automation.md
-    └── images/
+    ├── Phase-3/            # Kịch bản tấn công & phát hiện thực chiến
+    │   ├── Phase-3_Scenario-1.md
+    │   ├── Phase-3_Scenario-2.md
+    │   ├── Phase-3_Scenario-3.md
+    │   └── images/
+    ├── Phase-4/            # Tự động hóa kiểm thử hồi quy (Detection-as-Code)
+    │   ├── Phase-4_Regression-Test-Automation.md
+    │   └── images/
+    ├── Phase-5/            # Tự động hóa SOAR, ChatOps 2 chiều & Jira Cloud API
+    │   ├── Phase-5_SOAR-Workflow-Automation.md
+    │   └── images/
+    └── images/             # Ảnh minh chứng Phase 1 & Phase 2
 ```
 
 ---
@@ -125,7 +140,7 @@ wazuh-soc-lab/
 * **Thu thập Telemetry (Log):** Theo dõi log đăng nhập hệ thống Windows Event ID 4625 (Đăng nhập thất bại).
 * **Chiến lược phát hiện:** Custom Rule ID 100001 (Level 12) phát hiện nhiều lần đăng nhập thất bại liên tiếp.
 * **Phản ứng giảm thiểu (Active Response):** Tự động gọi lệnh `netsh` trên Windows Agent để block IP attacker trong 600 giây (10 phút).
-* **Minh chứng thực tế (PoC):** Xem chi tiết tại `reports/Phase-3_Scenario-1.md`.
+* **Minh chứng thực tế (PoC):** Xem chi tiết tại [reports/Phase-3/Phase-3_Scenario-1.md](reports/Phase-3/Phase-3_Scenario-1.md).
 
 
 ### 🔹 Kịch bản 2: T1190 - KHAI THÁC LỖ HỔNG ỨNG DỤNG WEB (LOCAL FILE INCLUSION - LFI / DIRECTORY TRAVERSAL)
@@ -133,7 +148,7 @@ wazuh-soc-lab/
 * **Thu thập Telemetry (Log):** Cấu hình Wazuh Agent thu thập Apache Access Log.
 * **Chiến lược phát hiện:** Custom Decoder bóc tách URL + Custom Rule ID 100002 (Level 10) phát hiện các chuỗi ký tự độc hại (`..%2f`, `..%252f`, `win.ini`, `boot.ini`).
 * **Phản ứng giảm thiểu (Active Response):** Tự động block IP attacker trong 600 giây.
-* **Minh chứng thực tế (PoC):** Xem chi tiết tại `reports/Phase-3_Scenario-2.md`.
+* **Minh chứng thực tế (PoC):** Xem chi tiết tại [reports/Phase-3/Phase-3_Scenario-2.md](reports/Phase-3/Phase-3_Scenario-2.md).
 
 
 ### 🔹 Kịch bản 3: T1027 / T1204 - PHÁT HIỆN TỆP TIN ĐỘC HẠI BẰNG THREAT INTELLIGENCE (VIRUSTOTAL API)
@@ -141,6 +156,16 @@ wazuh-soc-lab/
 * **Thu thập Telemetry (Log):** Module FIM (Syscheck) phát hiện tệp tin mới tạo và tự động tính toán mã băm SHA256/MD5.
 * **Chiến lược phát hiện:** `wazuh-integratord` gửi mã băm lên VirusTotal Cloud API đối soát với >70 Antivirus Engines. Khi có >= 1 Engine báo độc, tự động kích hoạt **Rule ID 87105 (Level 12 - High Severity)**.
 * **Minh chứng & Hướng dẫn:** Xem chi tiết tại [integrations/virustotal/README.md](integrations/virustotal/README.md).
+
+
+### 🔹 Kịch bản 4: FULL KILL CHAIN ATTACK & DETECTION VỚI MICROSOFT SYSMON TELEMETRY
+Bao phủ chuỗi tấn công hoàn chỉnh (Full Attack Lifecycle) với telemetry chuyên sâu từ Microsoft Sysmon v15.2 trên Windows Endpoint:
+* **Stage 1 - Execution (`T1059.001`):** Thực thi PowerShell ẩn danh với cờ mã hóa Base64 (`-EncodedCommand`, `-w hidden`, `-nop`) $\rightarrow$ Kích hoạt **Rule 100004 (Level 12)** từ Sysmon Event ID 1.
+* **Stage 2 - Privilege Escalation (`T1548.002`):** Lạm dụng kỹ thuật UAC Bypass thông qua registry hijacking khóa `ms-settings\Shell\Open\command` $\rightarrow$ Kích hoạt **Rule 100007 (Level 12)** từ Sysmon Event ID 12/13.
+* **Stage 3 - Persistence (`T1547.001`):** Đăng ký tự khởi động bám trụ qua `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` bằng `reg.exe` $\rightarrow$ Kích hoạt **Rule 100006 (Level 10)** từ Sysmon Event ID 12/13.
+* **Stage 4 - Credential Access (`T1003.001`):** Mở handle đọc trộm bộ nhớ tiến trình xác thực `lsass.exe` (Mimikatz simulation) $\rightarrow$ Kích hoạt **Rule 100005 (Level 12)** từ Sysmon Event ID 10.
+* **Tự động hóa E2E:** Kịch bản được vận hành hoàn toàn tự động qua [`tests/e2e/scenario_full_killchain.py`](tests/e2e/scenario_full_killchain.py).
+* **Minh chứng thực tế (PoC):** Xem chi tiết tại [reports/Phase-3/Phase-3_Scenario-3.md](reports/Phase-3/Phase-3_Scenario-3.md).
 
 ---
 
@@ -154,7 +179,27 @@ Hệ thống đã được trang bị phân hệ ChatOps hoàn chỉnh, giúp đ
   * **Rule 100001:** Cảnh báo tấn công RDP Brute Force dồn dập.
   * **Rule 100002:** Cảnh báo tấn công khai thác lỗ hổng Web LFI.
   * **Rule 87105:** Cảnh báo VirusTotal phát hiện tệp tin độc hại.
+  * **Rule 100004 - 100007:** Cảnh báo tức thì trọn bộ chuỗi tấn công Full Kill Chain (PowerShell, UAC Bypass, Run Key, LSASS Dump).
 * **Hướng dẫn cấu hình & kiểm thử:** Xem chi tiết tại [integrations/telegram/README.md](integrations/telegram/README.md).
+
+---
+
+## ⚡ Tự động hóa SOAR & SecOps Workflow với n8n & Jira Cloud (Phase 5)
+
+Mô hình SOAR (Security Orchestration, Automation, and Response) độc lập kết hợp giữa **Wazuh SIEM Manager**, **n8n Automation Engine**, **AbuseIPDB Threat Intelligence**, và **Jira Cloud REST API v3**:
+
+* **Engine n8n Độc lập trên Docker:** Chạy tại cổng `5678` trên máy chủ `wazuh-vm`, tiếp nhận các cảnh báo thông qua endpoint `/webhook/wazuh-alert`.
+* **Làm giàu Tình báo Mối đe dọa (Threat Enrichment):** Tự động phân loại IP Public vs RFC1918 Private, tra cứu điểm tín nhiệm và số lượng báo cáo vi phạm qua **AbuseIPDB Cloud API v2**.
+* **Tương tác 2 chiều (Human-in-the-Loop ChatOps):** Gửi cảnh báo về Telegram kèm 3 nút bấm tương tác:
+  * **`[🚫 Khóa IP 24h]`**: Tự động áp dụng luật chặn Inbound/Outbound trên Windows Defender Firewall qua PowerShell/WinRM.
+  * **`[⚠️ Bỏ qua / Báo động giả]`**: Ghi log phân loại False Positive vào SOAR Audit Trail, giảm thiểu Alert Fatigue.
+  * **`[📋 Mở Ticket Jira]`**: Tự động gọi **Jira Cloud REST API v3** (`POST /rest/api/3/issue`) khởi tạo Incident Ticket trong Project `SEC` và gửi link xem trực tiếp về Telegram cho Analyst L2.
+* **Báo cáo Sức khỏe Định kỳ (Cron Trigger):** Tự động kiểm tra trạng thái 3 VM, container Docker và Wazuh Manager mỗi 6 giờ.
+* **Tài liệu & Kịch bản Kiểm thử:**
+  - Hướng dẫn chi tiết: [integrations/n8n/README.md](integrations/n8n/README.md)
+  - Playbook phản ứng sự cố SOAR: [playbooks/SOP-03_SOAR_Automated_Containment.md](playbooks/SOP-03_SOAR_Automated_Containment.md)
+  - Báo cáo thực nghiệm Phase 5: [reports/Phase-5/Phase-5_SOAR-Workflow-Automation.md](reports/Phase-5/Phase-5_SOAR-Workflow-Automation.md)
+  - Test Runner E2E: `python tests/e2e/test_soar_webhook.py` (PASS 100%).
 
 ---
 
@@ -174,6 +219,11 @@ Nhằm đáp ứng tiêu chuẩn vận hành an ninh chuyên nghiệp của Trun
    - Hướng dẫn vá lỗ hổng code PHP (áp dụng Whitelist validation và hàm `basename()`).
    - Củng cố máy chủ Web (phân quyền thư mục `htdocs`, cấm thực thi script trong thư mục upload).
 
+3. **[SOP-03: SOAR Automated Containment & ChatOps Response](playbooks/SOP-03_SOAR_Automated_Containment.md):**
+   - Mô hình điều phối sự cố tự động hóa Human-in-the-Loop giữa Wazuh, n8n, Telegram và Jira Cloud.
+   - Quy trình phân loại tự động và kích hoạt cách ly IP qua Windows Defender Firewall.
+   - Bàn giao hồ sơ sự cố (Incident Case Management) trên Jira Cloud REST API v3.
+
 > 📘 Xem toàn bộ kiến trúc quy trình và ma trận leo thang tại [playbooks/README.md](playbooks/README.md).
 
 ---
@@ -183,10 +233,13 @@ Xem chi tiết các bước tại các tài liệu chuyên đề:
 1. Triển khai hạ tầng Wazuh Stack: `reports/Phase-1_Infrastructure-Deployment.md`
 2. Cấu hình Agent và Sysmon: `reports/Phase-2_Agent-Sysmon-Configuration.md`
 3. Triển khai kịch bản tấn công và phát hiện: `reports/Phase-3_Scenario-1.md` và `reports/Phase-3_Scenario-2.md`
-4. Tự động hóa kiểm thử hồi quy (Detection-as-Code): `reports/Phase-4_Regression-Test-Automation.md`
-5. Tích hợp Threat Intelligence (VirusTotal): [integrations/virustotal/README.md](integrations/virustotal/README.md)
-6. Tích hợp ChatOps cảnh báo Telegram: [integrations/telegram/README.md](integrations/telegram/README.md)
-7. Quy trình ứng phó sự cố SOC: [playbooks/README.md](playbooks/README.md)
+4. Kịch bản Full Kill Chain Telemetry: `reports/Phase-3/Phase-3_Scenario-3.md`
+5. Tự động hóa kiểm thử hồi quy (Detection-as-Code): `reports/Phase-4_Regression-Test-Automation.md`
+6. Tự động hóa SOAR, ChatOps 2 chiều & Jira API: `reports/Phase-5/Phase-5_SOAR-Workflow-Automation.md`
+7. Tích hợp Threat Intelligence (VirusTotal): [integrations/virustotal/README.md](integrations/virustotal/README.md)
+8. Tích hợp ChatOps cảnh báo Telegram: [integrations/telegram/README.md](integrations/telegram/README.md)
+9. Tích hợp SOAR Engine & Jira Cloud: [integrations/n8n/README.md](integrations/n8n/README.md)
+10. Quy trình ứng phó sự cố SOC (SOP-01, SOP-02, SOP-03): [playbooks/README.md](playbooks/README.md)
 
 ### Điều kiện tiên quyết:
 *   Phần mềm máy ảo: VMware Workstation hoặc VirtualBox.

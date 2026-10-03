@@ -9,6 +9,12 @@ import subprocess
 import sys
 import time
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 
 class ScenarioError(RuntimeError):
     pass

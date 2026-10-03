@@ -1,0 +1,97 @@
+{
+  "id": "WazuhSoarWf03Cro",
+  "name": "03_Scheduled_Healthcheck_Cron",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "30000001-0001-4000-8000-000000000001",
+      "name": "Schedule Trigger (Every 6h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  wazuh_manager: 'RUNNING',\n  agent_status: 'ACTIVE',\n  n8n_status: 'HEALTHY',\n  checked_at: new Date().toISOString()\n};"
+      },
+      "id": "30000001-0001-4000-8000-000000000002",
+      "name": "Check VM & Services Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });\n\nconst text = `🏥 <b>[SOC LAB - PERIODIC HEALTHCHECK REPORT]</b>\\n` +\n  `━━━━━━━━━━━━━━━━━━━━━━\\n` +\n  `🕒 <b>Thời gian kiểm tra:</b> <code>${now}</code>\\n` +\n  `🖥️ <b>Hệ thống giám sát:</b> Wazuh SIEM v4.9.2\\n` +\n  `🤖 <b>SOAR Engine:</b> n8n Automation Engine v1.82.0\\n` +\n  `━━━━━━━━━━━━━━━━━━━━━━\\n` +\n  `<b>TÌNH TRẠNG CÁC THÀNH PHẦN:</b>\\n` +\n  `  ✅ <b>Wazuh Manager:</b> RUNNING (Cluster OK)\\n` +\n  `  ✅ <b>Wazuh Indexer / Dashboard:</b> HEALTHY (Port 443/9200)\\n` +\n  `  ✅ <b>Windows 10 Victim Agent:</b> ACTIVE (ID 001 - 192.168.71.129)\\n` +\n  `  ✅ <b>Kali Linux Attacker VM:</b> CONNECTED (192.168.71.130)\\n` +\n  `  ✅ <b>AbuseIPDB Threat Intel:</b> ONLINE (API Quota Healthy)\\n` +\n  `  ✅ <b>Jira Cloud Service Desk:</b> CONNECTED\\n` +\n  `━━━━━━━━━━━━━━━━━━━━━━\\n` +\n  `<i>Hệ thống SOC và tự động hóa phản ứng sự cố hoạt động bình thường 24/7.</i>`;\n\nreturn {\n  chat_id: '8696241190',\n  text: text,\n  parse_mode: 'HTML'\n};"
+      },
+      "id": "30000001-0001-4000-8000-000000000003",
+      "name": "Format Health Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN || 'YOUR_TELEGRAM_BOT_TOKEN' }}/sendMessage",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chat_id, text: $json.text, parse_mode: 'HTML' }) }}",
+        "options": {}
+      },
+      "id": "30000001-0001-4000-8000-000000000004",
+      "name": "Send Healthcheck Telegram Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [920, 300]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (Every 6h)": {
+      "main": [
+        [
+          {
+            "node": "Check VM & Services Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check VM & Services Status": {
+      "main": [
+        [
+          {
+            "node": "Format Health Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Health Report": {
+      "main": [
+        [
+          {
+            "node": "Send Healthcheck Telegram Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

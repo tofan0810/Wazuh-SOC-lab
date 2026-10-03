@@ -90,7 +90,7 @@ Test-NetConnection 192.168.71.129 -Port 5985
 Test-WSMan 192.168.71.129
 ```
 
-![Kết quả kết nối ba VM](images/phase4/phase4_01_vm_connectivity.png)
+![Kết quả kết nối ba VM](images/phase4_01_vm_connectivity.png)
 
 ---
 
@@ -116,7 +116,7 @@ python -m unittest discover -s tests -p "test_*.py" -v
   3. `test_lfi_rule`: Kiểm tra Rule `100002` có đúng `level="10"`, bắt đủ các payload `win.ini`, `boot.ini`, `..%2f`, `..%252f`, và map MITRE `T1190`.
   4. `test_lfi_decoder_extracts_url`: Kiểm tra Custom Decoder `web-access-lfi` bóc tách đúng trường `url` từ regex `GET (\S+)\sHTTP`.
 
-![Static tests pass](images/phase4/phase4_02_static_tests_pass.png)
+![Static tests pass](images/phase4_02_static_tests_pass.png)
 
 
 ### 3. Bước 3: Kiểm tra sức khỏe toàn diện cụm Lab 3 VM (Health Check)
@@ -139,7 +139,7 @@ python tests/e2e/lab_health.py
   5. Gửi request HTTPS kiểm tra Web Dashboard sẵn sàng (HTTP 200/302).
   6. Đọc log của `wazuh.manager` để xác nhận kết nối thành công tới lõi cơ sở dữ liệu `wazuh.indexer:9200`.
 
-![Health check pass](images/phase4/phase4_03_health_check_pass.png)
+![Health check pass](images/phase4_03_health_check_pass.png)
 
 ### 4. Bước 4: Kiểm thử kịch bản ở chế độ giả lập (Dry-run Mode)
 
@@ -152,7 +152,7 @@ Trước khi thực sự phát động tấn công mạng, runner hỗ trợ ch�
 python tests/e2e/scenario_rdp_bruteforce.py
 ```
 
-![Scenario runner dry-run](images/phase4/phase4_04_scenario_dry_run.png)
+![Scenario runner dry-run](images/phase4_04_scenario_dry_run.png)
 
 ### 5. Bước 5: Kích hoạt kiểm thử thực chiến tự động (Full E2E Scenario Runner)
 
@@ -184,8 +184,8 @@ python tests/e2e/scenario_rdp_bruteforce.py
 5. **Đánh giá kết quả (PASS/FAIL):**
    * Phải thỏa mãn đồng thời: Event mới $> 0$, Active Response mới $= True$, Alert Wazuh mới $= True$.
 
-![Automated Scenario 1 pass](images/phase4/phase4_05_scenario_rdp_bruteforce_pass.png)
-![Evidence on the Wazuh dashboard](images/phase4/phase4_06_rdp_bruteforce_evidence_on_dashboard.png)
+![Automated Scenario 1 pass](images/phase4_05_scenario_rdp_bruteforce_pass.png)
+![Evidence on the Wazuh dashboard](images/phase4_06_rdp_bruteforce_evidence_on_dashboard.png)
 
 ---
 
@@ -216,8 +216,8 @@ Runner `scenario_lfi_web.py` tự động hóa việc kiểm chứng chuỗi ph�
 4. **Đánh giá kết quả (PASS/FAIL):**
    * Kết quả chỉ đạt `[PASS]` khi thỏa mãn đồng thời: Apache Log mới $= True$, Wazuh Alert mới $= True$, Active Response mới $= True$.
 
-![Automated Scenario 2 pass](images/phase4/phase4_07_scenario_lfi_web_runner_pass.png)
-![Evidence on the Wazuh dashboard](images/phase4/phase4_08_lfi_web_evidence_on_dashboard.png)
+![Automated Scenario 2 pass](images/phase4_07_scenario_lfi_web_runner_pass.png)
+![Evidence on the Wazuh dashboard](images/phase4_08_lfi_web_evidence_on_dashboard.png)
 
 ## IV. CÁC VẤN ĐỀ KỸ THUẬT NẢY SINH & KINH NGHIỆM XỬ LÝ (TROUBLESHOOTING LOG)
 

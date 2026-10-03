@@ -46,6 +46,27 @@ class DetectionConfigurationTests(unittest.TestCase):
         self.assertEqual(decoder.findtext("order"), "url")
         self.assertEqual(decoder.findtext("regex"), r"GET (\S+)\sHTTP")
 
+    def test_killchain_rules_present_and_configured(self):
+        # Stage 1: PowerShell
+        rule_ps = self.rules["100004"]
+        self.assertEqual(rule_ps.attrib["level"], "12")
+        self.assertEqual(rule_ps.findtext("mitre/id"), "T1059.001")
+
+        # Stage 2: UAC Bypass
+        rule_uac = self.rules["100007"]
+        self.assertEqual(rule_uac.attrib["level"], "12")
+        self.assertEqual(rule_uac.findtext("mitre/id"), "T1548.002")
+
+        # Stage 3: Persistence Run Key
+        rule_run = self.rules["100006"]
+        self.assertEqual(rule_run.attrib["level"], "10")
+        self.assertEqual(rule_run.findtext("mitre/id"), "T1547.001")
+
+        # Stage 4: LSASS Access
+        rule_lsass = self.rules["100005"]
+        self.assertEqual(rule_lsass.attrib["level"], "12")
+        self.assertEqual(rule_lsass.findtext("mitre/id"), "T1003.001")
+
 
 if __name__ == "__main__":
     unittest.main()

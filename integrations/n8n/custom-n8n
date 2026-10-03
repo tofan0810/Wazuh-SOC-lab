@@ -1,0 +1,4 @@
+#!/bin/sh
+# Wazuh custom integration wrapper for n8n SOAR
+DIR="$(cd "$(dirname "$0")" && pwd)"
+exec python3 "${DIR}/custom-n8n.py" "$@"

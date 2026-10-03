@@ -1,0 +1,197 @@
+{
+  "id": "WazuhSoarWf01Enr",
+  "name": "01_Wazuh_SOAR_Threat_Enrichment_ChatOps",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wazuh-alert",
+        "options": {}
+      },
+      "id": "10000001-0001-4000-8000-000000000001",
+      "name": "Wazuh Webhook Ingest",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "webhookId": "wazuh-alert"
+    },
+    {
+      "parameters": {
+        "jsCode": "const alert = $json.body || $json;\nconst rule = alert.rule || {};\nconst agent = alert.agent || {};\nconst artifacts = alert.artifacts || {};\n\nconst agentIp = agent.ip && agent.ip !== 'N/A' ? agent.ip : '192.168.71.129';\nconst agentName = agent.name && agent.name !== 'Unknown' ? agent.name : 'DESKTOP-A2AG7TR';\n\n// Raw network source IP if present\nlet rawSrcIp = artifacts.raw_src_ip || artifacts.src_ip;\nif (!rawSrcIp || rawSrcIp === 'N/A' || rawSrcIp === '-' || rawSrcIp === '127.0.0.1' || rawSrcIp === '::1') {\n  rawSrcIp = null;\n}\n\n// Determine target IOC and type\nconst iocType = artifacts.ioc_type || (rawSrcIp ? 'Network-Attacker' : 'Compromised-Endpoint');\nconst targetIoc = rawSrcIp || agentIp;\nconst displayIoc = rawSrcIp ? rawSrcIp : `${agentIp} (${agentName})`;\n\nconst isPrivate = /^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[0-1])\\.|127\\.)/.test(targetIoc);\n\nreturn {\n  alert_id: alert.alert_id || 'ALT-' + Date.now(),\n  timestamp: alert.timestamp || new Date().toISOString(),\n  rule_id: rule.id || 'N/A',\n  rule_level: rule.level || 0,\n  rule_desc: rule.description || 'Unknown Alert',\n  mitre_ids: (rule.mitre_ids || []).join(', ') || 'N/A',\n  agent_name: agentName,\n  agent_ip: agentIp,\n  src_ip: targetIoc,\n  raw_src_ip: rawSrcIp || 'Local / Host-Internal',\n  ioc_type: iocType,\n  display_ioc: displayIoc,\n  is_private_ip: isPrivate,\n  process_name: artifacts.process_name || 'N/A',\n  target_user: artifacts.target_user || 'N/A',\n  command_line: artifacts.command_line || 'N/A',\n  target_object: artifacts.target_object || 'N/A'\n};"
+      },
+      "id": "10000001-0001-4000-8000-000000000002",
+      "name": "Normalize & Triage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.is_private_ip }}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "id": "10000001-0001-4000-8000-000000000003",
+      "name": "Is Public IP?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.abuseipdb.com/api/v2/check",
+        "authentication": "none",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ipAddress",
+              "value": "={{ $json.src_ip }}"
+            },
+            {
+              "name": "maxAgeInDays",
+              "value": "90"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Key",
+              "value": "={{ $env.ABUSEIPDB_API_KEY || 'demo_key' }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "10000001-0001-4000-8000-000000000004",
+      "name": "AbuseIPDB Threat Intel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [860, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $('Normalize & Triage').item.json;\nconst abuse = $json.data || {};\n\nconst abuseScore = abuse.abuseConfidenceScore !== undefined ? abuse.abuseConfidenceScore : 'N/A (Local / Internal IP)';\nconst totalReports = abuse.totalReports !== undefined ? abuse.totalReports : 0;\nconst country = abuse.countryCode || 'Local Lab Network';\n\nconst severityIcon = item.rule_level >= 12 ? '🚨 CRITICAL' : (item.rule_level >= 8 ? '⚠️ HIGH' : 'ℹ️ MEDIUM');\n\nlet originLine = '';\nif (item.raw_src_ip && item.raw_src_ip !== 'Local / Host-Internal') {\n  originLine = `🌐 <b>Attacker IP:</b> <code>${item.raw_src_ip}</code> (${country})\\n` +\n               `🔍 <b>AbuseIPDB Reputation:</b> <code>${abuseScore}%</code> (${totalReports} reports)\\n`;\n} else {\n  originLine = `🖥️ <b>Scope / Origin:</b> <code>Host-Internal Execution</code>\\n` +\n               `⚙️ <b>Suspicious Process:</b> <code>${item.process_name || 'N/A'}</code>\\n`;\n}\n\nconst message = `<b>${severityIcon} - WAZUH SOAR ALERT DISPATCH</b>\\n` +\n  `━━━━━━━━━━━━━━━━━━━━━━\\n` +\n  `📌 <b>Rule:</b> [${item.rule_id}] ${item.rule_desc}\\n` +\n  `🎯 <b>MITRE ATT&CK:</b> <code>${item.mitre_ids}</code>\\n` +\n  `🎯 <b>Target IOC / Endpoint:</b> <code>${item.display_ioc}</code>\\n` +\n  `👤 <b>Target User:</b> <code>${item.target_user}</code>\\n` +\n  originLine +\n  `🕒 <b>Time:</b> <code>${item.timestamp}</code>\\n` +\n  `━━━━━━━━━━━━━━━━━━━━━━\\n` +\n  `<i>Chọn hành động phản ứng sự cố bên dưới:</i>`;\n\nconst inlineKeyboard = {\n  inline_keyboard: [\n    [\n      { text: '🚫 [Khóa IP 24h]', callback_data: `action:block:${item.src_ip}:${item.alert_id}` },\n      { text: '⚠️ [Báo động giả]', callback_data: `action:ignore:${item.src_ip}:${item.alert_id}` }\n    ],\n    [\n      { text: '📋 [Mở Ticket Jira]', callback_data: `action:jira:${item.rule_id}:${item.src_ip}:${item.alert_id}` }\n    ]\n  ]\n};\n\nreturn {\n  chat_id: '8696241190',\n  text: message,\n  reply_markup: inlineKeyboard,\n  parse_mode: 'HTML'\n};"
+      },
+      "id": "10000001-0001-4000-8000-000000000005",
+      "name": "Build Interactive ChatOps Card",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN || 'YOUR_TELEGRAM_BOT_TOKEN' }}/sendMessage",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "name": "parse_mode",
+              "value": "HTML"
+            },
+            {
+              "name": "reply_markup",
+              "value": "={{ JSON.stringify($json.reply_markup) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "10000001-0001-4000-8000-000000000006",
+      "name": "Send Interactive Telegram Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1320, 300]
+    }
+  ],
+  "connections": {
+    "Wazuh Webhook Ingest": {
+      "main": [
+        [
+          {
+            "node": "Normalize & Triage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize & Triage": {
+      "main": [
+        [
+          {
+            "node": "Is Public IP?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Public IP?": {
+      "main": [
+        [
+          {
+            "node": "AbuseIPDB Threat Intel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Interactive ChatOps Card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AbuseIPDB Threat Intel": {
+      "main": [
+        [
+          {
+            "node": "Build Interactive ChatOps Card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Interactive ChatOps Card": {
+      "main": [
+        [
+          {
+            "node": "Send Interactive Telegram Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
