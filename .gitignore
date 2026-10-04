@@ -9,5 +9,7 @@ wazuh-share/
 # Python cache
 __pycache__/
 *.py[cod]
-
 .env
+*.rendered
+.ossec.conf.rendered
+.cache_ggshield

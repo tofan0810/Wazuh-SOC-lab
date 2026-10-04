@@ -80,39 +80,57 @@ Kho lưu trữ này chứa sơ đồ kiến trúc, các file cấu hình và chi
 ```text
 wazuh-soc-lab/
 │
-├── README.md               # Tài liệu tổng quan hệ thống
-├── documents/              # Tài liệu lý thuyết và lệnh thường dùng
+├── README.md               # Tài liệu tổng quan hệ thống & hướng dẫn bắt đầu
+├── SUMMARY.md              # Báo cáo tổng kết toàn diện 5 giai đoạn triển khai
+├── sync_env.bat            # Công cụ 1-Click tự động đồng bộ cấu hình .env lên toàn hệ thống
+├── .env.example            # File mẫu cấu hình biến môi trường và API keys
 │
-├── architecture/           # Chứa ảnh sơ đồ mạng (mô hình topology)
+├── commands/               # Trung tâm Cẩm nang Lệnh (Command Central Hub)
+│   ├── README.md           # Chỉ dẫn nhanh & bảng tra cứu IP/Port máy ảo
+│   ├── REMOTE_EXECUTION.md # Lệnh gọi SSH / WinRM từ máy Host
+│   ├── ATTACK_AND_TEST_GUIDE.md # Cẩm nang kích hoạt tấn công 3 Scenario & E2E Tests
+│   ├── SOAR_CHATOPS_OPS.md # Cẩm nang vận hành n8n, Telegram Bridge & Jira Cloud
+│   └── CONFIG_SYNC_COMMANDS.md  # Cẩm nang đồng bộ cấu hình và troubleshooting
+│
+├── scripts/                # Kịch bản tự động hóa vận hành hệ thống
+│   └── sync_env.py         # Engine tự động kiểm tra API và đồng bộ .env sang Wazuh & n8n
+│
+├── architecture/           # Sơ đồ mạng và kiến trúc kết nối Lab
 │
 ├── deployment/             # Hướng dẫn và file cấu hình triển khai
 │   ├── docker-compose.yml  # Triển khai Wazuh Manager, Indexer, Dashboard
-│   ├── ossec.conf          # File cấu hình chuẩn mẫu của Wazuh
-│   └── sysmon-config.xml   # Cấu hình Sysmon v15.2 tối ưu
+│   ├── ossec.conf          # File cấu hình chuẩn của Wazuh Manager
+│   └── sysmon-config.xml   # Cấu hình Sysmon v15.2 tối ưu theo MITRE ATT&CK
 │
-├── custom-rules/           # Chứa các rule và decoder tùy chỉnh
-│   ├── local_rules.xml     # Rules phát hiện RDP Brute Force, Web LFI, Active Response
+├── custom-rules/           # Quy tắc phát hiện và bộ giải mã tùy chỉnh
+│   ├── local_rules.xml     # Rules phát hiện RDP Brute Force, Web LFI, Kill Chain & Tuning
 │   └── local_decoder.xml   # Decoder bóc tách log Apache Web Server
 │
 ├── integrations/           # Phân hệ tích hợp mở rộng
 │   ├── n8n/                # SOAR Automation Engine, Webhooks & Jira Case Management
-│   │   ├── workflows/      # Workflows mẫu (Threat Enrichment, Containment, Jira, Cron)
+│   │   ├── workflows/      # 3 Workflows chuẩn hóa (Enrichment, Containment/Jira, Cron)
 │   │   ├── custom-n8n.py   # Script chuẩn hóa alert và dispatch tới n8n Webhook
-│   │   └── README.md       # Hướng dẫn cấu hình n8n, AbuseIPDB, Jira Cloud API
+│   │   ├── telegram_bridge.py # Cầu nối nhận Callback tương tác nút bấm Telegram
+│   │   ├── restart_bridge.sh  # Script hỗ trợ khởi động lại daemon Telegram Bridge
+│   │   └── README.md       # Hướng dẫn chi tiết cấu hình n8n, AbuseIPDB, Jira Cloud
 │   ├── telegram/           # ChatOps cảnh báo thời gian thực về Telegram Bot
 │   └── virustotal/         # Tự động tra cứu danh tiếng file lạ qua VirusTotal API
 │
 ├── playbooks/              # Quy trình chuẩn ứng phó sự cố (SOP) theo NIST / SANS
-│   ├── README.md           # Hướng dẫn vận hành và ma trận phân loại sự cố
+│   ├── README.md           # Ma trận phân loại sự cố và hướng dẫn quy trình
 │   ├── SOP-01_RDP_Brute_Force_Response.md
 │   ├── SOP-02_Web_LFI_Mitigation.md
 │   └── SOP-03_SOAR_Automated_Containment.md # Ứng phó tự động hóa qua SOAR & ChatOps
 │
 ├── tests/                  # Bộ công cụ tự động hóa kiểm thử (Detection-as-Code)
 │   ├── e2e/                # Kịch bản kiểm thử End-to-End từ Attacker -> Victim -> SIEM
-│   │   ├── test_soar_webhook.py      # Kiểm thử toàn trình pipeline SOAR n8n Webhook
-│   │   └── scenario_full_killchain.py # Kiểm thử trọn bộ 4 stages Kill Chain
-│   └── unit/               # Kiểm thử cú pháp XML Rules và Decoders
+│   │   ├── scenario_rdp_bruteforce.py # Kiểm thử tự động Scenario 1 (RDP Brute Force)
+│   │   ├── scenario_lfi_web.py        # Kiểm thử tự động Scenario 2 (Web Apache LFI)
+│   │   ├── scenario_full_killchain.py # Kiểm thử trọn bộ 4 stages Kill Chain
+│   │   ├── test_soar_webhook.py       # Kiểm thử toàn trình pipeline SOAR n8n Webhook
+│   │   ├── lab_health.py              # Kiểm tra sức khỏe toàn diện cả 3 máy ảo
+│   │   └── README.md                  # Hướng dẫn chạy bộ test E2E
+│   └── unit/               # Kiểm thử đơn vị cú pháp XML Rules và Decoders
 │
 └── reports/                # Báo cáo chi tiết các giai đoạn triển khai
     ├── Phase-1_Infrastructure-Deployment.md
@@ -128,7 +146,7 @@ wazuh-soc-lab/
     ├── Phase-5/            # Tự động hóa SOAR, ChatOps 2 chiều & Jira Cloud API
     │   ├── Phase-5_SOAR-Workflow-Automation.md
     │   └── images/
-    └── images/             # Ảnh minh chứng Phase 1 & Phase 2
+    └── images/             # Ảnh minh chứng hạ tầng Phase 1 & Phase 2
 ```
 
 ---
