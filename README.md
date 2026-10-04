@@ -23,40 +23,80 @@ Kho lưu trữ này chứa sơ đồ kiến trúc, các file cấu hình và chi
 
 ## 🏗️ Kiến trúc & Thiết lập Lab
 
-### Mô hình Topology và Luồng dữ liệu
-```text
-                   ┌─────────────────────┐
-                   │ Kali Linux          │
-                   │ Attacker            │  
-                   │ (IP: 192.168.71.130)│
-                   └───────┬─────────────┘
-                           │
-                           │ Tấn công (RDP Brute Force, Web LFI)
-                           ▼
-                   ┌──────────────────────┐
-                   │ Windows 10           │
-                   │ Wazuh Agent + Sysmon │
-                   │ (IP: 192.168.71.129) │
-                   └───────┬──────────────┘
-                           │
-                           │ Telemetry (Sysmon / Security / Apache / FIM)
-                           ▼
-                   ┌────────────────────────────────┐
-                   │ Ubuntu Server (Wazuh Manager)  │
-                   │ Docker Single-Node             │
-                   │ (IP: 192.168.71.128)           │
-                   │ • Wazuh Analysis Engine        │
-                   │ • Active Response Engine       │
-                   │ • Integrator Daemon            │
-                   └───────┬────────────────────────┘
-                           │
-          ┌────────────────┼────────────────┐
-          ▼                ▼                ▼
-   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-   │    Wazuh    │  │ VirusTotal  │  │  Telegram   │
-   │  Dashboard  │  │ Threat Intel│  │   ChatOps   │
-   │ (Index/Logs)│  │ (Cloud API) │  │ (Real-time) │
-   └─────────────┘  └─────────────┘  └─────────────┘
+### Mô hình Topology và Luồng Dữ Liệu Tự Động Hóa (Interactive Architecture Diagram)
+
+```mermaid
+flowchart TD
+    classDef endpoint fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+    classDef siem fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#f8fafc;
+    classDef soar fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#f8fafc;
+    classDef cloud fill:#581c87,stroke:#c084fc,stroke-width:2px,color:#f8fafc;
+    classDef action fill:#7c2d12,stroke:#fb923c,stroke-width:2px,color:#f8fafc;
+
+    subgraph INGEST ["📡 TẦNG 1: THU THẬP TELEMETRY & PHÁT HIỆN TẤN CÔNG (SIEM DETECTION)"]
+        direction LR
+        subgraph SOURCES ["🖥️ Datasource & Target Endpoint"]
+            WIN["💻 Windows 10 Endpoint (192.168.71.129)<br/>• Sysmon v15.2 (Process, Network, Memory)<br/>• Windows Security Logs (Event ID 4625)<br/>• Apache Web Access Logs"]:::endpoint
+            KALI["⚔️ Kali Linux Attacker (192.168.71.130)<br/>• Hydra / xfreerdp (T1110)<br/>• Web LFI Exploits (T1190)<br/>• Full Kill Chain (T1059, T1548, T1003)"]:::endpoint
+            KALI -.->|"Tấn công giả lập"| WIN
+        end
+
+        subgraph WAZUH_CLUSTER ["🛡️ Wazuh SIEM Cluster (Ubuntu 192.168.71.128)"]
+            MGR["⚙️ Wazuh Manager 4.14.5<br/>• Decoders & Custom Rules<br/>• Correlation & Alert Engine<br/>• Active Response Controller"]:::siem
+            INTEG["🔌 custom-n8n Integration<br/>custom-n8n.py<br/>Dual-Mode IOC Resolution"]:::siem
+            DASH["📊 Wazuh Dashboard & Indexer<br/>Port 443 / OpenSearch Visualizations"]:::siem
+            WIN -->|"Wazuh Agent 1514/TCP"| MGR
+            MGR -->|"Index Events"| DASH
+            MGR -->|"Trigger Alert JSON"| INTEG
+        end
+    end
+
+    INTEG ==>|"HTTP POST (Webhook JSON)"| WF1
+
+    subgraph PIPELINE ["🤖 TẦNG 2: QUY TRÌNH TỰ ĐỘNG HÓA SOAR N8N (SOAR ENGINE)"]
+        direction LR
+        subgraph WF_ENRICH ["Workflow 1: Threat Enrichment & ChatOps Dispatcher"]
+            WF1["📥 Wazuh Webhook Ingest<br/>/webhook/wazuh-alert"]:::soar
+            PARSE["⚙️ Normalize & Triage<br/>Dual-Mode IOC Extract"]:::soar
+            TI_CHECK{"🌐 Public IP?"}:::soar
+            ABUSE["🔍 AbuseIPDB API<br/>Threat Intelligence Lookup"]:::cloud
+            VT["🛡️ VirusTotal API<br/>Hash & File Reputation"]:::cloud
+            CARD["📱 Build Interactive Card<br/>HTML Alert + Inline Action Buttons"]:::soar
+
+            WF1 --> PARSE --> TI_CHECK
+            TI_CHECK -- "Yes" --> ABUSE --> CARD
+            TI_CHECK -- "No (Internal)" --> CARD
+            PARSE -.-> VT -.-> CARD
+        end
+    end
+
+    CARD ==>|"Telegram Bot API"| TG_ALERT
+
+    subgraph CHATOPS ["👤 TẦNG 3: HUMAN-IN-THE-LOOP CHATOPS & CASE MANAGEMENT"]
+        direction TB
+        TG_ALERT["📲 Telegram SOC Alert Bot (@my_wazuh_soc_alert_bot)<br/>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br/>🔘 [🚫 Khóa IP 24h]  🔘 [⚠️ Báo động giả]  🔘 [📋 Mở Ticket Jira]"]:::cloud
+
+        BRIDGE["🔄 telegram_bridge.py<br/>Long-Polling Callback Bridge"]:::soar
+        TG_ALERT -.->|"Analyst Bấm Nút Phản Ứng"| BRIDGE
+        BRIDGE ==>|"Forward Callback"| SWITCH
+
+        subgraph ACTIONS ["Workflow 2: Containment & Case Management Executor"]
+            SWITCH{"⚡ Switch Action"}:::soar
+            
+            ACT_BLOCK["🔒 1. Containment Action<br/>WinRM Active Response<br/>Thêm Rule Chặn Firewall DROP"]:::action
+            ACT_IGNORE["⚠️ 2. Ignore / False Positive<br/>Đánh dấu cảnh báo giả<br/>Ghi Audit Trail"]:::action
+            ACT_JIRA["📋 3. Jira Cloud Case Mgmt<br/>POST /rest/api/3/issue<br/>Khởi tạo Ticket Incident"]:::action
+
+            SWITCH -- "action:block" --> ACT_BLOCK
+            SWITCH -- "action:ignore" --> ACT_IGNORE
+            SWITCH -- "action:jira" --> ACT_JIRA
+        end
+
+        ACT_BLOCK -->|"Xác nhận cách ly"| TG_CONFIRM["✅ Thông Báo Phản Hồi Telegram"]:::cloud
+        ACT_IGNORE -->|"Xác nhận bỏ qua"| TG_CONFIRM
+        ACT_JIRA -->|"Gửi Direct URL Ticket"| TG_CONFIRM
+        ACT_JIRA ==>|"Atlassian REST API v3"| JIRA_BOARD["🎫 Jira Cloud Service Desk (tn421015.atlassian.net)<br/>Incident Ticket Project: KAN"]:::cloud
+    end
 ```
 
 > 💡 **Lưu ý:** Chi tiết các bước triển khai được ghi lại trong các báo cáo tại thư mục `reports/`.
