@@ -23,7 +23,7 @@ def load_env_defaults():
     if os.path.exists(env_file):
         try:
             from dotenv import load_dotenv
-            load_dotenv(env_file)
+            load_dotenv(env_file, encoding="utf-8", override=True)
         except ImportError:
             with open(env_file, "r", encoding="utf-8") as f:
                 for line in f:

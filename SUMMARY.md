@@ -162,7 +162,7 @@ Nhà tuyển dụng rất thích ứng viên hiểu bài toán **False Positive 
      - Tiếp nhận callback tương tác từ Telegram Bot (`telegram-callback`).
      - **`[🚫 Khóa IP 24h]`**: Tự động kích hoạt cơ chế cô lập mạng qua Windows Defender Firewall (`New-NetFirewallRule`) và gửi phản hồi xác nhận.
      - **`[⚠️ Bỏ qua / Báo động giả]`**: Ghi nhận log phân loại False Positive vào SOAR Audit Trail, giảm thiểu Alert Fatigue.
-     - **`[📋 Mở Ticket Jira]`**: Tự động kết nối **Jira Cloud REST API v3** (`POST /rest/api/3/issue`), khởi tạo Incident Ticket trong Project `SEC` kèm đầy đủ artifacts và trả link ticket trực tiếp về Telegram cho Analyst L2.
+     - **`[📋 Mở Ticket Jira]`**: Tự động kết nối **Jira Cloud REST API v3** (`POST /rest/api/3/issue`), khởi tạo Incident Ticket trong Project `KAN` kèm đầy đủ artifacts và trả link ticket trực tiếp về Telegram cho Analyst L2.
    - **Workflow 3 (`03_scheduled_healthcheck_cron.json`):**
      - Thiết lập Cron Trigger định kỳ mỗi 6 giờ tự động kiểm tra sức khỏe của các container Docker, Wazuh Manager, Agent 001, và n8n Engine, sau đó gửi báo cáo tóm tắt về nhóm Telegram.
 
@@ -251,10 +251,9 @@ Dưới đây là các đầu việc bạn có thể thực hiện theo từng t
 - [x] Bổ sung **Threat Intelligence Integration (VirusTotal API)** cho Wazuh Manager: Cấu hình `ossec.conf` và kiểm chứng với file mẫu EICAR (Rule 87105 Level 12).
 - [x] Triển khai **Telegram ChatOps**: Viết `integrations/telegram/custom-telegram.py` (hỗ trợ SSL fallback), cấu hình `<integration>` trong `ossec.conf`, kiểm thử bắn cảnh báo thật tự động qua Rule 100001, 100002, 87105.
 
-### Giai đoạn 2: Mở rộng Kịch bản (3-5 ngày)
-- [ ] Triển khai **Kịch bản 3**: Bắt hành vi thực thi mã độc qua PowerShell / LOLBAS (`certutil` download payload) sử dụng telemetry của **Sysmon Event ID 1**. Viết rule `100003` và bổ sung test case tương ứng.
-- [ ] Triển khai **Kịch bản 4**: Bắt hành vi dump bộ nhớ `lsass.exe` bằng Sysmon **Event ID 10**. Viết rule `100004`.
-- [ ] Cập nhật file `tests/test_detection_config.py` để bổ sung unit test cho rule `100003` và `100004`.
+### Giai đoạn 2: Mở rộng Kịch bản (Đã hoàn thành 100% ✅)
+- [x] Triển khai **Full Kill Chain Kịch bản 3 & 4**: Bắt trọn hành vi thực thi PowerShell độc hại (Rule `100004`), UAC Bypass `ms-settings` (Rule `100007`), Persistence Run Key (Rule `100006`), và LSASS Memory Dump (Rule `100005`) qua Sysmon Event ID 1, 10, 12, 13.
+- [x] Tự động hóa kiểm thử trọn chuỗi Kill Chain bằng runner `tests/e2e/scenario_full_killchain.py` và bộ kiểm thử đơn vị `tests/unit/test_detection_config.py` (5/5 Tests PASS 100%).
 
 ### Giai đoạn 3: Đóng gói Portfolio & Chuẩn bị Phỏng vấn (1-2 ngày)
 - [ ] Tạo file sơ đồ tổng thể hệ thống (Architecture Diagram) bao gồm cả luồng Active Response, ChatOps, và Threat Intel.

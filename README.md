@@ -193,7 +193,7 @@ Mô hình SOAR (Security Orchestration, Automation, and Response) độc lập k
 * **Tương tác 2 chiều (Human-in-the-Loop ChatOps):** Gửi cảnh báo về Telegram kèm 3 nút bấm tương tác:
   * **`[🚫 Khóa IP 24h]`**: Tự động áp dụng luật chặn Inbound/Outbound trên Windows Defender Firewall qua PowerShell/WinRM.
   * **`[⚠️ Bỏ qua / Báo động giả]`**: Ghi log phân loại False Positive vào SOAR Audit Trail, giảm thiểu Alert Fatigue.
-  * **`[📋 Mở Ticket Jira]`**: Tự động gọi **Jira Cloud REST API v3** (`POST /rest/api/3/issue`) khởi tạo Incident Ticket trong Project `SEC` và gửi link xem trực tiếp về Telegram cho Analyst L2.
+  * **`[📋 Mở Ticket Jira]`**: Tự động gọi **Jira Cloud REST API v3** (`POST /rest/api/3/issue`) khởi tạo Incident Ticket trong Project `KAN` và gửi link xem trực tiếp về Telegram cho Analyst L2.
 * **Báo cáo Sức khỏe Định kỳ (Cron Trigger):** Tự động kiểm tra trạng thái 3 VM, container Docker và Wazuh Manager mỗi 6 giờ.
 * **Tài liệu & Kịch bản Kiểm thử:**
   - Hướng dẫn chi tiết: [integrations/n8n/README.md](integrations/n8n/README.md)
@@ -232,9 +232,9 @@ Nhằm đáp ứng tiêu chuẩn vận hành an ninh chuyên nghiệp của Trun
 Xem chi tiết các bước tại các tài liệu chuyên đề:
 1. Triển khai hạ tầng Wazuh Stack: `reports/Phase-1_Infrastructure-Deployment.md`
 2. Cấu hình Agent và Sysmon: `reports/Phase-2_Agent-Sysmon-Configuration.md`
-3. Triển khai kịch bản tấn công và phát hiện: `reports/Phase-3_Scenario-1.md` và `reports/Phase-3_Scenario-2.md`
+3. Triển khai kịch bản tấn công và phát hiện: `reports/Phase-3/Phase-3_Scenario-1.md` và `reports/Phase-3/Phase-3_Scenario-2.md`
 4. Kịch bản Full Kill Chain Telemetry: `reports/Phase-3/Phase-3_Scenario-3.md`
-5. Tự động hóa kiểm thử hồi quy (Detection-as-Code): `reports/Phase-4_Regression-Test-Automation.md`
+5. Tự động hóa kiểm thử hồi quy (Detection-as-Code): `reports/Phase-4/Phase-4_Regression-Test-Automation.md`
 6. Tự động hóa SOAR, ChatOps 2 chiều & Jira API: `reports/Phase-5/Phase-5_SOAR-Workflow-Automation.md`
 7. Tích hợp Threat Intelligence (VirusTotal): [integrations/virustotal/README.md](integrations/virustotal/README.md)
 8. Tích hợp ChatOps cảnh báo Telegram: [integrations/telegram/README.md](integrations/telegram/README.md)

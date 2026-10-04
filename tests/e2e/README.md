@@ -31,4 +31,20 @@ Runs the automated Apache LFI exploitation, Custom Decoder `web-access-lfi`, Waz
 python tests/e2e/scenario_lfi_web.py --execute
 ```
 
+### 5. Scenario 3: Full Kill Chain Automation (T1059.001, T1548.002, T1547.001, T1003.001)
+
+Runs the automated multi-stage attack and detection verification across PowerShell execution (Rule 100004), UAC bypass (Rule 100007), persistence registry run keys (Rule 100006), and LSASS memory access (Rule 100005) with Sysmon telemetry:
+
+```powershell
+python tests/e2e/scenario_full_killchain.py --execute
+```
+
+### 6. SOAR & Webhook Automation Test (Phase 5)
+
+Verifies the end-to-end integration between Wazuh, n8n webhook ingest, AbuseIPDB threat intel, and Telegram ChatOps callbacks:
+
+```powershell
+python tests/e2e/test_soar_webhook.py
+```
+
 > **Note:** The default WinRM user is `socrunner` (Local Administrator on Windows Victim). For Scenario 1, the default RDP victim user is `testw`. Ensure the Apache service (XAMPP) is running on the Windows victim before triggering Scenario 2.

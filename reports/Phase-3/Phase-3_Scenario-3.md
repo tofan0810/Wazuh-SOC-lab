@@ -173,6 +173,7 @@ Tại máy chủ **Wazuh Manager**, mở tệp [`custom-rules/local_rules.xml`](
     <if_sid>61612</if_sid>
     <field name="win.system.message" type="pcre2">(?i)TargetImage:.*lsass\.exe</field>
     <field name="win.system.message" type="pcre2" negate="yes">(?i)SourceImage:.*(MsMpEng\.exe|wmiprvse\.exe)</field>
+    <field name="win.system.message" type="pcre2" negate="yes">(?i)GrantedAccess:\s*0x1000\b</field>
     <description>CRITICAL WARNING: Suspicious Process Access to LSASS detected (Potential Credential Dumping)</description>
     <mitre>
       <id>T1003.001</id>

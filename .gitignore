@@ -1,6 +1,6 @@
 # Ignore Visual Studio Code settings and workspace files
 .vscode/
-
+.pytest_cache/
 # Ignore personal workspace
 wazuh_share/
 .wazuh_share/

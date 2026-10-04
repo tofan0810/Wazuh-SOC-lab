@@ -166,7 +166,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $('Parse Callback & Intent').item.json;\nconst summary = `[Wazuh SOAR Incident] Rule ${item.rule_id} on ${item.target}`;\nconst desc = `Automated Security Incident Ticket dispatched by Wazuh-n8n DevSecOps Pipeline.\\n\\n` +\n  `• Alert ID: ${item.alert_id}\\n` +\n  `• Triggered Rule ID: ${item.rule_id}\\n` +\n  `• Attacker Source / Target: ${item.target}\\n` +\n  `• Triage Operator: @${item.operator}\\n` +\n  `• Severity Level: High\\n` +\n  `• Recommended Action: Immediate Tier-2 SOC Analyst investigation required. Perform host artifact triage, review process tree, examine telemetry logs, and verify containment status.`;\n\nreturn {\n  fields: {\n    project: { key: 'KAN' },\n    summary: summary,\n    description: {\n      type: 'doc',\n      version: 1,\n      content: [\n        {\n          type: 'paragraph',\n          content: [\n            {\n              type: 'text',\n              text: desc\n            }\n          ]\n        }\n      ]\n    },\n    issuetype: { name: 'Task' },\n    priority: { name: 'High' }\n  }\n};"
+        "jsCode": "const item = $('Parse Callback & Intent').item.json;\nconst summary = `[Wazuh SOAR Incident] Rule ${item.rule_id} on ${item.target}`;\nconst desc = `Automated Security Incident Ticket dispatched by Wazuh-n8n DevSecOps Pipeline.\\n\\n` +\n  `• Alert ID: ${item.alert_id}\\n` +\n  `• Triggered Rule ID: ${item.rule_id}\\n` +\n  `• Attacker Source / Target: ${item.target}\\n` +\n  `• Triage Operator: @${item.operator}\\n` +\n  `• Severity Level: High\\n` +\n  `• Recommended Action: Immediate Tier-2 SOC Analyst investigation required. Perform host artifact triage, review process tree, examine telemetry logs, and verify containment status.`;\n\nconst email = $env.JIRA_EMAIL || 'tn421015@gmail.com';\nconst token = $env.JIRA_API_TOKEN || '';\nconst authHeader = 'Basic ' + Buffer.from(email + ':' + token).toString('base64');\n\nreturn {\n  auth_header: authHeader,\n  fields: {\n    project: { key: $env.JIRA_PROJECT_KEY || 'KAN' },\n    summary: summary,\n    description: {\n      type: 'doc',\n      version: 1,\n      content: [\n        {\n          type: 'paragraph',\n          content: [\n            {\n              type: 'text',\n              text: desc\n            }\n          ]\n        }\n      ]\n    },\n    issuetype: { name: 'Task' },\n    priority: { name: 'High' }\n  }\n};"
       },
       "id": "20000001-0001-4000-8000-000000000010",
       "name": "Build Jira Issue Payload",
@@ -183,7 +183,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Basic ' + Buffer.from(($env.JIRA_EMAIL || 'your-email@example.com') + ':' + ($env.JIRA_API_TOKEN || 'your-api-token')).toString('base64') }}"
+              "value": "={{ $json.auth_header }}"
             },
             {
               "name": "Content-Type",
@@ -197,7 +197,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json) }}",
+        "jsonBody": "={{ JSON.stringify({ fields: $json.fields }) }}",
         "options": {}
       },
       "id": "20000001-0001-4000-8000-000000000008",
@@ -209,7 +209,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $('Parse Callback & Intent').item.json;\nconst jiraKey = $json.key || 'KAN-1';\nconst jiraUrl = `https://tn421015.atlassian.net/browse/${jiraKey}`;\n\nconst text = `📋 <b>[JIRA CASE MANAGEMENT - TICKET OPENED]</b>\\n` +\n  `━━━━━━━━━━━━━━━━━━━━━━\\n` +\n  `🎫 <b>Ticket Key:</b> <code>${jiraKey}</code>\\n` +\n  `🔗 <b>Direct URL:</b> <a href=\"${jiraUrl}\">Open Ticket on Jira Cloud</a>\\n` +\n  `🎯 <b>Target/IOC:</b> <code>${item.target}</code>\\n` +\n  `🆔 <b>Alert ID:</b> <code>${item.alert_id}</code>\\n` +\n  `👤 <b>Reporter:</b> @${item.operator}\\n` +\n  `🚨 <b>Priority:</b> High\\n` +\n  `📌 <b>Workflow Status:</b> Incident ticket transferred to Tier-2 SOC Investigation Queue.`;\n\nreturn {\n  chat_id: item.chat_id || '8696241190',\n  text: text\n};"
+        "jsCode": "const item = $('Parse Callback & Intent').item.json;\nconst jiraKey = $json.key || null;\nconst jiraUrl = jiraKey ? `https://tn421015.atlassian.net/browse/${jiraKey}` : '';\n\nlet text = '';\nif (jiraKey) {\n  text = `📋 <b>[JIRA CASE MANAGEMENT - TICKET OPENED]</b>\\n` +\n    `━━━━━━━━━━━━━━━━━━━━━━\\n` +\n    `🎫 <b>Ticket Key:</b> <code>${jiraKey}</code>\\n` +\n    `🔗 <b>Direct URL:</b> <a href=\"${jiraUrl}\">Open Ticket on Jira Cloud</a>\\n` +\n    `🎯 <b>Target/IOC:</b> <code>${item.target}</code>\\n` +\n    `🆔 <b>Alert ID:</b> <code>${item.alert_id}</code>\\n` +\n    `👤 <b>Reporter:</b> @${item.operator}\\n` +\n    `🚨 <b>Priority:</b> High\\n` +\n    `📌 <b>Workflow Status:</b> Incident ticket transferred to Tier-2 SOC Investigation Queue.`;\n} else {\n  const errDetails = $json.error ? ($json.error.message || JSON.stringify($json.error)) : JSON.stringify($json);\n  text = `❌ <b>[JIRA CASE MANAGEMENT - CREATION FAILED]</b>\\n` +\n    `━━━━━━━━━━━━━━━━━━━━━━\\n` +\n    `⚠️ <b>Error Details:</b> <code>${errDetails.substring(0, 200)}</code>\\n` +\n    `🎯 <b>Target/IOC:</b> <code>${item.target}</code>\\n` +\n    `🆔 <b>Alert ID:</b> <code>${item.alert_id}</code>`;\n}\n\nreturn {\n  chat_id: item.chat_id || '8696241190',\n  text: text\n};"
       },
       "id": "20000001-0001-4000-8000-000000000012",
       "name": "Build Jira Notification",

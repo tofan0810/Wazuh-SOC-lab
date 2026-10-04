@@ -11,7 +11,7 @@ import time
 
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(encoding="utf-8", override=True)
 except ImportError:
     pass
 

@@ -2,7 +2,7 @@
 > **Mã quy trình:** SOP-SOC-IR-003  
 > **Kỹ thuật MITRE ATT&CK:** [T1110 - Brute Force](https://attack.mitre.org/techniques/T1110/), [T1059.001 - PowerShell](https://attack.mitre.org/techniques/T1059/001/), [T1548.002 - Bypass UAC](https://attack.mitre.org/techniques/T1548/002/), [T1547.001 - Registry Run Keys](https://attack.mitre.org/techniques/T1547/001/)  
 > **Cảnh báo liên quan:** Wazuh Rule IDs `100001, 100002, 100004, 100005, 100006, 100007, 87105`  
-> **Hệ thống điều phối:** Wazuh SIEM Manager 4.9.2 + n8n SOAR Engine + Telegram ChatOps + Jira Cloud REST API  
+> **Hệ thống điều phối:** Wazuh SIEM Manager 4.14.5 + n8n SOAR Engine + Telegram ChatOps + Jira Cloud REST API  
 > **Đối tượng áp dụng:** SOC Analyst L1/L2, Incident Response Lead, SecOps Automation Engineer  
 
 ---
@@ -56,7 +56,7 @@ Ngay bên dưới thông báo Telegram, hệ thống gắn kèm 3 nút bấm tư
 | :--- | :--- | :--- |
 | **`[🚫 Khóa IP 24h]`** | Xác nhận là hành vi tấn công ác ý (Brute force, Bypass UAC, C2 Callback). | n8n gửi lệnh tạo Windows Firewall Inbound/Outbound DROP rule trên Endpoint và tường lửa biên trong 24h. |
 | **`[⚠️ Bỏ qua / Báo động giả]`** | Kiểm tra thấy là hoạt động diễn tập hoặc quản trị viên thao tác hợp lệ. | n8n ghi nhận log phân loại False Positive vào SOAR Audit Trail, không can thiệp endpoint. |
-| **`[📋 Mở Ticket Jira]`** | Cần điều tra chuyên sâu L2/L3 hoặc yêu cầu lập hồ sơ sự cố chính thức. | n8n gọi Jira Cloud REST API v3 tạo Task/Incident trong Project `SEC`, trả về link trực tiếp. |
+| **`[📋 Mở Ticket Jira]`** | Cần điều tra chuyên sâu L2/L3 hoặc yêu cầu lập hồ sơ sự cố chính thức. | n8n gọi Jira Cloud REST API v3 tạo Task/Incident trong Project `KAN`, trả về link trực tiếp. |
 
 ---
 
@@ -73,16 +73,16 @@ Ngay bên dưới thông báo Telegram, hệ thống gắn kèm 3 nút bấm tư
 
 ### Bước 4.2: Khi Analyst chọn `[📋 Mở Ticket Jira]`
 1. n8n tạo Payload gửi tới Jira REST API v3:
-   - **Project Key:** `SEC`
+   - **Project Key:** `KAN`
    - **Summary:** `[Wazuh SOAR Incident] Threat Detected on <IP>`
    - **Priority:** `High`
    - **Components:** `Incident Response`, `Endpoint Security`
-2. Jira sinh Issue Key (ví dụ: `SEC-108`).
+2. Jira sinh Issue Key (ví dụ: `KAN-15`).
 3. Telegram nhận được thông điệp kèm đường link định dạng:
    ```text
    📋 [JIRA CASE MANAGEMENT - TICKET OPENED]
-   🎫 Ticket Key: SEC-108
-   🔗 Direct URL: https://soc-lab.atlassian.net/browse/SEC-108
+   🎫 Ticket Key: KAN-15
+   🔗 Direct URL: https://tn421015.atlassian.net/browse/KAN-15
    👤 Reporter: @SOC_Analyst
    📌 Workflow Status: Đã bàn giao sang Queue điều tra của SOC L2.
    ```

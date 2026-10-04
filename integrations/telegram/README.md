@@ -86,7 +86,7 @@ Mở `/var/ossec/etc/ossec.conf` trên Manager và bổ sung khối tích hợp:
     <name>custom-telegram</name>
     <api_key>YOUR_TELEGRAM_BOT_TOKEN</api_key>
     <hook_url>YOUR_TELEGRAM_CHAT_ID</hook_url>
-    <rule_id>100001, 100002, 87105</rule_id>
+    <rule_id>100001, 100002, 100004, 100005, 100006, 100007, 87105, 92900, 92302, 92305</rule_id>
     <alert_format>json</alert_format>
   </integration>
 ```

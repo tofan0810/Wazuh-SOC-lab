@@ -9,7 +9,7 @@ Tài liệu hướng dẫn triển khai, cấu hình và vận hành hệ thốn
 ```mermaid
 flowchart TD
     subgraph Detection["1. Detection & SIEM"]
-        A[Windows 10 Victim / Sysmon] -->|Wazuh Agent 1514/TCP| B[Wazuh Manager 4.9.2]
+        A[Windows 10 Victim / Sysmon] -->|Wazuh Agent 1514/TCP| B[Wazuh Manager 4.14.5]
         B -->|Rule Trigger L8+| C[custom-n8n Integration Script]
     end
 
@@ -31,7 +31,7 @@ flowchart TD
 
     subgraph Action["4. Remediation & Case Management"]
         J -->|WinRM / NetFirewallRule| M[Endpoint Firewall Block]
-        L -->|REST API v3 POST| N[Jira Service Desk / Project SEC]
+        L -->|REST API v3 POST| N[Jira Service Desk / Project KAN]
         M -->|Confirmation| H
         K -->|Confirmation| H
         N -->|Return Issue URL| H
@@ -84,10 +84,10 @@ Hệ thống SOAR hỗ trợ nút bấm **`[📋 Mở Ticket Jira]`**, tự đ�
 
 ### 4.2. Cấu hình Biến Môi trường trong n8n
 Thêm các biến môi trường vào `deployment/docker-compose-n8n.yml` hoặc n8n Settings:
-- `JIRA_DOMAIN`: Tên miền Atlassian của bạn (VD: `soc-lab` ứng với `soc-lab.atlassian.net`)
-- `JIRA_EMAIL`: Email tài khoản Atlassian (VD: `analyst@company.com`)
+- `JIRA_DOMAIN`: Tên miền Atlassian của bạn (VD: `tn421015.atlassian.net`)
+- `JIRA_EMAIL`: Email tài khoản Atlassian (VD: `tn421015@gmail.com`)
 - `JIRA_API_TOKEN`: API Token vừa tạo
-- `JIRA_PROJECT_KEY`: Mã Project quản lý sự cố (VD: `SEC` hoặc `SOC`)
+- `JIRA_PROJECT_KEY`: Mã Project quản lý sự cố (VD: `KAN`)
 
 ### 4.3. Định dạng Payload Jira REST API v3
 Khi analyst bấm nút trên Telegram, n8n thực thi request:

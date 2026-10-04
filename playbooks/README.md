@@ -58,3 +58,9 @@ Tài liệu này chuẩn hóa quy trình tiếp nhận, điều tra, cô lập v
    * Rà soát Web Shell và hành vi leo thang bằng Sysmon Event ID 1 và 11.
    * Vá lỗ hổng mã nguồn PHP và cô lập ứng dụng Web.
    * Biện pháp phòng vệ: `open_basedir`, Whitelisting, WAF rule.
+
+3. [**SOP-03: Ứng phó Sự cố Tự động hóa qua SOAR và ChatOps (Human-in-the-Loop Response)**](file:///D:/Downloads/ATTT/Wazuh-SOC-lab/playbooks/SOP-03_SOAR_Automated_Containment.md)
+   * Tự động làm giàu thông tin tình báo mối đe dọa (Threat Enrichment) qua AbuseIPDB API.
+   * Mô hình tương tác 2 chiều Human-in-the-Loop ChatOps qua nút bấm Telegram.
+   * Tự động hóa cách ly IP qua Windows Defender Firewall (New-NetFirewallRule).
+   * Quản lý hồ sơ vụ việc sự cố (Incident Case Management) trên Jira Cloud REST API v3 (Project `KAN`).
