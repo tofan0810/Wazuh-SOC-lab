@@ -235,67 +235,11 @@ Khi kỹ sư thực hiện đẩy commit hoặc mở Pull Request cập nhật l
 * **Workflow Name:** `Detection Engineering CI`
 * **Kết quả:** Cả 2 công việc (jobs) trên môi trường **Python 3.10** và **Python 3.11** đều hoàn thành với biểu tượng tích xanh `Success` ✅.
 
-![Giao diện GitHub Actions thực thi pipeline thành công](images/03_github_actions_pipeline_run.png)
-
-> **📸 Hướng dẫn chụp ảnh `03_github_actions_pipeline_run.png`:**
-> * **Vị trí chụp:** Trình duyệt Web truy cập vào mục **Actions** của repository `Wazuh-SOC-lab` trên GitHub (`https://github.com/tofan0810/Wazuh-SOC-lab/actions`).
-> * **Thao tác:** Nhấp vào lượt chạy mới nhất của workflow `Detection Engineering CI`. Màn hình sẽ hiển thị sơ đồ luồng công việc gồm hai nhánh matrix: `Validate Rules, Decoders & SIEM Configs (Python 3.10)` và `Validate Rules, Decoders & SIEM Configs (Python 3.11)`.
-> * **Nội dung cần làm nổi bật trong ảnh:** Cả hai job đều có dấu tích tròn màu xanh lá cây (`Success`), thời gian hoàn thành (dưới 1 phút), commit message rõ ràng và commit hash tương ứng.
-
----
+![Giao diện GitHub Actions thực thi pipeline thành công](images/02_github_actions_pipeline_run.png)
 
 ### 4. Bước 4: Bảng Tổng Kết Trạng Thái Kiểm Thử Trực Quan (GitHub Step Summary)
 
 Nhờ vào việc tích hợp xuất dữ liệu ra tệp `$GITHUB_STEP_SUMMARY` trong cấu hình workflow, GitHub Actions tự động kết xuất bảng đối soát chất lượng an ninh ngay tại trang chủ của lần chạy mà không cần kỹ sư phải vào lục tìm trong các dòng log dòng lệnh.
 
-* **Nội dung hiển thị:**
-  * Tiêu đề: `🛡️ Detection Engineering CI Pipeline Summary`.
-  * Bảng ma trận đối soát 9 hạng mục thành phần lõi:
-    * XML Syntax & Well-Formedness: **✅ PASS**
-    * SIEM & Sysmon Schema: **✅ PASS**
-    * Rule ID Uniqueness (>=100000): **✅ PASS**
-    * Alert Level Validation (0-16): **✅ PASS**
-    * MITRE ATT&CK Format Verification: **✅ PASS**
-    * PCRE2 & Regex Compilation: **✅ PASS**
-    * Child Suppression Rules (Level 0): **✅ PASS**
-    * Zero Secret Leakage Audit: **✅ PASS**
-    * SOAR Integration Architecture: **✅ PASS**
-
-![Bảng báo cáo GitHub Step Summary trực quan trên GitHub Actions](images/04_github_step_summary.png)
-
-> **📸 Hướng dẫn chụp ảnh `04_github_step_summary.png`:**
-> * **Vị trí chụp:** Trình duyệt Web trong trang chi tiết lần chạy của GitHub Actions (tab **Summary**).
-> * **Thao tác:** Cuộn xuống phần nội dung phía dưới các job đồ họa, nơi hiển thị bảng Markdown tự động do lệnh `echo ... >> $GITHUB_STEP_SUMMARY` sinh ra.
-> * **Nội dung cần làm nổi bật trong ảnh:** Tiêu đề có icon chiếc khiên bảo mật (`🛡️`), môi trường hiển thị `Python 3.11 on Ubuntu Latest`, và bảng ma trận với cột trạng thái toàn bộ là các biểu tượng `✅ PASS`.
-
----
-
-### 5. Bước 5: Huy Hiệu Trạng Thái CI Thời Gian Thực Trên Tài Liệu Dự Án (CI Status Badge)
-
-Để thể hiện tính chuyên nghiệp và minh bạch về chất lượng mã nguồn theo tiêu chuẩn Open Source và Enterprise, một huy hiệu (Badge) động đã được gắn ngay trên đầu tệp [`README.md`](../../README.md).
-
-* **Mã nhúng Badge trong Markdown:**
-  ```markdown
-  [![Detection Engineering CI](https://github.com/tofan0810/Wazuh-SOC-lab/actions/workflows/test.yml/badge.svg)](https://github.com/tofan0810/Wazuh-SOC-lab/actions/workflows/test.yml)
-  ```
-* **Ý nghĩa:** Huy hiệu tự động truy vấn trạng thái lần chạy gần nhất của nhánh `main`. Nếu lần chạy thành công, huy hiệu hiển thị màu xanh rực rỡ **`Detection Engineering CI | passing`**. Nếu có lỗi, huy hiệu sẽ chuyển sang màu đỏ **`failing`**, lập tức cảnh báo cho toàn bộ đội ngũ kỹ sư.
-
-![Huy hiệu CI build passing trên trang bìa README.md](images/05_readme_ci_badge.png)
-
-> **📸 Hướng dẫn chụp ảnh `05_readme_ci_badge.png`:**
-> * **Vị trí chụp:** Trang chủ repository trên GitHub hoặc bản render của tệp `README.md` trong VS Code / GitHub Preview.
-> * **Thao tác:** Chụp phần tiêu đề đầu trang của dự án (ngay dưới dòng tiêu đề `# Wazuh SIEM & Detection Engineering Lab`).
-> * **Nội dung cần làm nổi bật trong ảnh:** Nhóm các huy hiệu danh giá của dự án bao gồm: `License: MIT` (xanh), `SIEM: Wazuh` (xanh dương), `Framework: MITRE ATT&CK` (cam), và đặc biệt là huy hiệu mới thêm: `Detection Engineering CI: passing` (xanh lá cây).
-
----
-
-## V. ĐÁNH GIÁ HIỆU QUẢ VẬN HÀNH & GIÁ TRỊ THỰC TIỄN DOANH NGHIỆP
-
-| Tiêu Chí Đánh Giá | Quy Trình Thủ Công Truyền Thống | Sau Khi Ứng Dụng CI/CD (Phase 6) | Mức Độ Cải Thiện |
-| :--- | :--- | :--- | :---: |
-| **Thời gian Kiểm thử Chất lượng (QA Duration)** | 30 – 60 phút (mở 3 máy ảo, kích hoạt tool tấn công thủ công) | **0.02 giây** trên máy trạm cục bộ, **< 45 giây** trên GitHub Cloud Runner | **Nhanh hơn ~100 lần** ⚡ |
-| **Nguy cơ Sập Daemon SIEM (`wazuh-analysisd`)** | Rất cao (khi sơ suất gõ nhầm cú pháp thẻ XML, thiếu thẻ đóng) | **Bằng 0%** (GitHub chặn đứng mọi PR/commit có cú pháp XML không hợp lệ) | **Triệt tiêu 100% downtime do cấu hình** 🛡️ |
-| **Bảo vệ Bí mật An ninh (Secret Protection)** | Dễ bị lộ API key thật khi commit code lên kho lưu trữ chung | **Tự động quét và cảnh báo** nếu phát hiện API key hay mật khẩu thật | **Tuân thủ tuyệt đối chuẩn Zero Secret Leakage** 🔒 |
-| **Độ tin cậy của Rule Giảm Nhiễu (Suppression)** | Dễ bị sai lệch logic dẫn tới báo động giả hoặc bỏ lọt tấn công | Tự động kiểm tra cấu trúc phân cấp (Level 0, AND logic với `socrunner`) | **Đảm bảo 100% tính toàn vẹn của phản ứng SOAR** 🤖 |
-| **Tiêu chuẩn Hóa Quy trình Vận hành** | Phụ thuộc vào trí nhớ và kinh nghiệm cá nhân của từng kỹ sư | Quy trình tự động hóa khép kín theo chuẩn quốc tế **DevSecOps / DaC** | **Chuyên nghiệp hóa theo chuẩn Enterprise SOC** 🏢 |
+![Bảng báo cáo GitHub Step Summary trực quan trên GitHub Actions](images/03_github_step_summary.png)
 
