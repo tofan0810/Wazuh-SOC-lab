@@ -3,6 +3,7 @@
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Wazuh](https://img.shields.io/badge/SIEM-Wazuh-blue)](https://wazuh.com/)
 [![Framework](https://img.shields.io/badge/Framework-MITRE%20ATT%26CK-orange)](https://attack.mitre.org/)
+[![Detection Engineering CI](https://github.com/tofan0810/Wazuh-SOC-lab/actions/workflows/test.yml/badge.svg)](https://github.com/tofan0810/Wazuh-SOC-lab/actions/workflows/test.yml)
 
 > 🌐 Switch to the [feature/english-version](https://github.com/tofan0810/Wazuh-SOC-lab/tree/feature/english-version) branch to view this documentation in English.
 
@@ -120,6 +121,10 @@ flowchart TD
 ```text
 wazuh-soc-lab/
 │
+├── .github/
+│   └── workflows/
+│       └── test.yml            # CI/CD Pipeline kiểm thử tự động Detection Engineering (GitHub Actions)
+│
 ├── README.md               # Tài liệu tổng quan hệ thống & hướng dẫn bắt đầu
 ├── sync_env.bat            # Công cụ 1-Click tự động đồng bộ cấu hình .env lên toàn hệ thống
 ├── .env.example            # File mẫu cấu hình biến môi trường và API keys
@@ -185,6 +190,9 @@ wazuh-soc-lab/
     ├── Phase-5/            # Tự động hóa SOAR, ChatOps 2 chiều & Phản ứng khép kín
     │   ├── Phase-5_SOAR-Workflow-Automation.md
     │   ├── Phase-5_Closed-Loop-Containment-and-Rollback.md
+    │   └── images/
+    ├── Phase-6/            # Tự động hóa CI/CD Pipeline cho Detection Engineering (GitHub Actions)
+    │   ├── Phase-6_Detection-Engineering-CICD-Pipeline.md
     │   └── images/
     └── images/             # Ảnh minh chứng hạ tầng Phase 1 & Phase 2
 ```
@@ -263,6 +271,30 @@ Mô hình SOAR (Security Orchestration, Automation, and Response) độc lập k
 
 ---
 
+## 🔄 Tự Động Hóa CI/CD Detection Engineering (GitHub Actions)
+
+Hệ thống áp dụng phương pháp luận **Detection-as-Code (DaC)** theo chuẩn doanh nghiệp hiện đại. Mỗi khi có commit hoặc Pull Request chỉnh sửa rules XML, decoders hoặc kịch bản kiểm thử, GitHub Actions tự động kích hoạt pipeline kiểm tra chất lượng:
+* **Workflow CI:** [`.github/workflows/test.yml`](.github/workflows/test.yml) chạy trên môi trường Linux Ubuntu với ma trận đa phiên bản Python (`3.10`, `3.11`).
+* **Huy hiệu trạng thái:** [![Detection Engineering CI](https://github.com/tofan0810/Wazuh-SOC-lab/actions/workflows/test.yml/badge.svg)](https://github.com/tofan0810/Wazuh-SOC-lab/actions/workflows/test.yml)
+* **Phạm vi kiểm thử tự động (12 Verification Checks):**
+  1. **XML Syntax & Well-Formedness:** Kiểm tra tính toàn vẹn cú pháp của `local_rules.xml`, `local_decoder.xml`, `ossec.conf` và `sysmon-config.xml`, bảo vệ dịch vụ `wazuh-analysisd` không bị crash.
+  2. **Rule ID Namespace & Uniqueness:** Đảm bảo toàn bộ Rule ID tùy biến là duy nhất và nằm trong dải số quy ước `>= 100000`.
+  3. **Alert Severity Range (0–16):** Kiểm tra giới hạn cấp độ cảnh báo theo đúng chuẩn Wazuh.
+  4. **MITRE ATT&CK Schema Format:** Xác thực cú pháp kỹ thuật MITRE (`Txxxx` hoặc `Txxxx.xxx`) cho toàn bộ 6 kỹ thuật tấn công trọng yếu.
+  5. **Regex & PCRE2 Compilation:** Kiểm tra an toàn biên dịch biểu thức chính quy của bộ giải mã (Apache Web Access Log) và các trường lọc Sysmon (`commandLine`, `targetObject`, `image`).
+  6. **Hierarchical Child Suppression Rules (Level 0):** Xác thực cấu trúc luật ức chế phân cấp (Rule 100008, 100009, 100010) cho hành động khắc phục của SOAR (`socrunner` qua WinRM) sử dụng logic AND chuẩn xác.
+  7. **Zero Secret Leakage Compliance:** Rà soát tự động đảm bảo không có token thực tế hoặc mật khẩu bị lộ trong các template cấu hình.
+  8. **SIEM Integration Architecture Integrity:** Xác nhận duy nhất 1 block `<integration>` cho `custom-n8n` Webhook.
+
+* **Chạy kiểm thử cục bộ trước khi push:**
+  ```powershell
+  python -m unittest discover -s tests/unit -v
+  # hoặc dùng pytest:
+  pytest tests/unit/ -v --cov=tests/unit
+  ```
+
+---
+
 ## 📋 Quy trình Chuẩn Ứng phó Sự cố (Incident Response Playbooks / SOP)
 
 Nhằm đáp ứng tiêu chuẩn vận hành an ninh chuyên nghiệp của Trung tâm Điều hành An ninh mạng (SOC), hệ thống được trang bị bộ tài liệu SOP chuẩn hóa theo khuyến nghị **NIST SP 800-61 Rev. 2** và chu trình **SANS PICERL** (Preparation, Identification, Containment, Eradication, Recovery, Lessons Learned):
@@ -298,10 +330,11 @@ Xem chi tiết các bước tại các tài liệu chuyên đề:
 6. Tự động hóa SOAR, ChatOps 2 chiều & Phản ứng khép kín:
    - Phần 1 (Workflow Engine & Jira API): `reports/Phase-5/Phase-5_SOAR-Workflow-Automation.md`
    - Phần 2 (Closed-Loop Containment & Rollback): `reports/Phase-5/Phase-5_Closed-Loop-Containment-and-Rollback.md`
-7. Tích hợp Threat Intelligence (VirusTotal): [integrations/virustotal/README.md](integrations/virustotal/README.md)
-8. Tích hợp ChatOps cảnh báo Telegram: [integrations/telegram/README.md](integrations/telegram/README.md)
-9. Tích hợp SOAR Engine & Jira Cloud: [integrations/n8n/README.md](integrations/n8n/README.md)
-10. Quy trình ứng phó sự cố SOC (SOP-01, SOP-02, SOP-03): [playbooks/README.md](playbooks/README.md)
+7. Tự động hóa CI/CD Detection Engineering (GitHub Actions): `reports/Phase-6/Phase-6_Detection-Engineering-CICD-Pipeline.md`
+8. Tích hợp Threat Intelligence (VirusTotal): [integrations/virustotal/README.md](integrations/virustotal/README.md)
+9. Tích hợp ChatOps cảnh báo Telegram: [integrations/telegram/README.md](integrations/telegram/README.md)
+10. Tích hợp SOAR Engine & Jira Cloud: [integrations/n8n/README.md](integrations/n8n/README.md)
+11. Quy trình ứng phó sự cố SOC (SOP-01, SOP-02, SOP-03): [playbooks/README.md](playbooks/README.md)
 
 ### Điều kiện tiên quyết:
 *   Phần mềm máy ảo: VMware Workstation hoặc VirtualBox.
