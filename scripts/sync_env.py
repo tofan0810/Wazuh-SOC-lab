@@ -283,9 +283,26 @@ def deploy_to_remote(env_vars):
     print("  🔄 Đang nạp ossec.conf vào container single-node-wazuh.manager-1...")
     run_command(f'ssh {wazuh_host} "docker cp /tmp/ossec.conf single-node-wazuh.manager-1:/var/ossec/etc/ossec.conf"')
 
-    # 3. Copy các file workflows sang wazuh-vm
-    print("  📤 Đang đồng bộ các file workflows JSON sang wazuh-vm...")
+    # 2.1 Nạp rules tùy biến (local_rules.xml) vào Wazuh Manager container
+    local_rules = os.path.join(REPO_ROOT, "custom-rules", "local_rules.xml")
+    if os.path.exists(local_rules):
+        print("  🔄 Đang nạp local_rules.xml (với whitelist SOAR socrunner) vào Wazuh Manager...")
+        run_command(f'scp "{local_rules}" {wazuh_host}:/tmp/local_rules.xml')
+        run_command(f'ssh {wazuh_host} "docker cp /tmp/local_rules.xml single-node-wazuh.manager-1:/var/ossec/etc/rules/local_rules.xml && docker exec single-node-wazuh.manager-1 chown root:wazuh /var/ossec/etc/rules/local_rules.xml && docker exec single-node-wazuh.manager-1 chmod 660 /var/ossec/etc/rules/local_rules.xml"')
+
+    # 2.2 Nạp script integration custom-n8n.py vào Wazuh Manager container
+    custom_n8n_script = os.path.join(REPO_ROOT, "integrations", "n8n", "custom-n8n.py")
+    if os.path.exists(custom_n8n_script):
+        print("  🔄 Đang nạp custom-n8n.py vào Wazuh Manager...")
+        run_command(f'scp "{custom_n8n_script}" {wazuh_host}:/tmp/custom-n8n.py')
+        run_command(f'ssh {wazuh_host} "docker cp /tmp/custom-n8n.py single-node-wazuh.manager-1:/var/ossec/integrations/custom-n8n.py && docker exec single-node-wazuh.manager-1 chown root:wazuh /var/ossec/integrations/custom-n8n.py && docker exec single-node-wazuh.manager-1 chmod 750 /var/ossec/integrations/custom-n8n.py"')
+
+    # 3. Copy các file workflows và telegram_bridge sang wazuh-vm
+    print("  📤 Đang đồng bộ các file workflows JSON và bridge sang wazuh-vm...")
     run_command(f'scp "{WORKFLOWS_DIR}/"* {wazuh_host}:/home/nguyentoan/n8n-docker/')
+    bridge_py_local = os.path.join(REPO_ROOT, "integrations", "n8n", "telegram_bridge.py")
+    if os.path.exists(bridge_py_local):
+        run_command(f'scp "{bridge_py_local}" {wazuh_host}:/home/nguyentoan/n8n-docker/telegram_bridge.py')
 
     # 4. Khởi động lại dịch vụ trên Wazuh Manager
     print("\n⚙️ [BƯỚC 5/6] Tái khởi động và áp dụng cấu hình dịch vụ trên wazuh-vm...")
@@ -296,10 +313,19 @@ def deploy_to_remote(env_vars):
     else:
         print(f"  ⚠️ Khởi động Wazuh Manager cảnh báo: {out}")
 
-    # 5. Khởi động lại container n8n để nạp .env mới
-    print("  🔄 Khởi động lại container n8n-soar-engine để áp dụng biến môi trường...")
-    run_command(f'ssh {wazuh_host} "cd /home/nguyentoan/n8n-docker && docker compose up -d"')
-    print("  ✅ n8n SOAR container đã được cập nhật biến môi trường mới.")
+    # 5. Khởi động lại container n8n để nạp .env mới và import workflows
+    print("  🔄 Nạp cấu hình workflow mới vào n8n SOAR container...")
+    run_command(f'ssh {wazuh_host} "docker cp /home/nguyentoan/n8n-docker/01_wazuh_soar_threat_enrichment.json n8n-soar-engine:/tmp/wf01.json"')
+    run_command(f'ssh {wazuh_host} "docker cp /home/nguyentoan/n8n-docker/02_containment_action_executor.json n8n-soar-engine:/tmp/wf02.json"')
+    run_command(f'ssh {wazuh_host} "docker cp /home/nguyentoan/n8n-docker/03_scheduled_healthcheck_cron.json n8n-soar-engine:/tmp/wf03.json"')
+    run_command(f'ssh {wazuh_host} "docker exec -i n8n-soar-engine n8n import:workflow --input=/tmp/wf01.json"')
+    run_command(f'ssh {wazuh_host} "docker exec -i n8n-soar-engine n8n import:workflow --input=/tmp/wf02.json"')
+    run_command(f'ssh {wazuh_host} "docker exec -i n8n-soar-engine n8n import:workflow --input=/tmp/wf03.json"')
+    run_command(f'ssh {wazuh_host} "docker exec -i n8n-soar-engine n8n publish:workflow --id=WazuhSoarWf01Enr"')
+    run_command(f'ssh {wazuh_host} "docker exec -i n8n-soar-engine n8n publish:workflow --id=WazuhSoarWf02Act"')
+    run_command(f'ssh {wazuh_host} "docker exec -i n8n-soar-engine n8n publish:workflow --id=WazuhSoarWf03Cro"')
+    run_command(f'ssh {wazuh_host} "cd /home/nguyentoan/n8n-docker && docker compose restart"')
+    print("  ✅ n8n SOAR container đã được cập nhật và kích hoạt workflows thành công.")
 
     # 6. Khởi động lại daemon telegram_bridge.py
     print("  🔄 Tái khởi động daemon telegram_bridge.py (Long-Polling Callback Bridge)...")
