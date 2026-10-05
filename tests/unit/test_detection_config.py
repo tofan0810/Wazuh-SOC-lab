@@ -67,6 +67,28 @@ class DetectionConfigurationTests(unittest.TestCase):
         self.assertEqual(rule_lsass.attrib["level"], "12")
         self.assertEqual(rule_lsass.findtext("mitre/id"), "T1003.001")
 
+    def test_hierarchical_suppression_rules(self):
+        # Rule 100008: PowerShell Suppression
+        suppress_ps = self.rules["100008"]
+        self.assertEqual(suppress_ps.attrib["level"], "0")
+        self.assertEqual(suppress_ps.findtext("if_sid"), "100004")
+        fields = {f.attrib["name"]: f.text for f in suppress_ps.findall("field")}
+        self.assertIn("win.eventdata.user", fields)
+        self.assertIn("socrunner", fields["win.eventdata.user"])
+        self.assertIn("win.eventdata.parentImage", fields)
+        self.assertIn("cmd", fields["win.eventdata.parentImage"])
+
+        # Rule 100009: UAC Bypass Suppression
+        suppress_uac = self.rules["100009"]
+        self.assertEqual(suppress_uac.attrib["level"], "0")
+        self.assertEqual(suppress_uac.findtext("if_sid"), "100007")
+
+        # Rule 100010: Persistence Suppression
+        suppress_persist = self.rules["100010"]
+        self.assertEqual(suppress_persist.attrib["level"], "0")
+        self.assertEqual(suppress_persist.findtext("if_sid"), "100006")
+
 
 if __name__ == "__main__":
     unittest.main()
+
