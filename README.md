@@ -121,7 +121,6 @@ flowchart TD
 wazuh-soc-lab/
 │
 ├── README.md               # Tài liệu tổng quan hệ thống & hướng dẫn bắt đầu
-├── SUMMARY.md              # Báo cáo tổng kết toàn diện 5 giai đoạn triển khai
 ├── sync_env.bat            # Công cụ 1-Click tự động đồng bộ cấu hình .env lên toàn hệ thống
 ├── .env.example            # File mẫu cấu hình biến môi trường và API keys
 │
@@ -183,8 +182,9 @@ wazuh-soc-lab/
     ├── Phase-4/            # Tự động hóa kiểm thử hồi quy (Detection-as-Code)
     │   ├── Phase-4_Regression-Test-Automation.md
     │   └── images/
-    ├── Phase-5/            # Tự động hóa SOAR, ChatOps 2 chiều & Jira Cloud API
+    ├── Phase-5/            # Tự động hóa SOAR, ChatOps 2 chiều & Phản ứng khép kín
     │   ├── Phase-5_SOAR-Workflow-Automation.md
+    │   ├── Phase-5_Closed-Loop-Containment-and-Rollback.md
     │   └── images/
     └── images/             # Ảnh minh chứng hạ tầng Phase 1 & Phase 2
 ```
@@ -255,9 +255,11 @@ Mô hình SOAR (Security Orchestration, Automation, and Response) độc lập k
 * **Báo cáo Sức khỏe Định kỳ (Cron Trigger):** Tự động kiểm tra trạng thái 3 VM, container Docker và Wazuh Manager mỗi 6 giờ.
 * **Tài liệu & Kịch bản Kiểm thử:**
   - Hướng dẫn chi tiết: [integrations/n8n/README.md](integrations/n8n/README.md)
-  - Playbook phản ứng sự cố SOAR: [playbooks/SOP-03_SOAR_Automated_Containment.md](playbooks/SOP-03_SOAR_Automated_Containment.md)
-  - Báo cáo thực nghiệm Phase 5: [reports/Phase-5/Phase-5_SOAR-Workflow-Automation.md](reports/Phase-5/Phase-5_SOAR-Workflow-Automation.md)
-  - Test Runner E2E: `python tests/e2e/test_soar_webhook.py` (PASS 100%).
+  - Playbook phản ứng sự cố SOAR (Closed-Loop): [playbooks/SOP-03_SOAR_Automated_Containment.md](playbooks/SOP-03_SOAR_Automated_Containment.md)
+  - Báo cáo thực nghiệm Phase 5 (Phần 1 - SOAR & Jira): [reports/Phase-5/Phase-5_SOAR-Workflow-Automation.md](reports/Phase-5/Phase-5_SOAR-Workflow-Automation.md)
+  - Báo cáo thực nghiệm Phase 5 (Phần 2 - Closed-Loop & Rollback): [reports/Phase-5/Phase-5_Closed-Loop-Containment-and-Rollback.md](reports/Phase-5/Phase-5_Closed-Loop-Containment-and-Rollback.md)
+  - Test Runner E2E (Webhook & Jira): `python tests/e2e/test_soar_webhook.py` (PASS 100%).
+  - Test Runner E2E (Closed-Loop Containment & Rollback): `python tests/e2e/test_soar_closed_loop.py` (PASS 15/15 100%).
 
 ---
 
@@ -293,7 +295,9 @@ Xem chi tiết các bước tại các tài liệu chuyên đề:
 3. Triển khai kịch bản tấn công và phát hiện: `reports/Phase-3/Phase-3_Scenario-1.md` và `reports/Phase-3/Phase-3_Scenario-2.md`
 4. Kịch bản Full Kill Chain Telemetry: `reports/Phase-3/Phase-3_Scenario-3.md`
 5. Tự động hóa kiểm thử hồi quy (Detection-as-Code): `reports/Phase-4/Phase-4_Regression-Test-Automation.md`
-6. Tự động hóa SOAR, ChatOps 2 chiều & Jira API: `reports/Phase-5/Phase-5_SOAR-Workflow-Automation.md`
+6. Tự động hóa SOAR, ChatOps 2 chiều & Phản ứng khép kín:
+   - Phần 1 (Workflow Engine & Jira API): `reports/Phase-5/Phase-5_SOAR-Workflow-Automation.md`
+   - Phần 2 (Closed-Loop Containment & Rollback): `reports/Phase-5/Phase-5_Closed-Loop-Containment-and-Rollback.md`
 7. Tích hợp Threat Intelligence (VirusTotal): [integrations/virustotal/README.md](integrations/virustotal/README.md)
 8. Tích hợp ChatOps cảnh báo Telegram: [integrations/telegram/README.md](integrations/telegram/README.md)
 9. Tích hợp SOAR Engine & Jira Cloud: [integrations/n8n/README.md](integrations/n8n/README.md)
