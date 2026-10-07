@@ -1,15 +1,24 @@
+import sys
 import os
 import re
+import json
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 # Repo root is 2 levels up from tests/unit/
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 RULES = ROOT / "custom-rules" / "local_rules.xml"
 DECODERS = ROOT / "custom-rules" / "local_decoder.xml"
+SIGMA_DIR = ROOT / "custom-rules" / "sigma"
 OSSEC_CONF = ROOT / "deployment" / "ossec.conf"
 SYSMON_CONF = ROOT / "deployment" / "sysmon-config.xml"
+DASHBOARD_NDJSON = ROOT / "deployment" / "dashboards" / "soc_lab_executive_dashboard.ndjson"
+SURICATA_RULES = ROOT / "deployment" / "suricata" / "local.rules"
+SURICATA_YAML = ROOT / "deployment" / "suricata" / "suricata.yaml"
 ENV_EXAMPLE = ROOT / ".env.example"
 
 
@@ -216,6 +225,170 @@ class DetectionConfigurationTests(unittest.TestCase):
         live_vt_key = re.search(r"^\s*VIRUSTOTAL_API_KEY\s*=\s*[0-9a-fA-F]{64}\s*$", content, re.MULTILINE)
         self.assertIsNone(live_vt_key, "Live 64-char API key detected in .env.example!")
 
+    # -------------------------------------------------------------------------
+    # 9. OpenSearch Executive Dashboard Saved Objects Validation (Pillar 3)
+    # -------------------------------------------------------------------------
+    def test_executive_dashboard_ndjson_integrity(self):
+        """Verifies that the OpenSearch Executive Dashboard Saved Objects file is valid and complete."""
+        self.assertTrue(DASHBOARD_NDJSON.exists(), f"Dashboard ndjson file not found at {DASHBOARD_NDJSON}")
+        lines = [line.strip() for line in DASHBOARD_NDJSON.read_text(encoding="utf-8").splitlines() if line.strip()]
+        self.assertGreaterEqual(len(lines), 7, "Dashboard ndjson must contain at least 7 saved objects")
+
+        objects = []
+        for line in lines:
+            try:
+                obj = json.loads(line)
+                objects.append(obj)
+            except Exception as e:
+                self.fail(f"Invalid JSON line in ndjson: {e}")
+
+        types = [o["type"] for o in objects]
+        self.assertIn("dashboard", types, "Missing dashboard object in ndjson")
+        self.assertIn("visualization", types, "Missing visualization objects in ndjson")
+        self.assertIn("search", types, "Missing search object in ndjson")
+        self.assertIn("index-pattern", types, "Missing index-pattern object in ndjson")
+
+        dash = next(o for o in objects if o["type"] == "dashboard")
+        self.assertEqual(dash["id"], "soc-lab-executive-overview")
+        self.assertEqual(dash["attributes"]["title"], "SOC Lab - Executive Incident Overview")
+
+        # Verify panels are present in dashboard
+        panels = json.loads(dash["attributes"]["panelsJSON"])
+        self.assertGreaterEqual(len(panels), 6, "Dashboard must contain at least 6 panel visualizations")
+
+    # -------------------------------------------------------------------------
+    # 10. Sigma Rules & SigWaz Compiler Tests (Pillar 2 - Phase 8)
+    # -------------------------------------------------------------------------
+    def test_sigma_rules_schema_and_validity(self):
+        """Verifies that all Sigma YAML rules conform to schema and MITRE ATT&CK standards."""
+        from scripts.sigma_compiler import SigmaToWazuhCompiler
+        self.assertTrue(SIGMA_DIR.exists(), f"Sigma rules directory missing: {SIGMA_DIR}")
+        compiler = SigmaToWazuhCompiler(SIGMA_DIR)
+        self.assertGreaterEqual(len(compiler.rules), 6, "Expected at least 6 Sigma detection rules")
+        self.assertTrue(compiler.validate_all(), "One or more Sigma rules failed schema validation")
+
+    def test_sigma_compiler_drift_check(self):
+        """Guarantees zero-drift: custom-rules/local_rules.xml must match 100% with Sigma SSOT."""
+        from scripts.sigma_compiler import SigmaToWazuhCompiler
+        compiler = SigmaToWazuhCompiler(SIGMA_DIR)
+        compiled_xml = compiler.compile_to_xml()
+        current_xml = RULES.read_text(encoding="utf-8")
+
+        current_normalized = "\n".join([line.rstrip() for line in current_xml.strip().splitlines()])
+        compiled_normalized = "\n".join([line.rstrip() for line in compiled_xml.strip().splitlines()])
+
+        self.assertEqual(
+            current_normalized, compiled_normalized,
+            "Drift detected between Sigma rules (SSOT) and custom-rules/local_rules.xml! Run 'python scripts/sigma_compiler.py --compile'."
+        )
+
+    def test_sigma_compiler_coverage_all_killchain_stages(self):
+        """Verifies that the compiled rules cover all attack stages and SOAR child suppressions."""
+        from scripts.sigma_compiler import SigmaToWazuhCompiler
+        compiler = SigmaToWazuhCompiler(SIGMA_DIR)
+        compiled_xml = compiler.compile_to_xml()
+        root = ET.fromstring(compiled_xml)
+        rule_ids = {r.attrib["id"]: r for r in root.findall("rule")}
+
+        expected_ids = [
+            "100001",  # RDP Brute Force
+            "100002",  # Web LFI
+            "100003",  # Sysmon EID 1 Base Filter
+            "100004",  # PowerShell Executed
+            "100008",  # PowerShell SOAR Suppression
+            "100007",  # UAC Bypass ms-settings
+            "100009",  # UAC SOAR Suppression
+            "100006",  # Persistence Run Key
+            "100010",  # Persistence SOAR Suppression
+            "100005",  # LSASS Memory Dump
+            "100011",  # NIDS Nmap Scan
+            "100012",  # NIDS Web LFI
+            "100013",  # NIDS Vulnerability Scanner
+        ]
+        for eid in expected_ids:
+            self.assertIn(eid, rule_ids, f"Compiled XML missing expected rule ID: {eid}")
+
+        # Check suppression rules are level 0 and reference their respective parent rules
+        self.assertEqual(rule_ids["100008"].attrib["level"], "0")
+        self.assertEqual(rule_ids["100008"].findtext("if_sid"), "100004")
+
+        self.assertEqual(rule_ids["100009"].attrib["level"], "0")
+        self.assertEqual(rule_ids["100009"].findtext("if_sid"), "100007")
+
+        self.assertEqual(rule_ids["100010"].attrib["level"], "0")
+        self.assertEqual(rule_ids["100010"].findtext("if_sid"), "100006")
+
+    # -------------------------------------------------------------------------
+    # 11. Suricata NIDS & XDR Integration Tests (Phase 9)
+    # -------------------------------------------------------------------------
+    def test_suricata_localfile_configured(self):
+        """Verifies that ossec.conf includes /var/log/suricata/eve.json in JSON format."""
+        localfiles = self.ossec_root.findall(".//localfile")
+        suricata_entries = [
+            lf for lf in localfiles
+            if lf.findtext("location") == "/var/log/suricata/eve.json"
+        ]
+        self.assertEqual(len(suricata_entries), 1, "Missing /var/log/suricata/eve.json in ossec.conf localfile")
+        self.assertEqual(suricata_entries[0].findtext("log_format"), "json", "Suricata eve.json must be configured with 'json' log_format")
+
+    def test_suricata_soar_rules_included(self):
+        """Verifies that Suricata alert rule IDs (86602, 86603, 86604) are included in custom-n8n integration."""
+        n8n_integ = next(
+            (i for i in self.ossec_root.findall(".//integration") if i.findtext("name") == "custom-n8n"),
+            None
+        )
+        self.assertIsNotNone(n8n_integ, "Missing custom-n8n integration block in ossec.conf")
+        rule_ids_text = n8n_integ.findtext("rule_id")
+        self.assertIsNotNone(rule_ids_text, "Missing rule_id list in custom-n8n integration")
+        for sid in ("86602", "86603", "86604"):
+            self.assertIn(sid, rule_ids_text, f"Suricata rule ID {sid} missing from custom-n8n integration")
+
+    def test_suricata_signatures_integrity(self):
+        """Verifies that deployment/suricata/local.rules exists and contains valid signatures."""
+        self.assertTrue(SURICATA_RULES.exists(), f"Missing Suricata local.rules at {SURICATA_RULES}")
+        content = SURICATA_RULES.read_text(encoding="utf-8")
+        for sid in ("2000001", "2000002", "2000003", "2000004"):
+            self.assertIn(f"sid:{sid}", content, f"Missing signature SID {sid} in local.rules")
+            self.assertIn("metadata:mitre_attack_id", content, f"Missing MITRE ATT&CK metadata in SID {sid}")
+
+    def test_suricata_yaml_config_integrity(self):
+        """Verifies that deployment/suricata/suricata.yaml exists and contains valid capture & EVE output settings."""
+        self.assertTrue(SURICATA_YAML.exists(), f"Missing suricata.yaml at {SURICATA_YAML}")
+        content = SURICATA_YAML.read_text(encoding="utf-8")
+        self.assertIn("interface: ens33", content, "Missing ens33 capture interface in suricata.yaml")
+        self.assertIn("/var/log/suricata/eve.json", content, "Missing eve.json output path in suricata.yaml")
+
+    # -------------------------------------------------------------------------
+    # 12. Active Response Instant Containment Tests
+    # -------------------------------------------------------------------------
+    def test_active_response_kill_process_and_netsh_configured(self):
+        """Verifies that ossec.conf includes netsh (100001, 100002) and kill-process (100004, 100005)."""
+        commands = {c.findtext("name"): c for c in self.ossec_root.findall(".//command")}
+        self.assertIn("kill-process", commands, "Missing 'kill-process' command in ossec.conf")
+        self.assertEqual(commands["kill-process"].findtext("executable"), "kill-process.cmd")
+        self.assertEqual(commands["kill-process"].findtext("timeout_allowed"), "no")
+
+        self.assertIn("netsh", commands, "Missing 'netsh' command in ossec.conf")
+        self.assertEqual(commands["netsh"].findtext("executable"), "netsh.exe")
+
+        ar_blocks = self.ossec_root.findall(".//active-response")
+        ar_commands = {ar.findtext("command"): ar for ar in ar_blocks}
+
+        # Check netsh AR covers both RDP (100001) and Web LFI (100002)
+        self.assertIn("netsh", ar_commands, "Missing active-response block for netsh")
+        netsh_rules = ar_commands["netsh"].findtext("rules_id")
+        self.assertIsNotNone(netsh_rules)
+        self.assertIn("100001", netsh_rules)
+        self.assertIn("100002", netsh_rules)
+
+        # Check kill-process AR covers PowerShell (100004) and LSASS Dump (100005)
+        self.assertIn("kill-process", ar_commands, "Missing active-response block for kill-process")
+        kill_rules = ar_commands["kill-process"].findtext("rules_id")
+        self.assertIsNotNone(kill_rules)
+        self.assertIn("100004", kill_rules)
+        self.assertIn("100005", kill_rules)
+
 
 if __name__ == "__main__":
     unittest.main()
+
