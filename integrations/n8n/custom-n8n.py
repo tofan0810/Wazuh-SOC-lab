@@ -41,9 +41,11 @@ def extract_soar_payload(alert: dict) -> dict:
 
     # Extract source / attacker IP with intelligent endpoint fallback
     raw_src_ip = (
-        data.get("srcip")
+        data.get("src_ip")
+        or data.get("srcip")
         or eventdata.get("ipAddress")
         or alert.get("srcip")
+        or alert.get("src_ip")
         or win.get("system", {}).get("ipAddress")
     )
     if raw_src_ip in (None, "", "-", "::1", "127.0.0.1", "N/A"):

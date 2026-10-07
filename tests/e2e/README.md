@@ -47,4 +47,12 @@ Verifies the end-to-end integration between Wazuh, n8n webhook ingest, AbuseIPDB
 python tests/e2e/test_soar_webhook.py
 ```
 
+### 7. Scenario 4: Suricata NIDS & XDR Network Threat Verification (Phase 9)
+
+Simulates network reconnaissance and web exploitation from Kali Attacker (Nmap SYN scan, HTTP directory traversal, automated scanner probe), verifying packet capture via Suricata NIDS, EVE JSON ingestion into Wazuh SIEM, and XDR cross-telemetry correlation:
+
+```powershell
+python tests/e2e/scenario_nids_suricata.py
+```
+
 > **Note:** The default WinRM user is `socrunner` (Local Administrator on Windows Victim). For Scenario 1, the default RDP victim user is `testw`. Ensure the Apache service (XAMPP) is running on the Windows victim before triggering Scenario 2.

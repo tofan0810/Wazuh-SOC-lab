@@ -137,17 +137,38 @@ wazuh-soc-lab/
 │   └── CONFIG_SYNC_COMMANDS.md  # Cẩm nang đồng bộ cấu hình và troubleshooting
 │
 ├── scripts/                # Kịch bản tự động hóa vận hành hệ thống
-│   └── sync_env.py         # Engine tự động kiểm tra API và đồng bộ .env sang Wazuh & n8n
+│   ├── sync_env.py         # Engine tự động kiểm tra API và đồng bộ .env sang Wazuh & n8n
+│   ├── import_dashboard.py # Engine 1-Click nạp Executive Dashboard lên Wazuh qua HTTPS API
+│   └── sigma_compiler.py   # SigWaz-based Compiler: Biên dịch Sigma YAML -> Wazuh XML + Zero Drift Check
 │
 ├── architecture/           # Sơ đồ mạng và kiến trúc kết nối Lab
 │
 ├── deployment/             # Hướng dẫn và file cấu hình triển khai
+│   ├── dashboards/         # Cấu hình Custom Dashboard chuyên biệt trên Wazuh SIEM
+│   │   ├── soc_lab_executive_dashboard.ndjson # File Saved Objects nạp 1-click lên OpenSearch Dashboards
+│   │   └── README.md       # Cẩm nang trực quan hóa và hướng dẫn Import
+│   ├── suricata/           # Động cơ Suricata 7.x NIDS & Cấu hình giám sát tầng mạng (XDR)
+│   │   ├── suricata.yaml   # Cấu hình tối ưu capture ens33 & EVE JSON stream
+│   │   ├── local.rules     # 4 Custom Signatures thực chiến (Nmap, LFI, Nikto, RDP)
+│   │   ├── setup_suricata.sh # Script 1-Click tự động hóa cài đặt & cấu hình service
+│   │   └── README.md       # Cẩm nang vận hành Suricata NIDS
 │   ├── docker-compose.yml  # Triển khai Wazuh Manager, Indexer, Dashboard
-│   ├── ossec.conf          # File cấu hình chuẩn của Wazuh Manager
+│   ├── ossec.conf          # File cấu hình chuẩn của Wazuh Manager (tích hợp eve.json)
 │   └── sysmon-config.xml   # Cấu hình Sysmon v15.2 tối ưu theo MITRE ATT&CK
 │
-├── custom-rules/           # Quy tắc phát hiện và bộ giải mã tùy chỉnh
-│   ├── local_rules.xml     # Rules phát hiện RDP Brute Force, Web LFI, Kill Chain & Tuning
+├── custom-rules/           # Quy tắc phát hiện và bộ giải mã tùy chỉnh (Detection-as-Code)
+│   ├── sigma/              # Kho luật chuẩn hóa Sigma YAML (Single Source of Truth - SSOT)
+│   │   ├── win_rdp_brute_force.yml
+│   │   ├── web_lfi_directory_traversal.yml
+│   │   ├── win_powershell_malicious_execution.yml
+│   │   ├── win_registry_uac_bypass_ms_settings.yml
+│   │   ├── win_registry_persistence_run_keys.yml
+│   │   ├── win_lsass_access_credential_dumping.yml
+│   │   ├── net_suricata_nmap_scan.yml
+│   │   ├── net_suricata_web_traversal.yml
+│   │   ├── net_suricata_vulnerability_scanner.yml
+│   │   └── README.md       # Cẩm nang quy chuẩn phát hiện Sigma & hướng dẫn vận hành
+│   ├── local_rules.xml     # Rules được biên dịch tự động bởi SigWaz Engine (100% Zero-Drift)
 │   └── local_decoder.xml   # Decoder bóc tách log Apache Web Server
 │
 ├── integrations/           # Phân hệ tích hợp mở rộng
@@ -171,10 +192,11 @@ wazuh-soc-lab/
 │   │   ├── scenario_rdp_bruteforce.py # Kiểm thử tự động Scenario 1 (RDP Brute Force)
 │   │   ├── scenario_lfi_web.py        # Kiểm thử tự động Scenario 2 (Web Apache LFI)
 │   │   ├── scenario_full_killchain.py # Kiểm thử trọn bộ 4 stages Kill Chain
+│   │   ├── scenario_nids_suricata.py  # Kiểm thử NIDS Suricata & tương quan XDR trên dây mạng
 │   │   ├── test_soar_webhook.py       # Kiểm thử toàn trình pipeline SOAR n8n Webhook
 │   │   ├── lab_health.py              # Kiểm tra sức khỏe toàn diện cả 3 máy ảo
 │   │   └── README.md                  # Hướng dẫn chạy bộ test E2E
-│   └── unit/               # Kiểm thử đơn vị cú pháp XML Rules và Decoders
+│   └── unit/               # Kiểm thử đơn vị cú pháp XML Rules, Decoders, NIDS & Sigma (20 Checks)
 │
 └── reports/                # Báo cáo chi tiết các giai đoạn triển khai
     ├── Phase-1_Infrastructure-Deployment.md
@@ -194,6 +216,13 @@ wazuh-soc-lab/
     ├── Phase-6/            # Tự động hóa CI/CD Pipeline cho Detection Engineering (GitHub Actions)
     │   ├── Phase-6_Detection-Engineering-CICD-Pipeline.md
     │   └── images/
+    ├── Phase-7/            # Trực quan hóa sự cố chuyên sâu (Wazuh Executive Incident Dashboard)
+    │   ├── Phase-7_Executive-Incident-Dashboard.md
+    │   └── images/
+    ├── Phase-8/            # Chuẩn hóa luật phát hiện Sigma (Detection-as-Code SSOT)
+    │   └── Phase-8_Sigma-Rules-Integration.md
+    ├── Phase-9/            # Giám sát tầng mạng sâu NIDS Suricata & Mở rộng hệ thống XDR
+    │   └── Phase-9_Suricata-NIDS-XDR-Integration.md
     └── images/             # Ảnh minh chứng hạ tầng Phase 1 & Phase 2
 ```
 
@@ -295,6 +324,28 @@ Hệ thống áp dụng phương pháp luận **Detection-as-Code (DaC)** theo c
 
 ---
 
+## 📊 Trực Quan Hóa Sự Cố Chuyên Sâu (Wazuh Executive Incident Dashboard)
+
+Hệ thống cung cấp một **Custom Dashboard chuyên biệt** được thiết kế riêng cho kịch bản phòng Lab, vận hành trên nền tảng **OpenSearch Dashboards** (Wazuh Dashboard Port 443):
+* **Tên Dashboard:** `SOC Lab - Executive Incident Overview`
+* **Đường dẫn truy cập trực tiếp:** `https://192.168.71.128/app/dashboards#/view/soc-lab-executive-overview`
+* **Bố cục 7 Thành phần Trực quan hóa (7 Visualizations):**
+  1. **Metric Widget Group:** Thống kê tổng số sự cố, số cảnh báo Critical (L12), High (L10) và chỉ số KPI thời gian MTTA (< 3s), MTTR (< 20s).
+  2. **Incident Severity Distribution (Donut Chart):** Tỷ lệ phân bổ % mức độ nghiêm trọng của toàn bộ cuộc tấn công.
+  3. **MITRE ATT&CK Matrix Heatmap:** Thống kê vi phạm theo 6 kỹ thuật tấn công thực chiến (`T1110.001`, `T1190`, `T1059.001`, `T1548.002`, `T1547.001`, `T1003.001`).
+  4. **Top Attacker Source IPs:** Bảng xếp hạng các địa chỉ IP phát động tấn công (đứng đầu là Kali Linux `192.168.71.130`).
+  5. **Target Endpoints & Users (Data Table):** Bảng chi tiết máy nạn nhân Windows 10 (`agent.name`) và tài khoản bị xâm hại (`testw`, `socrunner`).
+  6. **Malicious Processes Telemetry (Data Table):** Thống kê các file thực thi độc hại (`powershell.exe`, `fodhelper.exe`, `lsass.exe`, `httpd.exe`).
+  7. **Real-time Incident Stream (Saved Search Table):** Bảng luồng sự cố trực tiếp với đầy đủ timestamp, Rule ID, mô tả, MITRE ID và IP nguồn.
+
+* **Nạp Dashboard 1-Click tự động:**
+  ```powershell
+  python scripts/import_dashboard.py
+  ```
+  *(Chi tiết cấu hình và hướng dẫn import thủ công qua Web xem tại [deployment/dashboards/README.md](deployment/dashboards/README.md))*
+
+---
+
 ## 📋 Quy trình Chuẩn Ứng phó Sự cố (Incident Response Playbooks / SOP)
 
 Nhằm đáp ứng tiêu chuẩn vận hành an ninh chuyên nghiệp của Trung tâm Điều hành An ninh mạng (SOC), hệ thống được trang bị bộ tài liệu SOP chuẩn hóa theo khuyến nghị **NIST SP 800-61 Rev. 2** và chu trình **SANS PICERL** (Preparation, Identification, Containment, Eradication, Recovery, Lessons Learned):
@@ -331,10 +382,11 @@ Xem chi tiết các bước tại các tài liệu chuyên đề:
    - Phần 1 (Workflow Engine & Jira API): `reports/Phase-5/Phase-5_SOAR-Workflow-Automation.md`
    - Phần 2 (Closed-Loop Containment & Rollback): `reports/Phase-5/Phase-5_Closed-Loop-Containment-and-Rollback.md`
 7. Tự động hóa CI/CD Detection Engineering (GitHub Actions): `reports/Phase-6/Phase-6_Detection-Engineering-CICD-Pipeline.md`
-8. Tích hợp Threat Intelligence (VirusTotal): [integrations/virustotal/README.md](integrations/virustotal/README.md)
-9. Tích hợp ChatOps cảnh báo Telegram: [integrations/telegram/README.md](integrations/telegram/README.md)
-10. Tích hợp SOAR Engine & Jira Cloud: [integrations/n8n/README.md](integrations/n8n/README.md)
-11. Quy trình ứng phó sự cố SOC (SOP-01, SOP-02, SOP-03): [playbooks/README.md](playbooks/README.md)
+8. Trực quan hóa sự cố (Wazuh Executive Dashboard): `reports/Phase-7/Phase-7_Executive-Incident-Dashboard.md` và [deployment/dashboards/README.md](deployment/dashboards/README.md)
+9. Tích hợp Threat Intelligence (VirusTotal): [integrations/virustotal/README.md](integrations/virustotal/README.md)
+10. Tích hợp ChatOps cảnh báo Telegram: [integrations/telegram/README.md](integrations/telegram/README.md)
+11. Tích hợp SOAR Engine & Jira Cloud: [integrations/n8n/README.md](integrations/n8n/README.md)
+12. Quy trình ứng phó sự cố SOC (SOP-01, SOP-02, SOP-03): [playbooks/README.md](playbooks/README.md)
 
 ### Điều kiện tiên quyết:
 *   Phần mềm máy ảo: VMware Workstation hoặc VirtualBox.
