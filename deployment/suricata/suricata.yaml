@@ -1,0 +1,137 @@
+%YAML 1.1
+---
+# ==============================================================================
+# Suricata 7.x Configuration - SOC Lab XDR Environment
+# Tailored for Ubuntu Wazuh VM (192.168.71.128) monitoring Virtual Subnet
+# ==============================================================================
+
+vars:
+  address-groups:
+    HOME_NET: "[192.168.71.0/24]"
+    EXTERNAL_NET: "!$HOME_NET"
+    HTTP_SERVERS: "$HOME_NET"
+    SQL_SERVERS: "$HOME_NET"
+
+  port-groups:
+    HTTP_PORTS: "80,8080,8000,5678"
+    SHELLCODE_PORTS: "!80"
+    ORACLE_PORTS: 1521
+    SSH_PORTS: 22
+    DNP3_PORTS: 20000
+    MODBUS_PORTS: 502
+
+default-rule-path: /etc/suricata/rules
+rule-files:
+  - local.rules
+
+classification-file: /etc/suricata/classification.config
+reference-config-file: /etc/suricata/reference.config
+
+# ------------------------------------------------------------------------------
+# Capture Engine (AF_PACKET for high-speed Linux packet capture)
+# ------------------------------------------------------------------------------
+af-packet:
+  - interface: ens33
+    threads: auto
+    cluster-id: 99
+    cluster-type: cluster_flow
+    defrag: yes
+    use-mmsg: yes
+    buffer-size: 64535
+
+# ------------------------------------------------------------------------------
+# Logging & Telemetry Outputs (Wazuh EVE JSON Integration)
+# ------------------------------------------------------------------------------
+outputs:
+  # Fast log for local debugging
+  - fast:
+      enabled: yes
+      filename: /var/log/suricata/fast.log
+      append: yes
+
+  # Standard EVE JSON log for Wazuh Logcollector Ingestion
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: /var/log/suricata/eve.json
+      pcap-file: false
+      community-id: yes
+      community-id-seed: 0
+      xff:
+        enabled: yes
+        mode: extra-data
+        deployment: reverse
+        header: X-Forwarded-For
+
+      types:
+        - alert:
+            payload: yes
+            payload-buffer: yes
+            payload-printable: yes
+            packet: yes
+            metadata: yes
+            tagged-packets: yes
+        - http:
+            extended: yes
+            dump-all-headers: both
+        - dns:
+            version: 2
+        - tls:
+            extended: yes
+
+# ------------------------------------------------------------------------------
+# Protocol Parsers & Resource Optimization (RAM-friendly for VM lab)
+# ------------------------------------------------------------------------------
+app-layer:
+  protocols:
+    http:
+      enabled: yes
+      memcap: 64mb
+    dns:
+      tcp:
+        enabled: yes
+      udp:
+        enabled: yes
+    tls:
+      enabled: yes
+    ssh:
+      enabled: yes
+    rdp:
+      enabled: yes
+
+flow:
+  memcap: 64mb
+  hash-size: 65536
+  prealloc: 10000
+
+defrag:
+  memcap: 32mb
+  hash-size: 65536
+  trackers: 65536
+  max-frags: 65536
+  prealloc: yes
+  timeout: 60
+
+stream:
+  memcap: 64mb
+  checksum-validation: yes
+  inline: no
+  reassembly:
+    memcap: 64mb
+    depth: 1mb
+    toserver-chunk-size: 2560
+    toclient-chunk-size: 2560
+
+# ------------------------------------------------------------------------------
+# Logging & Runtime
+# ------------------------------------------------------------------------------
+logging:
+  default-log-level: notice
+  default-output-filter:
+  outputs:
+    - console:
+        enabled: yes
+    - file:
+        enabled: yes
+        level: info
+        filename: /var/log/suricata/suricata.log
