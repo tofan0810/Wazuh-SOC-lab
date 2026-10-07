@@ -1,0 +1,22 @@
+title: NIDS Web Exploit - Directory Traversal / LFI Attempt on Wire
+id: 100012
+uuid: 2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e
+status: production
+description: 'CRITICAL WARNING: Web Path Traversal / Local File Inclusion Attempt Detected on Wire by Suricata NIDS'
+author: SOC Lab Detection Engineering Team
+date: 2026/10/06
+modified: 2026/10/07
+logsource:
+  product: suricata
+  service: suricata
+  category: network_traffic
+wazuh:
+  if_sid: 86601
+detection:
+  selection:
+    alert.signature|re: '(?i)(Path Traversal|Local File Inclusion|LFI)'
+  condition: selection
+level: critical
+tags:
+  - attack.initial_access
+  - attack.t1190

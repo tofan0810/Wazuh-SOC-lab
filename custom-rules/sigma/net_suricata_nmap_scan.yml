@@ -1,0 +1,22 @@
+title: NIDS Reconnaissance - Nmap Network Scanning Detected
+id: 100011
+uuid: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+status: production
+description: 'WARNING: Nmap Port Scanning / Reconnaissance Detected on Wire by Suricata NIDS'
+author: SOC Lab Detection Engineering Team
+date: 2026/10/06
+modified: 2026/10/07
+logsource:
+  product: suricata
+  service: suricata
+  category: network_traffic
+wazuh:
+  if_sid: 86601
+detection:
+  selection:
+    alert.signature|re: '(?i)(Nmap|Port Scan|SYN Scan)'
+  condition: selection
+level: high
+tags:
+  - attack.reconnaissance
+  - attack.t1046

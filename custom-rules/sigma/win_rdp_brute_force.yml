@@ -1,0 +1,24 @@
+title: Windows RDP Brute Force Detection
+id: 100001
+uuid: 4f1a2b3c-5d6e-47f8-9a0b-1c2d3e4f5a6b
+status: production
+description: Windows Brute Force Attack Detected
+author: SOC Lab Detection Engineering Team
+date: 2026/09/25
+modified: 2026/10/05
+logsource:
+  product: windows
+  service: security
+  definition: Windows Event Log Security Event ID 4625 (Logon Failure)
+wazuh:
+  if_matched_sid: 60122
+  frequency: 5
+  timeframe: 60
+detection:
+  selection:
+    EventID: 4625
+  condition: selection
+level: critical
+tags:
+  - attack.credential_access
+  - attack.t1110

@@ -1,6 +1,6 @@
 <!-- Local rules -->
 
-<group name="local_rules,sysmon,windows,killchain,">
+<group name="local_rules,sysmon,windows,killchain,suricata,">
 
   <!-- ===================================================================== -->
   <!-- SCENARIO 1: Windows RDP Brute Force Detection (T1110)                  -->
@@ -103,6 +103,42 @@
     <description>CRITICAL WARNING: Suspicious Process Access to LSASS detected (Potential Credential Dumping)</description>
     <mitre>
       <id>T1003.001</id>
+    </mitre>
+  </rule>
+
+  <!-- ===================================================================== -->
+  <!-- NIDS SCENARIO 1: Network Reconnaissance - Nmap Port Scan (T1046)      -->
+  <!-- ===================================================================== -->
+  <rule id="100011" level="10">
+    <if_sid>86601</if_sid>
+    <field name="alert.signature" type="pcre2">(?i)(Nmap|Port Scan|SYN Scan)</field>
+    <description>WARNING: Nmap Port Scanning / Reconnaissance Detected on Wire by Suricata NIDS</description>
+    <mitre>
+      <id>T1046</id>
+    </mitre>
+  </rule>
+
+  <!-- ===================================================================== -->
+  <!-- NIDS SCENARIO 2: Web Exploit - LFI / Path Traversal on Wire (T1190)    -->
+  <!-- ===================================================================== -->
+  <rule id="100012" level="12">
+    <if_sid>86601</if_sid>
+    <field name="alert.signature" type="pcre2">(?i)(Path Traversal|Local File Inclusion|LFI)</field>
+    <description>CRITICAL WARNING: Web Path Traversal / Local File Inclusion Attempt Detected on Wire by Suricata NIDS</description>
+    <mitre>
+      <id>T1190</id>
+    </mitre>
+  </rule>
+
+  <!-- ===================================================================== -->
+  <!-- NIDS SCENARIO 3: Active Scanning - Vulnerability Probing (T1595.002)   -->
+  <!-- ===================================================================== -->
+  <rule id="100013" level="10">
+    <if_sid>86601</if_sid>
+    <field name="alert.signature" type="pcre2">(?i)(Vulnerability Scanner|Nikto|sqlmap|DirBuster|Gobuster)</field>
+    <description>WARNING: Automated Vulnerability Scanner Probing (Nikto / Sqlmap / Gobuster) Detected on Wire by Suricata NIDS</description>
+    <mitre>
+      <id>T1595.002</id>
     </mitre>
   </rule>
 

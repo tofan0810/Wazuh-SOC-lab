@@ -1,0 +1,29 @@
+title: Persistence Mechanism - Registry Run/RunOnce Key Created or Modified
+id: 100006
+uuid: 8d5e6f7a-9b0c-41d2-3e4f-5a6b7c8d9e0f
+status: production
+description: 'WARNING: Persistence Mechanism - Registry Run/RunOnce Key Created or Modified'
+author: SOC Lab Detection Engineering Team
+date: 2026/09/27
+modified: 2026/10/05
+logsource:
+  product: windows
+  category: registry_set
+wazuh:
+  if_sid: '61614, 61615, 61616'
+detection:
+  selection:
+    TargetObject|re: '(?i)CurrentVersion\\Run'
+  condition: selection
+soar_suppression:
+  id: 100010
+  level: 0
+  description: 'Suppression: Authorized SOAR Remediation Persistence Key Cleanup'
+  detection:
+    selection:
+      User|re: '(?i)socrunner'
+      Image|re: '(?i)(cmd|wsmprovhost|winrshost|powershell)\.exe'
+level: high
+tags:
+  - attack.persistence
+  - attack.t1547.001

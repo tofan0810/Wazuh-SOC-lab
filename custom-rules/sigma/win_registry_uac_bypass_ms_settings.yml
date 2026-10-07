@@ -1,0 +1,30 @@
+title: UAC Bypass Attempt via ms-settings Registry Hijacking
+id: 100007
+uuid: 7c4d5e6f-8a9b-40c1-2d3e-4f5a6b7c8d9e
+status: production
+description: 'CRITICAL WARNING: UAC Bypass attempt detected via ms-settings registry hijacking'
+author: SOC Lab Detection Engineering Team
+date: 2026/09/27
+modified: 2026/10/05
+logsource:
+  product: windows
+  category: registry_set
+wazuh:
+  if_sid: '61614, 61615, 61616'
+detection:
+  selection:
+    TargetObject|re: '(?i)ms-settings'
+  condition: selection
+soar_suppression:
+  id: 100009
+  level: 0
+  description: 'Suppression: Authorized SOAR Remediation UAC Cleanup'
+  detection:
+    selection:
+      User|re: '(?i)socrunner'
+      Image|re: '(?i)(cmd|wsmprovhost|winrshost|powershell)\.exe'
+level: critical
+tags:
+  - attack.privilege_escalation
+  - attack.defense_evasion
+  - attack.t1548.002

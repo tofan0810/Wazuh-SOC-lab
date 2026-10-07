@@ -1,0 +1,27 @@
+title: Web LFI / Directory Traversal Attempt Detected on Windows Endpoint
+id: 100002
+uuid: 5a2b3c4d-6e7f-48a9-0b1c-2d3e4f5a6b7c
+status: production
+description: 'WARNING: Local File Inclusion (LFI) / Directory Traversal Attempt Detected on Windows Endpoint'
+author: SOC Lab Detection Engineering Team
+date: 2026/09/26
+modified: 2026/10/05
+logsource:
+  product: windows
+  category: webserver
+  service: apache
+wazuh:
+  if_sid: 31100
+detection:
+  selection:
+    cs-uri-stem|contains:
+      - 'win.ini'
+      - 'boot.ini'
+      - '..%2f'
+      - '..%252f'
+      - '../'
+  condition: selection
+level: high
+tags:
+  - attack.initial_access
+  - attack.t1190

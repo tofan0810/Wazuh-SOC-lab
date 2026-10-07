@@ -1,0 +1,34 @@
+title: Malicious PowerShell Execution with Encoded/Hidden Parameters
+id: 100004
+uuid: 6b3c4d5e-7f8a-49b0-1c2d-3e4f5a6b7c8d
+status: production
+description: 'CRITICAL WARNING: Malicious PowerShell Execution with Encoded/Hidden parameters detected!'
+author: SOC Lab Detection Engineering Team
+date: 2026/09/27
+modified: 2026/10/05
+logsource:
+  product: windows
+  category: process_creation
+wazuh:
+  base_rule:
+    id: 100003
+    level: 0
+    if_sid: '92021, 92066, 92031, 92032, 92052, 60000, 61603'
+    description: Sysmon Event 1 Process Create Base Filter
+  if_sid: 100003
+detection:
+  selection:
+    CommandLine|re: '(?i)(-EncodedCommand|-enc|-w\s+hidden|-nop)'
+  condition: selection
+soar_suppression:
+  id: 100008
+  level: 0
+  description: 'Suppression: Authorized SOAR Remediation PowerShell execution via WinRM'
+  detection:
+    selection:
+      User|re: '(?i)socrunner'
+      ParentImage|re: '(?i)(cmd|wsmprovhost|winrshost)\.exe'
+level: critical
+tags:
+  - attack.execution
+  - attack.t1059.001
