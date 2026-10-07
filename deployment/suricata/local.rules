@@ -1,0 +1,29 @@
+# ==============================================================================
+# SOC Lab Custom Suricata Signatures (local.rules)
+# MITRE ATT&CK Mapping: T1046, T1190, T1595, T1110
+# SIDs: 2000001 - 2000010
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# SID 2000001: Nmap Stealth SYN Scan / Port Scanning Reconnaissance (T1046)
+# Detects rapid TCP SYN packets indicative of Nmap port scanning behavior
+# ------------------------------------------------------------------------------
+alert tcp any any -> any any (flags:S,12; msg:"SOC-LAB [NIDS] Reconnaissance - Nmap Stealth SYN Scan Detected"; threshold:type both, track by_src, count 20, seconds 5; classtype:attempted-recon; sid:2000001; rev:1; metadata:mitre_attack_id T1046, mitre_technique_name "Network Service Discovery";)
+
+# ------------------------------------------------------------------------------
+# SID 2000002: Web Application Path Traversal / LFI Attempt on HTTP (T1190)
+# Detects directory traversal patterns (../, ..%2f, win.ini, /etc/passwd) in HTTP URIs
+# ------------------------------------------------------------------------------
+alert http any any -> any any (msg:"SOC-LAB [NIDS] Web Exploit - Local File Inclusion (LFI) / Path Traversal Attempt"; http.uri; content:".."; pcre:"/(\.\.[\/\\]|%2e%2e[%2f%5c]|win\.ini|boot\.ini|etc\/passwd)/i"; classtype:web-application-attack; sid:2000002; rev:1; metadata:mitre_attack_id T1190, mitre_technique_name "Exploit Public-Facing Application";)
+
+# ------------------------------------------------------------------------------
+# SID 2000003: Automated Web Vulnerability Scanner Probing (T1595.002)
+# Detects probing by security scanners (Nikto, Sqlmap, DirBuster, Gobuster, Dirb, Ffuf, Nmap NSE)
+# ------------------------------------------------------------------------------
+alert http any any -> any any (msg:"SOC-LAB [NIDS] Active Scanning - Automated Vulnerability Scanner Detected"; http.user_agent; pcre:"/(Nikto|sqlmap|DirBuster|Gobuster|dirb|ffuf|feroxbuster|Nmap\s+NSE|wpscan|masscan)/i"; classtype:attempted-recon; sid:2000003; rev:2; metadata:mitre_attack_id T1595.002, mitre_technique_name "Vulnerability Scanning";)
+
+# ------------------------------------------------------------------------------
+# SID 2000004: RDP Connection Flooding / Potential Brute Force Probing (T1110)
+# Detects high volume of inbound connections targeting Windows RDP Port 3389
+# ------------------------------------------------------------------------------
+alert tcp any any -> any 3389 (flags:S; msg:"SOC-LAB [NIDS] Credential Access - High-Rate RDP Connection Spike"; threshold:type both, track by_src, count 10, seconds 10; classtype:attempted-admin; sid:2000004; rev:1; metadata:mitre_attack_id T1110, mitre_technique_name "Brute Force";)
