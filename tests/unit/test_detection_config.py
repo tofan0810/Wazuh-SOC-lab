@@ -304,6 +304,9 @@ class DetectionConfigurationTests(unittest.TestCase):
             "100011",  # NIDS Nmap Scan
             "100012",  # NIDS Web LFI
             "100013",  # NIDS Vulnerability Scanner
+            "100014",  # Deception Canary File Access
+            "100015",  # Deception Honey Account Logon
+            "100016",  # Deception Port Decoy Probe
         ]
         for eid in expected_ids:
             self.assertIn(eid, rule_ids, f"Compiled XML missing expected rule ID: {eid}")
@@ -374,12 +377,12 @@ class DetectionConfigurationTests(unittest.TestCase):
         ar_blocks = self.ossec_root.findall(".//active-response")
         ar_commands = {ar.findtext("command"): ar for ar in ar_blocks}
 
-        # Check netsh AR covers both RDP (100001) and Web LFI (100002)
+        # Check netsh AR covers RDP (100001), Web LFI (100002) and Deception (100014, 100015, 100016)
         self.assertIn("netsh", ar_commands, "Missing active-response block for netsh")
         netsh_rules = ar_commands["netsh"].findtext("rules_id")
         self.assertIsNotNone(netsh_rules)
-        self.assertIn("100001", netsh_rules)
-        self.assertIn("100002", netsh_rules)
+        for rid in ("100001", "100002", "100014", "100015", "100016"):
+            self.assertIn(rid, netsh_rules, f"Rule {rid} missing from netsh AR configuration")
 
         # Check kill-process AR covers PowerShell (100004) and LSASS Dump (100005)
         self.assertIn("kill-process", ar_commands, "Missing active-response block for kill-process")
@@ -387,6 +390,29 @@ class DetectionConfigurationTests(unittest.TestCase):
         self.assertIsNotNone(kill_rules)
         self.assertIn("100004", kill_rules)
         self.assertIn("100005", kill_rules)
+
+        # Check collect-evidence AR covers Deception rules (100014, 100015, 100016)
+        self.assertIn("collect-evidence", commands, "Missing command definition for collect-evidence")
+        self.assertIn("collect-evidence", ar_commands, "Missing active-response block for collect-evidence")
+        evidence_rules = ar_commands["collect-evidence"].findtext("rules_id")
+        self.assertIsNotNone(evidence_rules)
+        for rid in ("100014", "100015", "100016"):
+            self.assertIn(rid, evidence_rules, f"Rule {rid} missing from collect-evidence AR configuration")
+
+    # -------------------------------------------------------------------------
+    # 13. Deception Technology & Active Defense Tests
+    # -------------------------------------------------------------------------
+    def test_deception_rules_in_soar_integration(self):
+        """Verifies that Deception rule IDs (100014, 100015, 100016) are dispatched to custom-n8n."""
+        n8n_integ = next(
+            (i for i in self.ossec_root.findall(".//integration") if i.findtext("name") == "custom-n8n"),
+            None
+        )
+        self.assertIsNotNone(n8n_integ, "Missing custom-n8n integration block in ossec.conf")
+        rule_ids_text = n8n_integ.findtext("rule_id")
+        self.assertIsNotNone(rule_ids_text, "Missing rule_id list in custom-n8n integration")
+        for rid in ("100014", "100015", "100016"):
+            self.assertIn(rid, rule_ids_text, f"Deception rule {rid} missing from custom-n8n integration")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,23 @@
+title: Deception - Canary Honey-File Accessed with SACL Auditing
+id: 100014
+uuid: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+status: production
+description: 'CRITICAL WARNING: Honey-File (IT_Admin_Credentials.xlsx) Accessed by Actor (Zero False Positive Trap)'
+author: SOC Lab Detection Engineering Team
+date: 2026/10/07
+logsource:
+  product: windows
+  service: security
+wazuh:
+  if_sid: 60103, 60104
+detection:
+  selection:
+    win.system.eventID: 4663
+    win.eventdata.objectName|contains: 'IT_Admin_Credentials.xlsx'
+  condition: selection
+level: critical
+tags:
+  - attack.defense_evasion
+  - attack.discovery
+  - attack.t1083
+  - attack.t1005

@@ -13,8 +13,9 @@
 - ✅ **Detection-as-Code SSOT với Sigma Rules (Phase 8 - ĐÃ HOÀN THÀNH):** Quản trị luật bằng Sigma YAML, bộ biên dịch SigWaz Engine độc quyền với cơ chế chống lệch pha **Zero-Drift Enforcement**.
 - ✅ **Quy trình phản ứng khép kín & Tự phục hồi (Closed-Loop & Self-Healing - Phase 5):** n8n SOAR ChatOps 2 chiều với Telegram, **1-Click Host Isolation an toàn** (giữ WinRM port 5985 & Wazuh port 1514), diệt tiến trình, dọn dẹp Registry persistence, và **1-Click Instant Rollback trong 5 giây**.
 - ✅ **Phản ứng tức thì tự động (Instant Active Response - ĐÃ HOÀN THÀNH):** Diệt tiến trình độc hại cấp tốc (`kill-process`) trên Windows Endpoint khi phát hiện Malicious PowerShell (Rule 100004) và LSASS Memory Dump (Rule 100005) với cơ chế bảo vệ Safe Whitelist chống BSOD; tự động khóa IP kẻ tấn công (`netsh`) 600s khi phát hiện Web LFI (Rule 100002) và RDP Brute Force (Rule 100001).
+- ✅ **Công nghệ Bẫy mồi & Đánh lừa (Deception Technology & Evidence Preservation - ĐÃ HOÀN THÀNH):** Thiết lập hệ sinh thái bẫy mồi 3 tầng: Canary Honey-Files (Event 4663 SACL), Honey-Account `backup_admin` (Event 4625), và FTP Port 21 Decoy. Cơ chế phản ứng **Zero False Positive (0% FP)** tự động khóa IP tức thì, đồng thời **bảo tồn chứng cứ số tự động** (RAM mini-dump, snapshot kết nối mạng, active sessions và security EVTX) nén thành file `.zip` phục vụ điều tra DFIR.
 - ✅ **Wazuh Executive Incident Dashboard (Phase 7 - ĐÃ HOÀN THÀNH):** 7 Visualizations chuyên nghiệp trên OpenSearch Dashboards (Port 443), xuất bản file cấu hình chuẩn `.ndjson` nạp bằng 1-Click CLI.
-- ✅ **DevSecOps Gate & CI/CD Pipeline:** GitHub Actions CI kiểm thử song song Python 3.10/3.11 với **21/21 Pytest Unit Checks PASS (100%)**.
+- ✅ **DevSecOps Gate & CI/CD Pipeline:** GitHub Actions CI kiểm thử song song Python 3.10/3.11 với **22/22 Pytest Unit Checks PASS (100%)**.
 
 ---
 
@@ -28,16 +29,15 @@ flowchart TD
         C3["Phase 7: Executive Incident Dashboard (OpenSearch NDJSON)"]
         C4["Phase 8: Detection-as-Code (Sigma SSOT & SigWaz Compiler)"]
         C5["Phase 9: Network Security Deep Monitoring (Suricata NIDS 8.x)"]
-        C6["CI/CD Quality Gate: GitHub Actions + Pytest 21/21 Checks"]
+        C6["Deception Technology: 3-Layer Honeypots & Auto Forensics Preservation"]
+        C7["CI/CD Quality Gate: GitHub Actions + Pytest 22/22 Checks"]
     end
 
     subgraph IN_PROGRESS ["🚀 KẾ HOẠCH NÂNG CẤP TIẾP THEO (ROADMAP v2.0)"]
         I1["1. AI-Driven SOC Copilot & RAG Incident Triage"]
-        I2["2. Deception Technology & Canary Tokens (Zero False Positive)"]
-        I3["3. Automated Live Digital Forensics & Volatile Evidence Preservation"]
-        I4["4. Proactive Vulnerability Management & CIS Benchmark SCA"]
-        I5["5. Multi-Stage APT Attack Emulation Chain (Full Kill Chain)"]
-        I6["6. Centralized Threat Intelligence Platform (MISP / OpenCTI / CDB)"]
+        I2["2. Proactive Vulnerability Management & CIS Benchmark SCA"]
+        I3["3. Multi-Stage APT Attack Emulation Chain (Full Kill Chain)"]
+        I4["4. Centralized Threat Intelligence Platform (MISP / OpenCTI / CDB)"]
     end
 
     COMPLETED -.->|"Nâng tầm hệ thống tiệm cận Next-Gen SOC"| IN_PROGRESS

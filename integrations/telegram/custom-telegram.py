@@ -84,42 +84,42 @@ def format_soc_message(alert: dict) -> str:
         f"<b>{severity_header}</b>",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━",
         f"🎯 <b>Rule ID:</b> <code>{rule_id}</code> (Level: <b>{rule_level}</b>)",
-        f"📋 <b>Cảnh báo:</b> {rule_desc}",
+        f"📋 <b>Alert:</b> {rule_desc}",
     ]
 
     if mitre_str:
         lines.append(f"⚔️ <b>MITRE ATT&CK:</b> <code>{mitre_str}</code>")
         if technique_str:
-            lines.append(f"📌 <b>Kỹ thuật:</b> {technique_str}")
+            lines.append(f"📌 <b>Technique:</b> {technique_str}")
         if tactic_str:
-            lines.append(f"🛡️ <b>Chiến thuật:</b> {tactic_str}")
+            lines.append(f"🛡️ <b>Tactic:</b> {tactic_str}")
 
-    lines.append(f"⏰ <b>Thời gian:</b> <code>{timestamp}</code>")
+    lines.append(f"⏰ <b>Timestamp:</b> <code>{timestamp}</code>")
     lines.append("──────────────────────────")
     lines.append(f"📍 <b>Endpoint:</b> <code>{agent_name}</code> (<code>{agent_ip}</code>)")
 
     if src_ip != "N/A":
-        lines.append(f"🛑 <b>IP Kẻ tấn công:</b> <code>{src_ip}</code>")
+        lines.append(f"🛑 <b>Attacker IP:</b> <code>{src_ip}</code>")
 
     if target_user != "N/A":
-        lines.append(f"👤 <b>Tài khoản mục tiêu:</b> <code>{target_user}</code>")
+        lines.append(f"👤 <b>Target User:</b> <code>{target_user}</code>")
 
     # Scenario-specific Details
     if str(rule_id) == "100001":
         lines.append("⚡ <b>Vector:</b> RDP Brute Force (Port 3389)")
-        lines.append("🛡️ <b>Phản ứng tự động:</b> <b>ĐÃ KHÓA IP KALI QUA FIREWALL (600s)</b>")
+        lines.append("🛡️ <b>Automated Response:</b> <b>ATTACKER IP BLOCKED VIA FIREWALL (600s)</b>")
     elif str(rule_id) == "100002":
         url = data.get("url", "N/A")
         status_code = data.get("id", "N/A")
         lines.append(f"🌐 <b>Vector:</b> Web LFI / Path Traversal (HTTP {status_code})")
         lines.append(f"🔗 <b>URL Payload:</b> <code>{url}</code>")
-        lines.append("🛡️ <b>Phản ứng tự động:</b> <b>ĐÃ KHÓA IP KALI QUA FIREWALL (600s)</b>")
+        lines.append("🛡️ <b>Automated Response:</b> <b>ATTACKER IP BLOCKED VIA FIREWALL (600s)</b>")
     elif str(rule_id) == "87105":
         vt = alert.get("virustotal", {})
         positives = vt.get("positives", "N/A")
         file_path = vt.get("source", {}).get("file", "N/A")
-        lines.append(f"🦠 <b>VirusTotal:</b> <b>{positives}</b> Antivirus Engines phát hiện độc hại!")
-        lines.append(f"📁 <b>Tệp tin mã độc:</b> <code>{file_path}</code>")
+        lines.append(f"🦠 <b>VirusTotal:</b> <b>{positives}</b> Antivirus Engines flagged as malicious!")
+        lines.append(f"📁 <b>Malicious File:</b> <code>{file_path}</code>")
 
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━")
     lines.append("🔍 <i>Wazuh SIEM Security Operations Center</i>")

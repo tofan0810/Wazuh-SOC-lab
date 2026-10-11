@@ -202,27 +202,27 @@ def main():
         f"<b>{header}</b>",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━",
         f"🎯 <b>Rule ID:</b> <code>{rule['id']}</code> (Level: <b>{rule_level}</b>)",
-        f"📋 <b>Cảnh báo:</b> {rule['description']}",
+        f"📋 <b>Alert:</b> {rule['description']}",
         f"⚔️ <b>MITRE ATT&CK:</b> <code>{rule.get('mitre', {}).get('id', ['N/A'])[0]}</code>",
-        f"⏰ <b>Thời gian:</b> <code>{alert['timestamp']}</code>",
+        f"⏰ <b>Timestamp:</b> <code>{alert['timestamp']}</code>",
         "──────────────────────────",
         f"📍 <b>Endpoint:</b> <code>{agent['name']}</code> (<code>{agent['ip']}</code>)",
     ]
     if src_ip != "N/A":
-        lines.append(f"🛑 <b>IP Kẻ tấn công:</b> <code>{src_ip}</code> (Kali Linux)")
+        lines.append(f"🛑 <b>Attacker IP:</b> <code>{src_ip}</code> (Kali Linux)")
     if target_user != "N/A":
-        lines.append(f"👤 <b>Tài khoản mục tiêu:</b> <code>{target_user}</code>")
+        lines.append(f"👤 <b>Target User:</b> <code>{target_user}</code>")
 
     if rule["id"] == "100001":
         lines.append("⚡ <b>Vector:</b> RDP Brute Force (Port 3389)")
-        lines.append("🛡️ <b>Phản ứng tự động:</b> <b>ĐÃ KHÓA IP KALI QUA FIREWALL (600s)</b>")
+        lines.append("🛡️ <b>Automated Response:</b> <b>ATTACKER IP BLOCKED VIA FIREWALL (600s)</b>")
     elif rule["id"] == "100002":
         lines.append(f"🌐 <b>Vector:</b> Web LFI / Path Traversal")
         lines.append(f"🔗 <b>URL:</b> <code>{data.get('url')}</code>")
-        lines.append("🛡️ <b>Phản ứng tự động:</b> <b>ĐÃ KHÓA IP KALI QUA FIREWALL (600s)</b>")
+        lines.append("🛡️ <b>Automated Response:</b> <b>ATTACKER IP BLOCKED VIA FIREWALL (600s)</b>")
     elif rule["id"] == "87105":
-        lines.append(f"🦠 <b>VirusTotal:</b> <b>65/67</b> Antivirus Engines phát hiện độc hại!")
-        lines.append(f"📁 <b>Tệp tin mã độc:</b> <code>C:\\Users\\Public\\eicar.com</code>")
+        lines.append(f"🦠 <b>VirusTotal:</b> <b>65/67</b> Antivirus Engines flagged as malicious!")
+        lines.append(f"📁 <b>Malicious File:</b> <code>C:\\Users\\Public\\eicar.com</code>")
 
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━")
     lines.append("🔍 <i>Wazuh SIEM Security Operations Center</i>")

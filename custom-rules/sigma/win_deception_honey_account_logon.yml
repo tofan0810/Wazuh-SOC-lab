@@ -1,0 +1,22 @@
+title: Deception - Honey-Account Tripwire Logon Attempt
+id: 100015
+uuid: 5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b
+status: production
+description: 'CRITICAL WARNING: Unauthorized Logon Activity Against Honey-Account backup_admin (Zero False Positive)'
+author: SOC Lab Detection Engineering Team
+date: 2026/10/07
+logsource:
+  product: windows
+  service: security
+wazuh:
+  if_sid: 60122
+detection:
+  selection:
+    win.eventdata.targetUserName|contains: 'backup_admin'
+  condition: selection
+level: critical
+tags:
+  - attack.credential_access
+  - attack.initial_access
+  - attack.t1078
+  - attack.t1110

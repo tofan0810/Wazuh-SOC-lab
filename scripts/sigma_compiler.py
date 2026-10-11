@@ -233,7 +233,7 @@ class SigmaToWazuhCompiler:
         # Check if rule defines a base filter rule (e.g. 100003)
         base_rule = wazuh_meta.get("base_rule")
         if base_rule:
-            lines.append(f'  <!-- Rule cha ({base_rule["id"]}): Hứng toàn bộ Process Create từ Sysmon Event 1      -->')
+            lines.append(f'  <!-- Parent rule ({base_rule["id"]}): Captures all Process Create events from Sysmon Event 1 -->')
             lines.append(f'  <rule id="{base_rule["id"]}" level="{base_rule.get("level", 0)}">')
             lines.append(f'    <if_sid>{base_rule["if_sid"]}</if_sid>')
             lines.append(f'    <description>{base_rule["description"]}</description>')
@@ -316,7 +316,8 @@ class SigmaToWazuhCompiler:
         """Assembles the complete production custom-rules/local_rules.xml content."""
         rule_order = [
             "100001", "100002", "100004", "100007", "100006", "100005",
-            "100011", "100012", "100013"
+            "100011", "100012", "100013",
+            "100014", "100015", "100016"
         ]
         rules_by_id = {r.id: r for r in self.rules}
 
@@ -364,6 +365,21 @@ class SigmaToWazuhCompiler:
             "100013": [
                 "  <!-- ===================================================================== -->",
                 "  <!-- NIDS SCENARIO 3: Active Scanning - Vulnerability Probing (T1595.002)   -->",
+                "  <!-- ===================================================================== -->"
+            ],
+            "100014": [
+                "  <!-- ===================================================================== -->",
+                "  <!-- DECEPTION 1: Canary Honey-File Access with SACL Auditing (T1083/T1005)  -->",
+                "  <!-- ===================================================================== -->"
+            ],
+            "100015": [
+                "  <!-- ===================================================================== -->",
+                "  <!-- DECEPTION 2: Honey-Account Tripwire Logon Attempt (T1078/T1110)        -->",
+                "  <!-- ===================================================================== -->"
+            ],
+            "100016": [
+                "  <!-- ===================================================================== -->",
+                "  <!-- DECEPTION 3: Network Service Decoy Port Probe (T1046)                  -->",
                 "  <!-- ===================================================================== -->"
             ],
         }

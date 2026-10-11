@@ -13,7 +13,10 @@
       "name": "Wazuh Webhook Ingest",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [200, 300],
+      "position": [
+        200,
+        300
+      ],
       "webhookId": "wazuh-alert"
     },
     {
@@ -24,7 +27,10 @@
       "name": "Normalize & Triage",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [420, 300]
+      "position": [
+        420,
+        300
+      ]
     },
     {
       "parameters": {
@@ -41,7 +47,10 @@
       "name": "Is Public IP?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [640, 300]
+      "position": [
+        640,
+        300
+      ]
     },
     {
       "parameters": {
@@ -79,18 +88,24 @@
       "name": "AbuseIPDB Threat Intel",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [860, 200],
+      "position": [
+        860,
+        200
+      ],
       "continueOnFail": true
     },
     {
       "parameters": {
-        "jsCode": "const item = $('Normalize & Triage').item.json;\nconst abuse = $json.data || {};\n\nconst abuseScore = abuse.abuseConfidenceScore !== undefined ? abuse.abuseConfidenceScore : 'N/A (Local / Internal IP)';\nconst totalReports = abuse.totalReports !== undefined ? abuse.totalReports : 0;\nconst country = abuse.countryCode || 'Local Lab Network';\n\nconst severityIcon = item.rule_level >= 12 ? '🚨 CRITICAL' : (item.rule_level >= 8 ? '⚠️ HIGH' : 'ℹ️ MEDIUM');\n\nlet originLine = '';\nconst isRemoteAttack = item.raw_src_ip && item.raw_src_ip !== 'Local / Host-Internal';\n\nif (isRemoteAttack) {\n  originLine = `🌐 <b>Attacker IP:</b> <code>${item.raw_src_ip}</code> (${country})\\n` +\n               `🔍 <b>AbuseIPDB Reputation:</b> <code>${abuseScore}%</code> (${totalReports} reports)\\n`;\n} else {\n  originLine = `🖥️ <b>Scope / Origin:</b> <code>Host-Internal Execution</code>\\n` +\n               `⚙️ <b>Suspicious Process:</b> <code>${item.process_name || 'N/A'}</code>\\n`;\n}\n\nconst message = `<b>${severityIcon} - WAZUH SOAR ALERT DISPATCH</b>\\n` +\n  `━━━━━━━━━━━━━━━━━━━━━━\\n` +\n  `📌 <b>Rule:</b> [${item.rule_id}] ${item.rule_desc}\\n` +\n  `🎯 <b>MITRE ATT&CK:</b> <code>${item.mitre_ids}</code>\\n` +\n  `🎯 <b>Target IOC / Endpoint:</b> <code>${item.display_ioc}</code>\\n` +\n  `👤 <b>Target User:</b> <code>${item.target_user}</code>\\n` +\n  originLine +\n  `🕒 <b>Time:</b> <code>${item.timestamp}</code>\\n` +\n  `━━━━━━━━━━━━━━━━━━━━━━\\n` +\n  `<i>Select incident response action below (Human-in-the-Loop):</i>`;\n\nlet inlineKeyboard = {};\nconst isKillChainInternal = !isRemoteAttack || ['100004', '100005', '100006', '100007'].includes(String(item.rule_id));\nconst isPersistence = ['100006', '100007'].includes(String(item.rule_id)) || (item.rule_desc && item.rule_desc.toLowerCase().includes('persistence'));\n\nif (isKillChainInternal) {\n  const proc = item.process_name && item.process_name !== 'N/A' ? item.process_name : 'powershell.exe';\n  const cleanProc = proc.split('\\\\').pop();\n  const rows = [\n    [\n      { text: '🛑 [Kill Process]', callback_data: `action:killproc:${cleanProc}:${item.alert_id}` },\n      { text: '🔒 [Isolate Host]', callback_data: `action:block:${item.agent_ip}:${item.alert_id}` }\n    ]\n  ];\n  if (isPersistence) {\n    rows.push([\n      { text: '🧹 [Clean Persistence]', callback_data: `action:cleanpersist:${item.agent_ip}:${item.alert_id}` },\n      { text: '📋 [Create Jira Ticket]', callback_data: `action:jira:${item.rule_id}:${item.agent_ip}:${item.alert_id}` }\n    ]);\n    rows.push([\n      { text: '⚠️ [False Positive]', callback_data: `action:ignore:${item.agent_ip}:${item.alert_id}` }\n    ]);\n  } else {\n    rows.push([\n      { text: '📋 [Create Jira Ticket]', callback_data: `action:jira:${item.rule_id}:${item.agent_ip}:${item.alert_id}` },\n      { text: '⚠️ [False Positive]', callback_data: `action:ignore:${item.agent_ip}:${item.alert_id}` }\n    ]);\n  }\n  inlineKeyboard = { inline_keyboard: rows };\n} else {\n  inlineKeyboard = {\n    inline_keyboard: [\n      [\n        { text: '🚫 [Block IP 24h]', callback_data: `action:block:${item.src_ip}:${item.alert_id}` },\n        { text: '⚠️ [False Positive]', callback_data: `action:ignore:${item.src_ip}:${item.alert_id}` }\n      ],\n      [\n        { text: '📋 [Create Jira Ticket]', callback_data: `action:jira:${item.rule_id}:${item.src_ip}:${item.alert_id}` }\n      ]\n    ]\n  };\n}\n\nreturn {\n  chat_id: '8696241190',\n  text: message,\n  reply_markup: inlineKeyboard,\n  parse_mode: 'HTML'\n};"
+        "jsCode": "const item = $('Normalize & Triage').item.json;\nconst abuse = $json.data || {};\n\nconst isDeception = ['100014', '100015', '100016'].includes(String(item.rule_id));\n\nlet message = '';\nlet inlineKeyboard = {};\n\nif (isDeception) {\n  const attackerIp = (item.raw_src_ip && item.raw_src_ip !== 'Local / Host-Internal') ? item.raw_src_ip : (item.src_ip || '192.168.71.130');\n  message = `\ud83d\udea8 <b>DECEPTION TRIPWIRE TRIGGERED</b>\\n` +\n    `\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n` +\n    `\ud83d\udccc <b>Rule:</b> [${item.rule_id}] ${item.rule_desc}\\n` +\n    `\ud83c\udfaf <b>MITRE ATT&CK:</b> <code>${item.mitre_ids}</code>\\n` +\n    `\ud83c\udf10 <b>Attacker IP:</b> <code>${attackerIp}</code>\\n` +\n    `\ud83d\udcbb <b>Target Endpoint:</b> <code>${item.agent_ip} (${item.agent_name})</code>\\n` +\n    `\ud83d\udc64 <b>Target User:</b> <code>${item.target_user}</code>\\n` +\n    `\ud83d\udce6 <b>Evidence Archive:</b> <code>C:\\\\Windows\\\\Temp\\\\Forensics\\\\Evidence_*.zip</code>\\n` +\n    `\ud83d\udd52 <b>Time:</b> <code>${item.timestamp}</code>\\n` +\n    `\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n` +\n    `<i>Select active defense response action below (Human-in-the-Loop):</i>`;\n\n  inlineKeyboard = {\n    inline_keyboard: [\n      [\n        { text: '\ud83d\uded1 [Block Attacker IP]', callback_data: `action:block:${attackerIp}:${item.alert_id}` },\n        { text: '\ud83d\udfe2 [Unblock IP (Rollback)]', callback_data: `action:unblock:${attackerIp}:${item.alert_id}` }\n      ],\n      [\n        { text: '\ud83d\udccb [Create Jira Ticket]', callback_data: `action:jira:${item.rule_id}:${attackerIp}:${item.alert_id}` },\n        { text: '\u26a0\ufe0f [False Positive]', callback_data: `action:ignore:${attackerIp}:${item.alert_id}` }\n      ]\n    ]\n  };\n} else {\n  const abuseScore = abuse.abuseConfidenceScore !== undefined ? abuse.abuseConfidenceScore : 'N/A (Local / Internal IP)';\n  const totalReports = abuse.totalReports !== undefined ? abuse.totalReports : 0;\n  const country = abuse.countryCode || 'Local Lab Network';\n\n  const severityIcon = item.rule_level >= 12 ? '\ud83d\udea8 CRITICAL' : (item.rule_level >= 8 ? '\u26a0\ufe0f HIGH' : '\u2139\ufe0f MEDIUM');\n\n  let originLine = '';\n  const isRemoteAttack = item.raw_src_ip && item.raw_src_ip !== 'Local / Host-Internal';\n\n  if (isRemoteAttack) {\n    originLine = `\ud83c\udf10 <b>Attacker IP:</b> <code>${item.raw_src_ip}</code> (${country})\\n` +\n                 `\ud83d\udd0d <b>AbuseIPDB Reputation:</b> <code>${abuseScore}%</code> (${totalReports} reports)\\n`;\n  } else {\n    originLine = `\ud83d\udda5\ufe0f <b>Scope / Origin:</b> <code>Host-Internal Execution</code>\\n` +\n                 `\u2699\ufe0f <b>Suspicious Process:</b> <code>${item.process_name || 'N/A'}</code>\\n`;\n  }\n\n  message = `<b>${severityIcon} - WAZUH SOAR ALERT DISPATCH</b>\\n` +\n    `\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n` +\n    `\ud83d\udccc <b>Rule:</b> [${item.rule_id}] ${item.rule_desc}\\n` +\n    `\ud83c\udfaf <b>MITRE ATT&CK:</b> <code>${item.mitre_ids}</code>\\n` +\n    `\ud83c\udfaf <b>Target IOC / Endpoint:</b> <code>${item.display_ioc}</code>\\n` +\n    `\ud83d\udc64 <b>Target User:</b> <code>${item.target_user}</code>\\n` +\n    originLine +\n    `\ud83d\udd52 <b>Time:</b> <code>${item.timestamp}</code>\\n` +\n    `\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n` +\n    `<i>Select incident response action below (Human-in-the-Loop):</i>`;\n\n  const isKillChainInternal = !isRemoteAttack || ['100004', '100005', '100006', '100007'].includes(String(item.rule_id));\n  const isPersistence = ['100006', '100007'].includes(String(item.rule_id)) || (item.rule_desc && item.rule_desc.toLowerCase().includes('persistence'));\n\n  if (isKillChainInternal) {\n    const proc = item.process_name && item.process_name !== 'N/A' ? item.process_name : 'powershell.exe';\n    const cleanProc = proc.split('\\\\').pop();\n    const rows = [\n      [\n        { text: '\ud83d\uded1 [Kill Process]', callback_data: `action:killproc:${cleanProc}:${item.alert_id}` },\n        { text: '\ud83d\udd12 [Isolate Host]', callback_data: `action:block:${item.agent_ip}:${item.alert_id}` }\n      ]\n    ];\n    if (isPersistence) {\n      rows.push([\n        { text: '\ud83e\uddf9 [Clean Persistence]', callback_data: `action:cleanpersist:${item.agent_ip}:${item.alert_id}` },\n        { text: '\ud83d\udccb [Create Jira Ticket]', callback_data: `action:jira:${item.rule_id}:${item.agent_ip}:${item.alert_id}` }\n      ]);\n      rows.push([\n        { text: '\u26a0\ufe0f [False Positive]', callback_data: `action:ignore:${item.agent_ip}:${item.alert_id}` }\n      ]);\n    } else {\n      rows.push([\n        { text: '\ud83d\udccb [Create Jira Ticket]', callback_data: `action:jira:${item.rule_id}:${item.agent_ip}:${item.alert_id}` },\n        { text: '\u26a0\ufe0f [False Positive]', callback_data: `action:ignore:${item.agent_ip}:${item.alert_id}` }\n      ]);\n    }\n    inlineKeyboard = { inline_keyboard: rows };\n  } else {\n    inlineKeyboard = {\n      inline_keyboard: [\n        [\n          { text: '\ud83d\udeab [Block IP 24h]', callback_data: `action:block:${item.src_ip}:${item.alert_id}` },\n          { text: '\u26a0\ufe0f [False Positive]', callback_data: `action:ignore:${item.src_ip}:${item.alert_id}` }\n        ],\n        [\n          { text: '\ud83d\udccb [Create Jira Ticket]', callback_data: `action:jira:${item.rule_id}:${item.src_ip}:${item.alert_id}` }\n        ]\n      ]\n    };\n  }\n}\n\nreturn {\n  chat_id: '8696241190',\n  text: message,\n  reply_markup: inlineKeyboard,\n  parse_mode: 'HTML'\n};"
       },
       "id": "10000001-0001-4000-8000-000000000005",
       "name": "Build Interactive ChatOps Card",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 300]
+      "position": [
+        1100,
+        300
+      ]
     },
     {
       "parameters": {
@@ -124,7 +139,10 @@
       "name": "Send Interactive Telegram Alert",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1320, 300]
+      "position": [
+        1320,
+        300
+      ]
     }
   ],
   "connections": {

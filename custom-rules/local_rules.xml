@@ -28,7 +28,7 @@
   <!-- ===================================================================== -->
   <!-- STAGE 1: Malicious PowerShell Execution (T1059.001)                    -->
   <!-- ===================================================================== -->
-  <!-- Rule cha (100003): Hứng toàn bộ Process Create từ Sysmon Event 1      -->
+  <!-- Parent rule (100003): Captures all Process Create events from Sysmon Event 1 -->
   <rule id="100003" level="0">
     <if_sid>92021, 92066, 92031, 92032, 92052, 60000, 61603</if_sid>
     <description>Sysmon Event 1 Process Create Base Filter</description>
@@ -98,7 +98,7 @@
   <rule id="100005" level="12">
     <if_sid>61612</if_sid>
     <field name="win.eventdata.targetImage" type="pcre2">(?i)lsass\.exe</field>
-    <field name="win.eventdata.sourceImage" type="pcre2" negate="yes">(?i)(MsMpEng\.exe|wmiprvse\.exe)</field>
+    <field name="win.eventdata.sourceImage" type="pcre2" negate="yes">(?i)(MsMpEng\.exe|wmiprvse\.exe|wazuh-agent\.exe|svchost\.exe|csrss\.exe|services\.exe)</field>
     <field name="win.eventdata.grantedAccess" type="pcre2" negate="yes">^0x1000$</field>
     <description>CRITICAL WARNING: Suspicious Process Access to LSASS detected (Potential Credential Dumping)</description>
     <mitre>
@@ -139,6 +139,43 @@
     <description>WARNING: Automated Vulnerability Scanner Probing (Nikto / Sqlmap / Gobuster) Detected on Wire by Suricata NIDS</description>
     <mitre>
       <id>T1595.002</id>
+    </mitre>
+  </rule>
+
+  <!-- ===================================================================== -->
+  <!-- DECEPTION 1: Canary Honey-File Access with SACL Auditing (T1083/T1005)  -->
+  <!-- ===================================================================== -->
+  <rule id="100014" level="12">
+    <if_sid>60103, 60104</if_sid>
+    <field name="win.system.eventID" type="pcre2">4663</field>
+    <field name="win.eventdata.objectName" type="pcre2">(?i)IT_Admin_Credentials\.xlsx</field>
+    <description>CRITICAL WARNING: Honey-File (IT_Admin_Credentials.xlsx) Accessed by Actor (Zero False Positive Trap)</description>
+    <mitre>
+      <id>T1083</id>
+    </mitre>
+  </rule>
+
+  <!-- ===================================================================== -->
+  <!-- DECEPTION 2: Honey-Account Tripwire Logon Attempt (T1078/T1110)        -->
+  <!-- ===================================================================== -->
+  <rule id="100015" level="12">
+    <if_sid>60122</if_sid>
+    <field name="win.eventdata.targetUserName" type="pcre2">(?i)backup_admin</field>
+    <description>CRITICAL WARNING: Unauthorized Logon Activity Against Honey-Account backup_admin (Zero False Positive)</description>
+    <mitre>
+      <id>T1078</id>
+    </mitre>
+  </rule>
+
+  <!-- ===================================================================== -->
+  <!-- DECEPTION 3: Network Service Decoy Port Probe (T1046)                  -->
+  <!-- ===================================================================== -->
+  <rule id="100016" level="10">
+    <if_sid>60000, 60003, 60600, 60601, 60602</if_sid>
+    <field name="win.system.message" type="pcre2">(?i)\[FTP\-DECOY\]</field>
+    <description>WARNING: Connection Attempt to Decoy Network Port (FTP Port 21 Decoy Honeypot)</description>
+    <mitre>
+      <id>T1046</id>
     </mitre>
   </rule>
 

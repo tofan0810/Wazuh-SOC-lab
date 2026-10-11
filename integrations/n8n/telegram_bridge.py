@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Telegram Long-Polling to n8n Webhook Bridge & Closed-Loop Containment Engine
-Continuously listens for Telegram callback query clicks (Khóa IP, Rollback, Diệt Process, Dọn Persistence, Jira)
+Continuously listens for Telegram callback query clicks (Block IP, Rollback, Kill Process, Clean Persistence, Jira)
 1. Executes direct endpoint containment / rollback actions on Windows 10 via WinRM (pywinrm)
 2. Forwards callback queries to n8n Workflow 02 (telegram-callback webhook) for ChatOps state update
 """
@@ -22,16 +22,21 @@ logging.basicConfig(
 logger = logging.getLogger("telegram_bridge")
 
 # Load .env if present
-env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env")
-if not os.path.exists(env_path):
-    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
-if os.path.exists(env_path):
-    with open(env_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                k, v = line.split("=", 1)
-                os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+possible_env_paths = [
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"),
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"),
+    os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env"),
+    "/home/nguyentoan/n8n-docker/.env"
+]
+for p in possible_env_paths:
+    if os.path.exists(p):
+        with open(p, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+        break
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")
 N8N_WEBHOOK_URL = os.getenv("N8N_CALLBACK_URL", "http://127.0.0.1:5678/webhook/telegram-callback")
@@ -40,6 +45,113 @@ TELEGRAM_API_BASE = f"https://api.telegram.org/bot{BOT_TOKEN}"
 WINRM_HOST = os.getenv("LAB_WINDOWS_IP", "192.168.71.129")
 WINRM_USER = os.getenv("LAB_WINDOWS_USER", "socrunner")
 WINRM_PASS = os.getenv("LAB_WINDOWS_PASSWORD", "")
+
+JIRA_DOMAIN = os.getenv("JIRA_DOMAIN", "tn421015.atlassian.net").replace("https://", "").strip("/")
+JIRA_EMAIL = os.getenv("JIRA_EMAIL", "tn421015@gmail.com")
+JIRA_API_TOKEN = os.getenv("JIRA_API_TOKEN", "")
+
+
+def notify_telegram(text, chat_id="8696241190"):
+    try:
+        url = f"{TELEGRAM_API_BASE}/sendMessage"
+        payload = json.dumps({"chat_id": chat_id, "text": text, "parse_mode": "HTML"}).encode("utf-8")
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json", "User-Agent": "Wazuh-SOAR-Bridge"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            pass
+    except Exception as e:
+        logger.warning(f"Failed to send telegram notification: {e}")
+
+
+def get_latest_jira_issue():
+    """Queries Jira Cloud for the newest issue in project KAN and checks if it already has a zip attachment."""
+    if not JIRA_API_TOKEN:
+        return None, False
+    try:
+        import base64
+        auth_str = base64.b64encode(f"{JIRA_EMAIL}:{JIRA_API_TOKEN}".encode("utf-8")).decode("ascii")
+        j_req = urllib.request.Request(
+            f"https://{JIRA_DOMAIN}/rest/api/3/search/jql?jql=project%3DKAN%20order%20by%20created%20DESC&maxResults=1&fields=key,attachment",
+            headers={"Authorization": f"Basic {auth_str}", "Accept": "application/json"}
+        )
+        with urllib.request.urlopen(j_req, timeout=10) as j_res:
+            j_data = json.loads(j_res.read().decode("utf-8"))
+            issues = j_data.get("issues", [])
+            if issues:
+                k = issues[0]["key"]
+                atts = issues[0]["fields"].get("attachment", [])
+                has_zip = any(a.get("filename", "").endswith(".zip") for a in atts)
+                return k, has_zip
+    except Exception as e:
+        logger.warning(f"Error checking latest Jira issue: {e}")
+    return None, False
+
+
+def attach_evidence_to_jira_issue(issue_key):
+    """Fetches latest Forensics ZIP from Windows endpoint via WinRM and attaches to Jira Issue."""
+    if not JIRA_API_TOKEN or not issue_key:
+        return False
+    try:
+        import winrm
+        import base64
+        import io
+        session = winrm.Session(
+            f"http://{WINRM_HOST}:5985/wsman",
+            auth=(WINRM_USER, WINRM_PASS),
+            transport="ntlm",
+            server_cert_validation="ignore",
+            read_timeout_sec=20,
+            operation_timeout_sec=15,
+        )
+        # Find newest zip in C:\Windows\Temp\Forensics
+        ps_find = (
+            "$z = Get-ChildItem 'C:\\Windows\\Temp\\Forensics\\Evidence_*.zip' -ErrorAction SilentlyContinue | "
+            "Sort-Object LastWriteTime -Descending | Select-Object -First 1; "
+            "if ($z) { [Convert]::ToBase64String([IO.File]::ReadAllBytes($z.FullName)) + '|' + $z.Name } else { '' }"
+        )
+        r = session.run_ps(ps_find)
+        if not r.std_out:
+            return False
+        out = r.std_out.decode('ascii', errors='ignore').strip()
+        if '|' not in out:
+            return False
+        b64_content, filename = out.split('|', 1)
+        file_bytes = base64.b64decode(b64_content)
+        
+        # Upload attachment to Jira via REST API v3
+        auth_str = base64.b64encode(f"{JIRA_EMAIL}:{JIRA_API_TOKEN}".encode("utf-8")).decode("ascii")
+        boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
+        body = (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
+            f"Content-Type: application/zip\r\n\r\n"
+        ).encode("utf-8") + file_bytes + f"\r\n--{boundary}--\r\n".encode("utf-8")
+
+        jira_url = f"https://{JIRA_DOMAIN}/rest/api/3/issue/{issue_key}/attachments"
+        req = urllib.request.Request(
+            jira_url,
+            data=body,
+            headers={
+                "Authorization": f"Basic {auth_str}",
+                "X-Atlassian-Token": "no-check",
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+                "User-Agent": "Wazuh-SOAR-Bridge"
+            }
+        )
+        with urllib.request.urlopen(req, timeout=15) as res:
+            logger.info(f"Attached evidence {filename} ({len(file_bytes)} bytes) to Jira {issue_key} -> HTTP {res.status}")
+            notify_telegram(
+                f"📦 <b>[FORENSICS PRESERVATION - EVIDENCE ATTACHED]</b>\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"🎫 <b>Jira Issue:</b> <a href=\"https://{JIRA_DOMAIN}/browse/{issue_key}\">{issue_key}</a>\n"
+                f"📁 <b>Evidence File:</b> <code>{filename}</code> ({len(file_bytes)} bytes)\n"
+                f"💻 <b>Source Endpoint:</b> <code>{WINRM_HOST}</code>\n"
+                f"🔒 <b>Chain of Custody:</b> Integrity preserved in NIST SP 800-86 format\n"
+                f"✅ <b>Status:</b> Digital Forensics ZIP successfully uploaded to Jira Cloud."
+            )
+            return True
+    except Exception as e:
+        logger.warning(f"Could not attach evidence to Jira {issue_key}: {e}")
+        return False
 
 
 def execute_winrm_action(action_type, target):
@@ -175,7 +287,27 @@ def main():
                             logger.info(f"Triggering endpoint containment/rollback: {action_type} on {target}")
                             execute_winrm_action(action_type, target)
 
-                    forward_to_n8n(cb)
+                    forward_res = forward_to_n8n(cb)
+                    if len(parts) >= 2 and parts[1] == "jira":
+                        baseline_key, _ = get_latest_jira_issue()
+                        logger.info(f"Jira ticket creation initiated via ChatOps. Baseline issue key: {baseline_key}")
+
+                        import threading
+                        def delayed_attach(prev_key):
+                            logger.info(f"Background delayed attachment monitor started (waiting for new ticket after {prev_key})...")
+                            for attempt in range(12):  # Poll up to 36 seconds
+                                time.sleep(3)
+                                try:
+                                    current_key, current_has_zip = get_latest_jira_issue()
+                                    if current_key and (current_key != prev_key or not current_has_zip):
+                                        logger.info(f"New or unattached ticket detected: {current_key} (has_zip={current_has_zip}). Attaching forensics package...")
+                                        if attach_evidence_to_jira_issue(current_key):
+                                            logger.info(f"Successfully attached forensics package to {current_key}.")
+                                            break
+                                except Exception as ex:
+                                    logger.warning(f"Attempt {attempt+1} polling Jira issue failed: {ex}")
+
+                        threading.Thread(target=delayed_attach, args=(baseline_key,), daemon=True).start()
 
             time.sleep(1)
         except KeyboardInterrupt:

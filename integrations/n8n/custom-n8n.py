@@ -39,6 +39,9 @@ def extract_soar_payload(alert: dict) -> dict:
     win = data.get("win", {})
     eventdata = win.get("eventdata", {})
 
+    agent_ip = agent.get("ip") or "192.168.71.129"
+    agent_name = agent.get("name") or "DESKTOP-A2AG7TR"
+
     # Extract source / attacker IP with intelligent endpoint fallback
     raw_src_ip = (
         data.get("src_ip")
@@ -48,11 +51,19 @@ def extract_soar_payload(alert: dict) -> dict:
         or alert.get("src_ip")
         or win.get("system", {}).get("ipAddress")
     )
+
+    # Deception & Custom Decoy message IP parser: e.g. "[FTP-DECOY] TRIPWIRE_TRIGGERED: Unauthorized probe from 192.168.71.130:59558"
+    if not raw_src_ip:
+        import re
+        raw_text = json.dumps(alert, ensure_ascii=False)
+        ip_match = re.search(r"(?:probe from|from)\s+([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})", raw_text, re.IGNORECASE)
+        if ip_match:
+            cand = ip_match.group(1)
+            if cand not in ("127.0.0.1", "0.0.0.0", agent_ip):
+                raw_src_ip = cand
+
     if raw_src_ip in (None, "", "-", "::1", "127.0.0.1", "N/A"):
         raw_src_ip = None
-
-    agent_ip = agent.get("ip") or "192.168.71.129"
-    agent_name = agent.get("name") or "DESKTOP-A2AG7TR"
 
     if raw_src_ip:
         src_ip = raw_src_ip

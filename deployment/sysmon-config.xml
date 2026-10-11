@@ -15,12 +15,12 @@
       <TargetFilename condition="contains">\.bat</TargetFilename>
     </FileCreate>
 
-    <!-- Sysmon Event 10: ProcessAccess (Phát hiện mở handle đọc trộm bộ nhớ lsass.exe) -->
+    <!-- Sysmon Event 10: ProcessAccess (Detects handle access to lsass.exe memory) -->
     <ProcessAccess onmatch="include">
       <TargetImage condition="end with">lsass.exe</TargetImage>
     </ProcessAccess>
 
-    <!-- Sysmon Event 12, 13, 14: RegistryEvent (Phát hiện Persistence Run Key & UAC Bypass) -->
+    <!-- Sysmon Event 12, 13, 14: RegistryEvent (Detects Persistence Run Key & UAC Bypass) -->
     <RegistryEvent onmatch="include">
       <TargetObject condition="contains">CurrentVersion\Run</TargetObject>
       <TargetObject condition="contains">ms-settings</TargetObject>

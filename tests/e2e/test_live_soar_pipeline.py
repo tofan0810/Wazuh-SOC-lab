@@ -103,16 +103,16 @@ def main():
             f"🔍 <b>AbuseIPDB Threat Intel:</b> <code>Reputation Score: {abuse_score}%</code> (API Connected)\n"
             f"🎫 <b>Jira Case Management:</b> <a href=\"{jira_url}\">{jira_ticket_key} (Created on Board)</a>\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n"
-            "<i>Chọn hành động phản ứng sự cố bên dưới (Human-in-the-Loop):</i>"
+            "<i>Select incident response action below (Human-in-the-Loop):</i>"
         )
         markup = {
             "inline_keyboard": [
                 [
-                    {"text": "🚫 [Khóa IP 24h]", "callback_data": "action:block:192.168.71.130:ALT-LIVE-01"},
-                    {"text": "⚠️ [Báo động giả]", "callback_data": "action:ignore:192.168.71.130:ALT-LIVE-01"}
+                    {"text": "🚫 [Block IP 24h]", "callback_data": "action:block:192.168.71.130:ALT-LIVE-01"},
+                    {"text": "⚠️ [False Positive]", "callback_data": "action:ignore:192.168.71.130:ALT-LIVE-01"}
                 ],
                 [
-                    {"text": f"📋 [Xem Ticket Jira: {jira_ticket_key}]", "url": jira_url}
+                    {"text": f"📋 [View Jira Ticket: {jira_ticket_key}]", "url": jira_url}
                 ]
             ]
         }
