@@ -173,16 +173,46 @@ flowchart TD
 
 ```text
 wazuh-soc-lab/
-├── architecture/       # Sơ đồ topology mạng và luồng dữ liệu 
-├── commands/           # Cẩm nang tra cứu lệnh SSH, WinRM, kịch bản test
-├── custom-rules/       # Quy tắc phát hiện Sigma SSOT & XML compiled 
-├── deployment/         # Cấu hình ossec.conf, Docker, Sysmon, Suricata, Deception 
-├── documents/          # Sổ tay lý thuyết SIEM/SOC và cẩm nang vận hành 
-├── integrations/       # Module tích hợp SOAR n8n, Telegram ChatOps, VirusTotal 
-├── playbooks/          # Quy trình chuẩn ứng phó sự cố (SOP) theo NIST / SANS 
-├── reports/            # Báo cáo thực nghiệm chi tiết 10 giai đoạn Phase 1 – 10 
-├── scripts/            # Script tự động hóa đồng bộ .env, nạp dashboard, Sigma compiler 
-├── tests/              # Bộ kiểm thử tự động hóa E2E và CI/CD Unit tests 
+├── .github/workflows/          # CI/CD Quality Gate 
+├── architecture/               # Sơ đồ thiết kế hệ thống & vector pipeline SVG
+├── commands/                   # Trung tâm tra cứu lệnh vận hành & kiểm thử
+├── custom-rules/               # Quy tắc phát hiện theo chuẩn Detection-as-Code
+│   ├── sigma/                  # Kho luật Sigma YAML SSOT (Endpoint & Network rules)
+│   ├── local_rules.xml         # XML compiled từ Sigma (Rule 100001 - 100016)
+│   └── local_decoder.xml       # Bộ giải mã tùy biến cho Apache Web Access Log
+├── deployment/                 # Hạ tầng triển khai container & cấu hình phòng thủ
+│   ├── active-response/        # Script phản ứng tự động (kill-process.ps1, collect-evidence.ps1)
+│   ├── dashboards/             # Saved Objects (soc_lab_executive_dashboard.ndjson)
+│   ├── deception/              # Lưới bẫy mồi (setup_canary.ps1, network_decoy.py, collect_evidence.ps1)
+│   ├── suricata/               # Cấu hình NIDS (suricata.yaml, local.rules - 4 signatures)
+│   ├── docker-compose.yml      # Cụm Wazuh Stack All-in-One (Manager, Indexer, Dashboard)
+│   ├── docker-compose-n8n.yml  # SOAR Engine n8n container (Port 5678)
+│   ├── ossec.conf              # Cấu hình trung tâm Wazuh Manager & Webhook integration
+│   └── sysmon-config.xml       # Cấu hình Sysmon v15.2 tối ưu theo MITRE ATT&CK
+├── documents/                  # Sổ tay lý thuyết SIEM/SOC & cẩm nang vận hành
+│   ├── SOC_LAB_HANDBOOK.md     # Cẩm nang toàn diện của đồ án (Kiến trúc, cài đặt, xử lý sự cố)
+│   └── siem-wazuh-theory.md    # Lý thuyết phân tích log, decoders và rules hierarchy
+├── integrations/               # Phân hệ tích hợp SOAR & Threat Intelligence
+│   ├── n8n/                    # SOAR Engine, 3 workflows JSON, custom-n8n.py, telegram_bridge.py
+│   ├── telegram/               # ChatOps 2 chiều cảnh báo thời gian thực & callback tương tác
+│   └── virustotal/             # Tích hợp tra cứu danh tiếng file mã độc qua VirusTotal API
+├── playbooks/                  # 6 Quy trình chuẩn ứng phó sự cố (SOP) theo NIST / SANS
+│   ├── SOP-01_RDP_Brute_Force_Response.md
+│   ├── SOP-02_Web_LFI_Mitigation.md
+│   ├── SOP-03_SOAR_Automated_Containment.md
+│   ├── SOP-04_Endpoint_Kill_Chain_Response.md
+│   ├── SOP-05_Network_NIDS_Suricata_Response.md
+│   └── SOP-06_Deception_Honeypot_and_Forensics.md
+├── reports/                    # Báo cáo thực nghiệm chi tiết 10 giai đoạn (Phase 1 – 10)
+│   ├── Phase-1 đến Phase-10/   # Báo cáo kỹ thuật chi tiết & ảnh chụp PoC minh chứng
+│   └── README.md               # Mục lục trung tâm điều hướng báo cáo
+├── scripts/                    # Kịch bản tự động hóa vận hành hệ sinh thái
+│   ├── sync_env.py             # Engine 1-Click đồng bộ .env và kiểm tra API sống còn
+│   ├── import_dashboard.py     # Engine 1-Click nạp Dashboard lên OpenSearch qua REST API
+│   └── sigma_compiler.py       # SigWaz Compiler: Biên dịch Sigma YAML -> Wazuh XML + Zero Drift
+└── tests/                      # Khung kiểm thử tự động hóa Detection-as-Code
+    ├── e2e/                    # Kịch bản E2E: scenario_full_killchain.py, test_soar_closed_loop.py...
+    └── unit/                   # 22 bài unit test kiểm tra tính toàn vẹn cú pháp rules & bảo mật
 ```
 
 ---
