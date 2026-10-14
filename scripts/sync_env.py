@@ -35,9 +35,21 @@ if sys.platform.startswith("win"):
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENV_FILE = os.path.join(REPO_ROOT, ".env")
-OSSEC_CONF_PATH = os.path.join(REPO_ROOT, "deployment", "ossec.conf")
-RENDERED_OSSEC_CONF = os.path.join(REPO_ROOT, "deployment", ".ossec.conf.rendered")
-WORKFLOWS_DIR = os.path.join(REPO_ROOT, "integrations", "n8n", "workflows")
+OSSEC_CONF_PATH = (
+    os.path.join(REPO_ROOT, "manager", "docker", "ossec.conf")
+    if os.path.exists(os.path.join(REPO_ROOT, "manager", "docker", "ossec.conf"))
+    else os.path.join(REPO_ROOT, "deployment", "ossec.conf")
+)
+RENDERED_OSSEC_CONF = (
+    os.path.join(REPO_ROOT, "manager", "docker", ".ossec.conf.rendered")
+    if os.path.exists(os.path.join(REPO_ROOT, "manager", "docker"))
+    else os.path.join(REPO_ROOT, "deployment", ".ossec.conf.rendered")
+)
+WORKFLOWS_DIR = (
+    os.path.join(REPO_ROOT, "manager", "soar", "workflows")
+    if os.path.exists(os.path.join(REPO_ROOT, "manager", "soar", "workflows"))
+    else os.path.join(REPO_ROOT, "integrations", "n8n", "workflows")
+)
 
 
 def print_banner():

@@ -32,8 +32,12 @@ ENV_PATH = os.path.join(REPO_ROOT, ".env")
 env = dotenv_values(ENV_PATH) if os.path.exists(ENV_PATH) else {}
 
 DASHBOARD_FILE = os.path.join(
-    REPO_ROOT, "deployment", "dashboards", "soc_lab_executive_dashboard.ndjson"
+    REPO_ROOT, "manager", "dashboard", "soc_lab_executive_dashboard.ndjson"
 )
+if not os.path.exists(DASHBOARD_FILE):
+    DASHBOARD_FILE = os.path.join(
+        REPO_ROOT, "deployment", "dashboards", "soc_lab_executive_dashboard.ndjson"
+    )
 
 WAZUH_HOST = env.get("WAZUH_MANAGER_IP", env.get("N8N_HOST", "192.168.71.128"))
 DASHBOARD_PORT = 443
@@ -42,7 +46,9 @@ DASHBOARD_PASS = env.get("WAZUH_DASHBOARD_PASSWORD", env.get("INDEXER_PASSWORD",
 
 # Fallback: extract from docker-compose.yml if not in .env
 if not DASHBOARD_PASS:
-    compose_path = os.path.join(REPO_ROOT, "deployment", "docker-compose.yml")
+    compose_path = os.path.join(REPO_ROOT, "manager", "docker", "docker-compose.yml")
+    if not os.path.exists(compose_path):
+        compose_path = os.path.join(REPO_ROOT, "deployment", "docker-compose.yml")
     if os.path.exists(compose_path):
         with open(compose_path, "r", encoding="utf-8") as f:
             for line in f:

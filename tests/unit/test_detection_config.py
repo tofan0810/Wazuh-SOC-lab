@@ -11,14 +11,14 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-RULES = ROOT / "custom-rules" / "local_rules.xml"
-DECODERS = ROOT / "custom-rules" / "local_decoder.xml"
-SIGMA_DIR = ROOT / "custom-rules" / "sigma"
-OSSEC_CONF = ROOT / "deployment" / "ossec.conf"
-SYSMON_CONF = ROOT / "deployment" / "sysmon-config.xml"
-DASHBOARD_NDJSON = ROOT / "deployment" / "dashboards" / "soc_lab_executive_dashboard.ndjson"
-SURICATA_RULES = ROOT / "deployment" / "suricata" / "local.rules"
-SURICATA_YAML = ROOT / "deployment" / "suricata" / "suricata.yaml"
+RULES = ROOT / "manager" / "rules" / "local_rules.xml" if (ROOT / "manager" / "rules" / "local_rules.xml").exists() else ROOT / "custom-rules" / "local_rules.xml"
+DECODERS = ROOT / "manager" / "rules" / "local_decoder.xml" if (ROOT / "manager" / "rules" / "local_decoder.xml").exists() else ROOT / "custom-rules" / "local_decoder.xml"
+SIGMA_DIR = ROOT / "manager" / "rules" / "sigma" if (ROOT / "manager" / "rules" / "sigma").exists() else ROOT / "custom-rules" / "sigma"
+OSSEC_CONF = ROOT / "manager" / "docker" / "ossec.conf" if (ROOT / "manager" / "docker" / "ossec.conf").exists() else ROOT / "deployment" / "ossec.conf"
+SYSMON_CONF = ROOT / "endpoint" / "config" / "sysmon-config.xml" if (ROOT / "endpoint" / "config" / "sysmon-config.xml").exists() else ROOT / "deployment" / "sysmon-config.xml"
+DASHBOARD_NDJSON = ROOT / "manager" / "dashboard" / "soc_lab_executive_dashboard.ndjson" if (ROOT / "manager" / "dashboard" / "soc_lab_executive_dashboard.ndjson").exists() else ROOT / "deployment" / "dashboards" / "soc_lab_executive_dashboard.ndjson"
+SURICATA_RULES = ROOT / "manager" / "suricata" / "local.rules" if (ROOT / "manager" / "suricata" / "local.rules").exists() else ROOT / "deployment" / "suricata" / "local.rules"
+SURICATA_YAML = ROOT / "manager" / "suricata" / "suricata.yaml" if (ROOT / "manager" / "suricata" / "suricata.yaml").exists() else ROOT / "deployment" / "suricata" / "suricata.yaml"
 ENV_EXAMPLE = ROOT / ".env.example"
 
 
@@ -268,7 +268,7 @@ class DetectionConfigurationTests(unittest.TestCase):
         self.assertTrue(compiler.validate_all(), "One or more Sigma rules failed schema validation")
 
     def test_sigma_compiler_drift_check(self):
-        """Guarantees zero-drift: custom-rules/local_rules.xml must match 100% with Sigma SSOT."""
+        """Guarantees zero-drift: manager/rules/local_rules.xml must match 100% with Sigma SSOT."""
         from scripts.sigma_compiler import SigmaToWazuhCompiler
         compiler = SigmaToWazuhCompiler(SIGMA_DIR)
         compiled_xml = compiler.compile_to_xml()
@@ -347,7 +347,7 @@ class DetectionConfigurationTests(unittest.TestCase):
             self.assertIn(sid, rule_ids_text, f"Suricata rule ID {sid} missing from custom-n8n integration")
 
     def test_suricata_signatures_integrity(self):
-        """Verifies that deployment/suricata/local.rules exists and contains valid signatures."""
+        """Verifies that manager/suricata/local.rules exists and contains valid signatures."""
         self.assertTrue(SURICATA_RULES.exists(), f"Missing Suricata local.rules at {SURICATA_RULES}")
         content = SURICATA_RULES.read_text(encoding="utf-8")
         for sid in ("2000001", "2000002", "2000003", "2000004"):
@@ -355,7 +355,7 @@ class DetectionConfigurationTests(unittest.TestCase):
             self.assertIn("metadata:mitre_attack_id", content, f"Missing MITRE ATT&CK metadata in SID {sid}")
 
     def test_suricata_yaml_config_integrity(self):
-        """Verifies that deployment/suricata/suricata.yaml exists and contains valid capture & EVE output settings."""
+        """Verifies that manager/suricata/suricata.yaml exists and contains valid capture & EVE output settings."""
         self.assertTrue(SURICATA_YAML.exists(), f"Missing suricata.yaml at {SURICATA_YAML}")
         content = SURICATA_YAML.read_text(encoding="utf-8")
         self.assertIn("interface: ens33", content, "Missing ens33 capture interface in suricata.yaml")

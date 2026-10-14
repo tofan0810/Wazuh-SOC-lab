@@ -49,7 +49,7 @@ flowchart TD
 | `workflows/01_wazuh_soar_threat_enrichment.json` | Workflow 1: Tiếp nhận cảnh báo, tra cứu AbuseIPDB và gửi nút bấm về Telegram | Import vào n8n Web UI |
 | `workflows/02_containment_action_executor.json` | Workflow 2: Tiếp nhận callback nút bấm (Khóa IP / Báo động giả / Mở Ticket Jira) | Import vào n8n Web UI |
 | `workflows/03_scheduled_healthcheck_cron.json` | Workflow 3: Cron định kỳ 6h kiểm tra trạng thái sức khỏe toàn bộ SOC Lab | Import vào n8n Web UI |
-| `deployment/docker-compose-n8n.yml` | File cấu hình Docker n8n chạy trên Wazuh VM | `~/n8n-docker/docker-compose.yml` |
+| `manager/docker/docker-compose-n8n.yml` | File cấu hình Docker n8n chạy trên Wazuh VM | `~/n8n-docker/docker-compose.yml` |
 
 ---
 

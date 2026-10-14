@@ -72,7 +72,9 @@ def test_n8n_health():
 
 def test_custom_n8n_script():
     print("[*] Step 2: Testing local 'custom-n8n.py' parser and dispatch logic...")
-    script_path = Path(__file__).resolve().parent.parent.parent / "integrations" / "n8n" / "custom-n8n.py"
+    script_path = Path(__file__).resolve().parent.parent.parent / "manager" / "soar" / "custom-n8n.py"
+    if not script_path.exists():
+        script_path = Path(__file__).resolve().parent.parent.parent / "integrations" / "n8n" / "custom-n8n.py"
     if not script_path.exists():
         print(f"  [-] FAIL: Script not found at {script_path}")
         return False

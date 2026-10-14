@@ -1,6 +1,6 @@
 # Sigma Rules — Detection-as-Code (SSOT)
 
-This directory serves as the **Single Source of Truth (SSOT)** for all custom detection rules in the SOC lab. Direct manual editing of `custom-rules/local_rules.xml` is deprecated in favor of this GitOps-driven Detection-as-Code pipeline.
+This directory serves as the **Single Source of Truth (SSOT)** for all custom detection rules in the SOC lab. Direct manual editing of `manager/rules/local_rules.xml` is deprecated in favor of this GitOps-driven Detection-as-Code pipeline.
 
 ---
 
@@ -10,7 +10,7 @@ All detection logic is authored using standard **Sigma YAML** specifications and
 
 ```mermaid
 flowchart LR
-    A["custom-rules/sigma/*.yml\n(Single Source of Truth)"] -->|scripts/sigma_compiler.py| B["custom-rules/local_rules.xml\n(Compiled Artifact)"]
+    A["manager/rules/sigma/*.yml\n(Single Source of Truth)"] -->|scripts/sigma_compiler.py| B["manager/rules/local_rules.xml\n(Compiled Artifact)"]
     B -->|CI/CD Quality Gate| C["GitHub Actions Pipeline\n(test.yml)"]
     C -->|Zero Drift Validated| D["Wazuh Manager\n(/var/ossec/etc/rules/)"]
 ```
@@ -50,6 +50,6 @@ flowchart LR
 | Action | Command (PowerShell / Terminal) | Description |
 | :--- | :--- | :--- |
 | **Validate Syntax** | `python scripts/sigma_compiler.py --validate` | Validates YAML structure, required fields, and MITRE format |
-| **Compile to XML** | `python scripts/sigma_compiler.py --compile` | Compiles all Sigma YAMLs into `custom-rules/local_rules.xml` |
+| **Compile to XML** | `python scripts/sigma_compiler.py --compile` | Compiles all Sigma YAMLs into `manager/rules/local_rules.xml` |
 | **Check CI/CD Drift** | `python scripts/sigma_compiler.py --check` | Compares in-memory compiled rules against `local_rules.xml` |
 | **Run Test Suite** | `pytest tests/unit/ -v` | Executes complete 16-check automated unit test suite |

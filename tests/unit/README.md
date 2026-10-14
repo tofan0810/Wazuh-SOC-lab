@@ -1,7 +1,7 @@
 # 🧪 Detection Engineering Unit Test Suite
 
 > **Phân hệ:** Kiểm thử Đơn vị & Đảm bảo Chất lượng Luật Phát hiện (Detection-as-Code QA)  
-> **Target Files:** `custom-rules/local_rules.xml`, `custom-rules/local_decoder.xml`, `deployment/ossec.conf`, `deployment/sysmon-config.xml`
+> **Target Files:** `manager/rules/local_rules.xml`, `manager/rules/local_decoder.xml`, `manager/docker/ossec.conf`, `endpoint/config/sysmon-config.xml`, `manager/dashboard/*.ndjson`, `manager/suricata/*`
 
 ---
 
@@ -10,7 +10,7 @@ Thư mục này chứa bộ kiểm thử đơn vị tự động hóa bảo vệ
 
 ---
 
-## 🛡️ Danh Mục 12 Tiêu Chí Kiểm Thử (12 Automated Checks)
+## 🛡️ Danh Mục 22 Tiêu Chí Kiểm Thử (22 Automated Checks)
 
 | STT | Phương Thức Kiểm Thử | Mục Đích & Phạm Vi Xác Thực |
 | :---: | :--- | :--- |
@@ -42,4 +42,4 @@ pytest tests/unit/ -v --cov=tests/unit --cov-report=term-missing
 ```
 
 ### 3. Tự động hóa qua GitHub Actions:
-Mọi thao tác đẩy mã nguồn (push/PR) lên branch `main` tác động vào `custom-rules/`, `tests/`, `deployment/` đều sẽ tự động kích hoạt workflow `.github/workflows/test.yml` trên runner Ubuntu đám mây.
+Mọi thao tác đẩy mã nguồn (push/PR) lên branch `main` tác động vào `manager/`, `endpoint/`, `tests/` đều sẽ tự động kích hoạt workflow `.github/workflows/test.yml` trên runner Ubuntu đám mây.

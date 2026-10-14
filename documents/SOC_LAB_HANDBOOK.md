@@ -1,69 +1,105 @@
 # 📘 SỔ TAY HỌC TẬP & BẢN ĐẶC TẢ KỸ THUẬT PHÒNG LAB WAZUH SOC & SOAR
 > **Tài liệu học tập có tính hệ thống (Systematic Study Handbook & Architecture Notes)**  
-> **Mục tiêu:** Dùng để ghi chép vào vở, ôn tập kiến trúc, hiểu rõ bản chất từng dòng code/config và tự tin trả lời vấn đáp đồ án tốt nghiệp / phỏng vấn SOC Engineer.
+> **Mục tiêu:** Dùng để ghi chép vào vở, ôn tập kiến trúc, hiểu rõ bản chất từng dòng code/config và tự tin trả lời vấn đáp đồ án tốt nghiệp / phỏng vấn SOC & Detection Engineer.
 
 ---
 
-# 1. TỔNG QUAN KIẾN TRÚC SOC
+## 🗂️ MỤC LỤC GHI CHÉP VỞ
+
+* **[Phần 1: Tổng Quan Kiến Trúc SOC & Mô Hình Đóng Gói Turnkey](#1-tổng-quan-kiến-trúc-soc--mô-hình-đóng-gói-turnkey)**
+* **[Phần 2: 6 Khái Niệm Nền Tảng Chắt Lọc (Core Concepts)](#2-6-khái-niệm-nền-tảng-chắt-lọc-core-concepts)**
+* **[Phần 3: Danh Mục Thành Phần & Vai Trò Trong Hệ Thống (System Inventory)](#3-danh-mục-thành-phần--vai-trò-trong-hệ-thống-system-inventory)**
+* **[Phần 4: Phân Tích Chi Tiết Từng File Cấu Hình & Source Code](#4-phân-tích-chi-tiết-từng-file-cấu-hình--source-code)**
+* **[Phần 5: Ma Trận 16 Quy Tắc Phát Hiện (Detection Rules Matrix 100001 - 100016)](#5-ma-trận-16-quy-tắc-phát-hiện-detection-rules-matrix-100001---100016)**
+* **[Phần 6: Quy Trình Phản Ứng Khép Kín (SOAR Closed-Loop & 1-Click Rollback)](#6-quy-trình-phản-ứng-khép-kín-soar-closed-loop--1-click-rollback)**
+* **[Phần 7: Bộ 8 Câu Hỏi Vấn Đáp Đồ Án & Phỏng Vấn Tuyển Dụng (Viva Defense Q&A)](#7-bộ-8-câu-hỏi-vấn-đáp-đồ-án--phỏng-vấn-tuyển-dụng-viva-defense-qa)**
+
+---
+
+# 1. TỔNG QUAN KIẾN TRÚC SOC & MÔ HÌNH ĐÓNG GÓI TURNKEY
 
 ### 1.1. Mục tiêu đồ án
-Xây dựng một mô hình **Trung tâm Giám sát và Điều hành An ninh mạng (Security Operations Center - SOC)** thu nhỏ nhưng mang đầy đủ năng lực thực chiến cấp doanh nghiệp:
-1. **Thu thập dữ liệu đo kiểm (Telemetry Collection):** Bắt trọn hành vi máy trạm từ tầng Kernel (Sysmon) và dịch vụ mạng (Web Apache, RDP).
-2. **Phát hiện mối đe dọa (Detection Engineering):** Viết luật tùy biến đối khớp với ma trận **MITRE ATT&CK**.
-3. **Làm giàu thông tin (Threat Intelligence Enrichment):** Tự động truy vấn danh tiếng IP/File độc hại qua AbuseIPDB và VirusTotal.
-4. **Tự động hóa phản ứng (SOAR & ChatOps 2 chiều):** Điều phối xử lý sự cố với sự tham gia của con người (**Human-in-the-Loop**) qua Telegram Bot và quản lý hồ sơ sự cố trên **Atlassian Jira Cloud**.
-5. **Kiểm thử tự động (Detection-as-Code):** Kiểm định độ tin cậy của luật phát hiện bằng kịch bản Python E2E.
-
-### 1.2. Bài toán SOC mà đồ án giải quyết
-Trong một SOC truyền thống, trực ca L1/L2 gặp 3 "nút thắt cổ chai" lớn:
-* **Alert Fatigue (Kiệt sức vì cảnh báo giả):** Hàng ngàn log sinh ra mỗi ngày, thiếu bộ lọc khiến cảnh báo quan trọng bị trôi.
-* **Thời gian phản ứng chậm (High MTTA/MTTR):** Khi có cảnh báo, Analyst phải tra cứu IP thủ công trên trình duyệt, gõ lệnh cấu hình Firewall bằng tay, mở Jira gõ từng trường thông tin $\rightarrow$ Mất 20 – 45 phút, mã độc đã kịp lây lan.
-* **Sai sót thao tác (Human Error):** Gõ nhầm cú pháp chặn Firewall hoặc cấu hình sai IP dẫn tới chặn nhầm máy chủ nghiệp vụ.
-
-$\Rightarrow$ **Giải pháp của đồ án:** Tự động hóa toàn bộ khâu điều tra sơ bộ (Triage), làm giàu dữ liệu (Enrichment), cung cấp nút bấm phản ứng 1-chạm (ChatOps Containment) và tự động tạo ticket Jira chuẩn hóa trong **dưới 20 giây**.
+Xây dựng một hệ thống **Trung tâm Giám sát và Điều hành An ninh mạng (Security Operations Center - SOC)** khép kín mang đầy đủ năng lực thực chiến cấp doanh nghiệp:
+1. **Thu thập dữ liệu đo kiểm (Telemetry Collection):** Bắt trọn hành vi máy trạm từ tầng nhân Kernel (Sysmon v15.2), nhật ký xác thực Windows (EVTX), web access log và giám sát mạng tầng sâu (Suricata NIDS).
+2. **Kỹ thuật phát hiện (Detection Engineering & DaC):** Quản lý quy tắc bằng chuẩn Sigma YAML (Single Source of Truth - SSOT), tự động biên dịch sang XML Wazuh và kiểm tra lệch pha (Zero-Drift CI/CD).
+3. **Làm giàu thông tin (Threat Intelligence Enrichment):** Tự động truy vấn danh tiếng IP độc hại qua AbuseIPDB API và đối soát mã băm tập tin qua VirusTotal Cloud API.
+4. **Tự động hóa phản ứng khép kín (SOAR & Closed-Loop Containment):** Điều phối xử lý sự cố có con người tham gia (**Human-in-the-Loop**) qua Telegram ChatOps 2 chiều, hỗ trợ nút bấm **Khóa cách ly**, **Phục hồi (1-Click Rollback)** và tự động tạo vé sự cố trên **Atlassian Jira Cloud REST API v3**.
+5. **Công nghệ bẫy mồi chủ động (Deception Defense):** Triển khai Canary Honey-file (SACL Event 4663), Honey-account (Event 4625) và Decoy Port 21 với **tỷ lệ báo động giả bằng không (0% False Positive)**, tự động trích xuất chứng cứ số (Live DFIR Forensics).
 
 ---
 
-### 1.3. Kiến trúc Tổng thể & Các Thành phần Chính
+### 1.2. Mô hình Đóng gói 2 Gói Triển khai Turnkey (`endpoint/` & `manager/`)
+
+Dự án được tái cấu trúc thành 2 gói độc lập, giúp việc triển khai từ máy trắng (Clean OS) trở nên dễ dàng chỉ với 1 lệnh:
 
 ```text
-========================================================================================
-                                 SƠ ĐỒ LUỒNG DỮ LIỆU END-TO-END
-========================================================================================
+wazuh-soc-lab/
+├── endpoint/                   # 🛡️ GÓI MÁY TRẠM NẠN NHÂN (Windows 10 Target - 192.168.71.129)
+│   ├── config/                 # ossec.conf (Agent 1514/TCP) & sysmon-config.xml (Sysmon v15.2)
+│   ├── active-response/        # kill-process.cmd/ps1 (diệt PID) & collect-evidence.cmd/ps1
+│   ├── deception/              # setup_canary.ps1 (bẫy file), network_decoy.ps1/py (bẫy port 21)
+│   ├── setup_endpoint.ps1      # Script Master 1-Click tự động hóa cấu hình toàn bộ Windows
+│   └── README.md               # Sổ tay hướng dẫn người dùng cài đặt phần mềm gốc & chạy script
+│
+├── manager/                    # 🚀 GÓI MÁY CHỦ SIEM & SOAR (Ubuntu Server - 192.168.71.128)
+│   ├── docker/                 # Wazuh Stack All-in-One (Port 443) & n8n SOAR (Port 5678)
+│   ├── rules/                  # Sigma YAML SSOT (sigma/), local_rules.xml (100001-100016), local_decoder.xml
+│   ├── suricata/               # suricata.yaml (bắt packet ens33), local.rules (4 signatures NIDS)
+│   ├── soar/                   # 3 Workflows JSON, custom-n8n.py dispatcher, telegram_bridge.py
+│   ├── dashboard/              # soc_lab_executive_dashboard.ndjson (9 visual panels OpenSearch)
+│   ├── setup_manager.sh        # Script Master 1-Click triển khai Docker containers & NIDS
+│   └── README.md               # Sổ tay hướng dẫn người dùng cài đặt Docker & kích hoạt lab
+│
+├── architecture/               # Sơ đồ thiết kế hệ thống chuẩn 16:9 vector SVG
+├── commands/                   # Trung tâm tra cứu nhanh lệnh vận hành
+├── documents/                  # Sổ tay học tập, lý thuyết SIEM & cẩm nang vận hành
+├── playbooks/                  # 6 Quy trình chuẩn ứng phó sự cố (SOP-01 đến SOP-06) theo NIST/SANS
+├── reports/                    # Báo cáo kỹ thuật chi tiết thực nghiệm từ Phase 1 đến Phase 10
+├── scripts/                    # Công cụ tự động hóa: sync_env.py, sigma_compiler.py, import_dashboard.py
+└── tests/                      # 22 bài kiểm thử đơn vị CI/CD (tests/unit/) & kiểm thử E2E (tests/e2e/)
+```
+
+---
+
+### 1.3. Sơ đồ Luồng Dữ liệu Toàn trình (End-to-End Dataflow)
+
+```text
+===================================================================================================
+                               SƠ ĐỒ LUỒNG DỮ LIỆU END-TO-END SOC PIPELINE
+===================================================================================================
 
   [ KALI LINUX - 192.168.71.130 ] 
-      │ (Attacker giả lập: RDP Brute Force, Web LFI, PowerShell Obfuscation, UAC Bypass)
+      │ (Tấn công: RDP Brute Force, Web LFI, PowerShell Base64, UAC Bypass, LSASS Dump, Nmap Scan)
       ▼
   [ WINDOWS 10 ENDPOINT - 192.168.71.129 ]
-      │ • Sysmon v15.2 (Process creation, LSASS memory access, Registry run keys)
-      │ • Windows Security Event Log (Event ID 4625 - Failed Logons)
-      │ • Apache Access Logs (access.log)
-      │ • Wazuh Agent v4.14.5 (Thu thập log & thực thi Active Response qua WinRM)
+      │ • Sysmon v15.2: Process Create (Event 1), LSASS Access (Event 10), Registry Run (Event 12/13)
+      │ • Windows Security: RDP Logon Failure (Event 4625), Canary SACL Access (Event 4663)
+      │ • Apache HTTP Access Log (access.log) & FTP Decoy Port 21 (Event 60000)
+      │ • Wazuh Agent v4.14.5: Đẩy Telemetry qua Port 1514/TCP (Mã hóa AES)
       │
-      │ (Giao thức Wazuh Agent: 1514/TCP mã hóa AES)
       ▼
-  [ WAZUH SIEM MANAGER - 192.168.71.128 (Docker) ]
-      │ • Analysisd Engine: Giải mã (local_decoder.xml) & Đối khớp luật (local_rules.xml)
-      │ • Remoted / Authd / Execd / Integratord Daemon
-      │ • alerts.json: Nơi ghi nhận cảnh báo đã kích hoạt
+  [ WAZUH SIEM MANAGER & NIDS - 192.168.71.128 ]
+      │ • Suricata NIDS: Bắt gói tin trên ens33 -> Ghi /var/log/suricata/eve.json
+      │ • Wazuh Analysisd Engine: Giải mã (local_decoder.xml) & Đối khớp luật (local_rules.xml)
+      │ • Active Response cục bộ: Tự động khóa IP (netsh) hoặc diệt PID (kill-process.ps1)
       │
       ├───────────────────────────────┬───────────────────────────────┐
       │ (OpenSearch Port 9200)        │ (<integration> ossec.conf)    │ (<integration> ossec.conf)
       ▼                               ▼                               ▼
   [ Wazuh Indexer & Dashboard ]   [ VirusTotal Cloud API ]     [ custom-n8n.py Dispatcher ]
-    (Trực quan hóa SIEM 443)        (Tra cứu Hash file lạ)       (Dual-Mode IOC Resolution)
+    (Trực quan hóa SIEM Port 443)   (Đối soát Hash SHA256)       (Dual-Mode IOC Resolution)
                                                                       │
                                                                       │ (HTTP POST Webhook JSON)
                                                                       ▼
                                                        [ n8n SOAR ENGINE - Port 5678 ]
                                                            │ (Workflow 1: Threat Enrichment)
                                                            ├─► AbuseIPDB API (Tra cứu IP)
-                                                           ├─► Format HTML Alert Card
+                                                           ├─► Format HTML Alert Card phong phú
                                                            ▼
                                                        [ TELEGRAM CHATOPS BOT ]
                                                            │ (@my_wazuh_soc_alert_bot)
                                                            │ Gửi thẻ tương tác kèm 3 nút bấm:
-                                                           │ [🚫 Khóa IP 24h] [⚠️ Cảnh báo giả] [📋 Mở Jira]
+                                                           │ [🚫 Khóa IP 24h] [🔄 Mở khóa (Rollback)] [📋 Mở Jira]
                                                            │
                                                            │ (Analyst chạm nút bấm trên điện thoại)
                                                            ▼
@@ -74,191 +110,139 @@ $\Rightarrow$ **Giải pháp của đồ án:** Tự động hóa toàn bộ kh�
                                                            │
                                     ┌──────────────────────┼──────────────────────┐
                                     ▼                      ▼                      ▼
-                           [ Nhánh action:block ]  [ Nhánh action:ignore]  [ Nhánh action:jira ]
+                           [ Nhánh action:block ]  [ Nhánh action:unblock ] [ Nhánh action:jira ]
                                     │                      │                      │
-                             Chạy WinRM sang        Ghi SOAR Audit Trail    Gọi Jira Cloud API
-                             Windows 10 tạo         bỏ qua báo động         (POST /rest/api/3/issue)
-                             Firewall DROP Rule                             Tạo Ticket Project KAN
+                             Chạy WinRM sang        Chạy WinRM sang        Gọi Jira Cloud API
+                             Windows 10 tạo         Windows 10 xóa         (POST /rest/api/3/issue)
+                             Firewall DROP Rule     Firewall DROP Rule     Tạo Ticket Project KAN
                                     │                      │                      │
                                     └──────────────────────┴──────────────────────┘
                                                            │
                                                            ▼
-                                              Phản hồi kết quả về Telegram
+                                              Phản hồi kết quả về Telegram trong < 5s
 ```
 
 ---
 
-# 2. LÝ THUYẾT NỀN TẢNG (CHẮT LỌC THỰC CHIẾN)
+# 2. 6 KHÁI NIỆM NỀN TẢNG CHẮT LỌC (CORE CONCEPTS)
 
-### 2.1. Telemetry (Dữ liệu Đo kiểm An ninh)
-* **Trực giác:** Camera giám sát hành vi của hệ điều hành. Nếu không có camera góc rộng, trộm vào nhà sẽ không để lại dấu vết.
-* **Thuật ngữ:** Dữ liệu nhật ký có cấu trúc được sinh ra từ các cảm biến ở tầng nhân (Kernel) và ứng dụng, mô tả: Ai làm? Làm gì? Lúc nào? Trên đối tượng nào?
-* **Cơ chế:** Sysmon chèn trình điều khiển lọc (Filter Driver) `SysmonDrv.sys` vào nhân Windows để chặn bắt sự kiện trước khi tiến trình kịp xóa dấu vết.
-* **Ví dụ:** Tin tặc gõ `whoami` $\rightarrow$ Sysmon Event 1 bắt trọn `Image: C:\Windows\System32\whoami.exe`, `ParentImage: cmd.exe`, `User: NT AUTHORITY\SYSTEM`.
-* **Vị trí trong dự án:** File cấu hình [`deployment/sysmon-config.xml`](file:///D:/Downloads/ATTT/Wazuh-SOC-lab/deployment/sysmon-config.xml) nạp trên Windows 10.
+### 2.1. Telemetry (Dữ liệu Đo kiểm An ninh Tầng Sâu)
+* **Trực giác:** Camera giám sát hành vi của hệ điều hành. Nếu camera chỉ đặt ngoài cổng (Windows Event Log cơ bản), kẻ trộm vào trong nhà lục tủ (đọc trộm RAM LSASS) sẽ không ai hay biết.
+* **Cơ chế:** Sysmon chèn trình điều khiển lọc (Filter Driver) `SysmonDrv.sys` trực tiếp vào nhân Windows Kernel để chặn bắt mọi hành vi trước khi tiến trình độc hại kịp xóa dấu vết.
+* **Điểm cốt lõi ghi vở:** Windows Event Log mặc định **không thể** phát hiện kỹ thuật đọc trộm bộ nhớ LSASS hoặc ghi khóa Registry ẩn danh. Cần kết hợp Sysmon Event 1 (Process Create), Event 10 (ProcessAccess), Event 12/13 (Registry).
 
-### 2.2. Decoders & Rules (Bộ Giải Mã và Luật Đối Khớp)
-* **Trực giác:** Decoder là người dịch thuật (biến một đoạn văn lộn xộn thành các ô dữ liệu có nhãn). Rule là quan tòa (so sánh các ô dữ liệu đó với bộ luật để tuyên án).
-* **Thuật ngữ:**
-  * **Decoder (Regex Parser):** Trích xuất chuỗi log thô thành các trường chuẩn: `srcip`, `url`, `action`, `user`.
-  * **Rule (Correlation Logic):** Điều kiện logic (`if-then`) dựa trên `rule_id`, mức độ nghiêm trọng `level`, số lần lặp lại `frequency`, khoảng thời gian `timeframe`.
-* **Cơ chế:** Wazuh nhận dòng log $\rightarrow$ đi qua cây Decoders (Parent $\rightarrow$ Child) $\rightarrow$ đẩy sang cây Rules (Level 0 $\rightarrow$ 16).
-* **Ví dụ:** Log Apache `192.168.71.130 - - [GET /index.php?page=../../win.ini]` $\rightarrow$ Decoder trích `srcip=192.168.71.130`, `url=../../win.ini` $\rightarrow$ Rule 87105 đối khớp regex `\.\./` $\rightarrow$ Báo động Level 10.
-* **Vị trí trong dự án:** [`custom-rules/local_decoder.xml`](file:///D:/Downloads/ATTT/Wazuh-SOC-lab/custom-rules/local_decoder.xml) và [`custom-rules/local_rules.xml`](file:///D:/Downloads/ATTT/Wazuh-SOC-lab/custom-rules/local_rules.xml).
+### 2.2. Decoders & Rules (Bộ Giải Mã và Luật Tương Quan)
+* **Trực giác:** Decoder là **người phiên dịch** (biến một đoạn nhật ký thô sơ lộn xộn thành các trường dữ liệu có nhãn mác rõ ràng). Rule là **quan tòa** (đối chiếu các nhãn mác đó với bộ luật hình sự để ra phán quyết).
+* **Cơ chế:** Log thô $\rightarrow$ Phân tích cấu trúc (Pre-decoding & Regex Decoding) $\rightarrow$ Rút trích `srcip`, `url`, `eventID` $\rightarrow$ Đẩy qua Cây quy tắc (Rule Evaluation Tree) từ Level 0 đến 16.
+* **Điểm cốt lõi ghi vở:** Luật cấp độ `level="0"` là **luật ức chế (Suppression)** — được dùng để loại trừ cảnh báo giả sinh ra từ chính hành động cứu trợ của SOAR (`socrunner` qua WinRM), ngăn chặn vòng lặp tự kích hoạt báo động vô tận (Feedback Loop).
 
-### 2.3. Active Response (Phòng Thủ Chủ Động)
-* **Trực giác:** Phanh tự động trên ô tô khi cảm biến phát hiện vật cản phía trước mà tài xế chưa kịp đạp chân ga.
-* **Thuật ngữ:** Khả năng của SIEM/EDR tự động kích hoạt một kịch bản lệnh trên Endpoint để ngăn chặn cuộc tấn công ngay khi Rule tương ứng bị kích hoạt.
-* **Cơ chế:** Wazuh Manager gửi thông điệp điều khiển xuống tiến trình `wazuh-execd` của Agent $\rightarrow$ Agent gọi script cục bộ (ví dụ: lệnh `netsh` hoặc PowerShell).
-* **Ví dụ:** Rule 100002 phát hiện dò pass RDP 8 lần $\rightarrow$ Wazuh Active Response tự động ra lệnh khóa IP Kali trên Firewall Windows trong 300 giây.
-* **Vị trí trong dự án:** Cấu hình `<active-response>` trong [`deployment/ossec.conf`](file:///D:/Downloads/ATTT/Wazuh-SOC-lab/deployment/ossec.conf).
+### 2.3. Active Response vs. SOAR Containment
+* **Trực giác:** Active Response là **phanh ABS tự động** (máy tính tự dập tắt nguy cơ trong mili-giây mà không cần hỏi). SOAR là **lệnh chỉ huy từ xa** (hệ thống chuẩn bị sẵn phương án, đưa lên điện thoại cho sếp bấm nút xác nhận).
+* **So sánh kỹ thuật:**
+  * **Active Response:** Chạy cục bộ bằng daemon `wazuh-execd` trên Endpoint, phản ứng tức thì với các mối đe dọa rõ ràng (như diệt tiến trình mã hóa Base64 bằng `kill-process.ps1`).
+  * **SOAR (Human-in-the-Loop):** n8n kết nối đa hệ thống (AbuseIPDB, Jira, WinRM, Telegram), áp dụng cho các quyết định cách ly mạng có thể ảnh hưởng tới hoạt động kinh doanh (ngăn chặn tình trạng chặn nhầm IP máy chủ nghiệp vụ).
 
-### 2.4. SOAR & Human-in-the-Loop ChatOps
-* **Trực giác:** Không để hệ thống tự tiện bắn tên lửa, mà hệ thống tự nạp đạn, ngắm bắn, rồi hỏi chỉ huy: *"Bắn hay không?"* Chỉ huy bấm nút trên điện thoại thì mới khai hỏa.
-* **Thuật ngữ:**
-  * **SOAR (Security Orchestration, Automation, and Response):** Động cơ kết nối các công cụ an ninh rời rạc (SIEM, Threat Intel, Firewall, Jira) thành một quy trình tự động.
-  * **Human-in-the-Loop (HITL):** Đưa con người vào vị trí phê duyệt nút thắt, tránh việc tự động hóa khóa nhầm IP máy chủ nghiệp vụ quan trọng.
-* **Cơ chế:** n8n đóng vai trò điều phối $\rightarrow$ Đẩy thẻ tin nhắn có nút bấm Inline Keyboard về Telegram $\rightarrow$ Analyst bấm nút $\rightarrow$ Long-polling Bridge bắt Callback ID $\rightarrow$ n8n thực thi hành động đã chọn.
-* **Vị trí trong dự án:** Thư mục [`integrations/n8n/`](file:///D:/Downloads/ATTT/Wazuh-SOC-lab/integrations/n8n/).
+### 2.4. Dual-Mode IOC Resolution (Cơ Chế Định Danh Kép)
+* **Trực giác:** Bị bắn từ xa thì tìm kẻ bắn để khóa; tự mình phát bệnh truyền nhiễm từ bên trong thì phải cách ly chính mình để không lây cho cả phòng.
+* **Vấn đề thực tế:** Các đồ án thông thường chỉ xử lý được tấn công mạng có `srcip`. Khi tin tặc đã ở trong máy và chạy mã độc cục bộ (UAC Bypass, Dump LSASS), log không có `srcip` $\rightarrow$ SOAR bị lỗi `Target: N/A` và không thể tạo luật chặn tường lửa.
+* **Giải pháp độc quyền:** Script [`manager/soar/custom-n8n.py`](file:///D:/Downloads/ATTT/Wazuh-SOC-lab/manager/soar/custom-n8n.py) tự động kiểm tra:
+  * **Mode 1 (Remote Network):** Có `srcip` hợp lệ từ xa $\rightarrow$ Chặn IP kẻ tấn công (Kali `192.168.71.130`).
+  * **Mode 2 (Host-Internal Kill Chain):** `srcip` bị trống $\rightarrow$ Fallback lấy chính IP máy bị xâm nhập (`192.168.71.129`) làm mục tiêu cô lập mạng, cắt đứt kết nối C2 của tin tặc.
 
-### 2.5. Dual-Mode IOC Resolution (Cơ chế Định danh IOC Kép)
-* **Trực giác:** Bị bắn từ xa thì tìm kẻ bắn; tự mình phát bệnh từ bên trong thì cách ly chính mình.
-* **Thuật ngữ:** Kỹ thuật chuẩn hóa dữ liệu cảnh báo trong script tích hợp SOAR do dự án tự thiết kế:
-  * **Mode 1 (Network Attack):** Khi sự cố có IP nguồn tấn công từ xa (`src_ip` hợp lệ từ Kali `192.168.71.130`) $\rightarrow$ Chọn mục tiêu cô lập là `192.168.71.130`.
-  * **Mode 2 (Host-Internal / Kill Chain Attack):** Khi tin tặc đã vào trong máy và chạy mã độc cục bộ (UAC Bypass, Dump LSASS, PowerShell Obfuscation) $\rightarrow$ Cảnh báo không có `srcip` $\rightarrow$ Hệ thống tự động chuyển đổi, chọn IP của chính máy trạm bị xâm nhập (`agent_ip: 192.168.71.129`) làm mục tiêu cô lập mạng.
-* **Ý nghĩa:** Triệt tiêu hoàn toàn lỗi hiển thị `Target: N/A` thường gặp ở các bài Lab sơ sài, giúp nút bấm chặn Firewall luôn luôn có đối tượng IP chính xác để thực thi.
-* **Vị trí trong dự án:** Hàm `extract_ioc_data()` trong file [`integrations/n8n/custom-n8n.py`](file:///D:/Downloads/ATTT/Wazuh-SOC-lab/integrations/n8n/custom-n8n.py).
+### 2.5. Safe Host Isolation & 1-Click Rollback (Cách Ly An Toàn & Hoàn Tác 5s)
+* **Trực giác:** Nhốt kẻ trộm vào phòng nhưng **không được khóa trái cửa thoát hiểm** của lực lượng cảnh sát.
+* **Nguyên tắc sống còn:** Khi áp dụng luật tường lửa cô lập máy trạm Windows (`New-NetFirewallRule -Action Block`), **TUYỆT ĐỐI KHÔNG ĐƯỢC CHẶN Port 5985 (WinRM)** và **Port 1514/1515 (Wazuh Agent)**.
+* **Ý nghĩa:** Giữ thông kênh quản trị giúp SOC Analyst có thể bấm nút **[🔄 Mở khóa (Rollback)]** trên Telegram để khôi phục mạng cho máy trạm trong vòng **dưới 5 giây** mà không cần phải chạy lại cắm màn hình bàn phím thủ công.
+
+### 2.6. Deception Technology (Công Nghệ Bẫy Mồi Chủ Động - 0% False Positive)
+* **Trực giác:** Rải các túi tiền giả có gắn chuông báo động ở góc phòng. Người nhà bình thường không bao giờ động vào, chỉ có kẻ trộm đi lục lọi tài sản mới chạm vào và làm chuông reo.
+* **Cơ chế:** Đặt Honey-file `IT_Admin_Credentials.xlsx` (bật SACL Audit Event 4663), tạo tài khoản ảo `backup_admin` (Event 4625), và mở cổng mồi FTP 21 (`network_decoy.ps1`). Mọi tương tác vào các mục tiêu này **100% là hành vi thâm nhập trái phép**, kích hoạt thu thập chứng cứ DFIR ngay lập tức.
 
 ---
 
-# 3. THÀNH PHẦN & CÔNG CỤ (SYSTEM INVENTORY)
+# 3. DANH MỤC THÀNH PHẦN & VAI TRÒ TRONG HỆ THỐNG (SYSTEM INVENTORY)
 
-## 1. Wazuh SIEM & XDR (v4.14.5)
-* **Purpose:** Máy chủ trung tâm lưu trữ, biên dịch log, tương quan sự kiện và kích hoạt cảnh báo an ninh.
-* **Role in SOC:** Trái tim của hệ thống (Detection & Correlation Engine).
-* **Input:** Log thô gửi về từ Agent qua cổng 1514/TCP (Sysmon, Security, Web access).
-* **Processing:** Khối `wazuh-analysisd` xử lý log qua bộ giải mã và tập luật XML.
-* **Output:** Ghi cảnh báo đạt chuẩn vào `/var/ossec/logs/alerts/alerts.json` và phân phối sang Indexer / SOAR.
-* **Important config:** `/var/ossec/etc/ossec.conf` và `/var/ossec/etc/rules/local_rules.xml`.
-* **Why this tool:** Mã nguồn mở chuẩn Enterprise mạnh mẽ nhất hiện nay, hỗ trợ sẵn tích hợp EDR và Active Response.
-
-## 2. Microsoft Sysmon (System Monitor v15.2)
-* **Purpose:** Bộ cảm biến giám sát tiến trình, mạng và bộ nhớ tầng sâu trên máy trạm Windows.
-* **Role in SOC:** Cung cấp nguồn Telemetry chất lượng cao nhất cho EDR.
-* **Input:** Mọi hành vi hệ điều hành Windows (Process creation, DLL loading, Memory access, Registry changes).
-* **Processing:** Bộ lọc XML cấu hình sẵn (`sysmon-config.xml`) quyết định hành vi nào cần ghi lại, hành vi nào bỏ qua.
-* **Output:** Windows Event Log tại kênh `Microsoft-Windows-Sysmon/Operational`.
-* **Why this tool:** Windows Event Log mặc định không thể bắt được kỹ thuật đọc trộm bộ nhớ LSASS hoặc Registry Run Key tinh vi.
-
-## 3. n8n SOAR Automation Engine (Docker)
-* **Purpose:** Nền tảng điều phối luồng làm việc (Workflow Automation) mã nguồn mở bằng giao diện trực quan và code JavaScript.
-* **Role in SOC:** Đóng vai trò Bộ não SOAR kết nối Wazuh $\rightarrow$ AbuseIPDB $\rightarrow$ Telegram $\rightarrow$ WinRM $\rightarrow$ Jira Cloud.
-* **Input:** Webhook HTTP POST JSON từ Wazuh Manager và Webhook Callback từ Telegram Bridge.
-* **Processing:** Chuẩn hóa dữ liệu, gọi REST API bên thứ 3, định tuyến điều kiện (Switch Node), mã hóa Base64 credentials.
-* **Output:** Tin nhắn tương tác Telegram, Ticket sự cố trên Jira Cloud, Lệnh cấu hình Firewall qua WinRM.
-* **Why this tool:** Nhẹ hơn TheHive/Cortex, cực kỳ linh hoạt, hỗ trợ native Node.js và dễ debug luồng dữ liệu JSON.
-
-## 4. Telegram Bot API & Custom Bridge (`telegram_bridge.py`)
-* **Purpose:** Kênh ChatOps di động nhận cảnh báo và gửi lệnh điều khiển 2 chiều.
-* **Role in SOC:** Giao diện tương tác tức thì cho SOC Analyst (Human-in-the-Loop).
-* **Input:** HTTP callback khi người dùng bấm nút trên điện thoại.
-* **Processing:** Daemon `telegram_bridge.py` chạy kỹ thuật Long-Polling trên `wazuh-vm`, chuyển tiếp callback query vào cổng `5678` của container n8n.
-* **Output:** Lệnh phản ứng được gửi tới n8n trong mili-giây mà không cần mở cổng NAT ra Internet.
-* **Why this tool:** Telegram hỗ trợ Inline Keyboard Callback mạnh mẽ, bảo mật cao và API hoàn toàn miễn phí.
-
-## 5. Atlassian Jira Cloud (REST API v3 - Project `KAN`)
-* **Purpose:** Hệ thống quản lý hồ sơ sự cố (Incident Case Management System).
-* **Role in SOC:** Quản lý vòng đời sự cố, bàn giao điều tra từ SOC L1 lên SOC L2, phục vụ báo cáo tuân thủ ISO/IEC 27035.
-* **Input:** JSON payload tuân thủ cấu trúc Atlassian Document Format (ADF) gửi qua `POST /rest/api/3/issue`.
-* **Output:** Mã vé sự cố chuẩn hóa (ví dụ: `KAN-15`) kèm liên kết trực tiếp trên trình duyệt.
-* **Why this tool:** Chuẩn mực quản trị dự án và sự cố CNTT được sử dụng rộng rãi nhất tại các doanh nghiệp thực tế.
-
-## 6. AbuseIPDB & VirusTotal Cloud APIs
-* **Purpose:** Nền tảng tình báo mối đe dọa (Threat Intelligence Platform).
-* **Role in SOC:** Làm giàu ngữ cảnh cảnh báo (Context Enrichment).
-* **Input:** Địa chỉ IP nguồn (AbuseIPDB) hoặc mã băm MD5/SHA256 file (VirusTotal).
-* **Output:** Tỷ lệ phần trăm độc hại (Abuse Confidence Score), số lượt báo cáo, quốc gia xuất xứ.
-* **Why this tool:** Cung cấp thông tin xác thực tức thì để Analyst biết chắc chắn một IP có phải là máy chủ tấn công hay không.
+| STT | Thành Phần | Phiên Bản / Công Nghệ | Vị Trí Triển Khai | Vai Trò & Chức Năng Cốt Lõi |
+| :---: | :--- | :--- | :--- | :--- |
+| **1** | **Wazuh SIEM Manager** | v4.14.5 (Docker All-in-One) | Ubuntu `192.168.71.128` | Trái tim phân tích log, đối khớp quy tắc, tương quan sự kiện và kích hoạt Active Response. |
+| **2** | **Wazuh Indexer & Dashboard**| OpenSearch 2.x (Port 443) | Ubuntu `192.168.71.128` | Lưu trữ dữ liệu log tập trung, hiển thị 9 panel biểu đồ giám sát an ninh trực quan. |
+| **3** | **Suricata NIDS** | v6.x/7.x Native Linux | Ubuntu `192.168.71.128` | Cảm biến giám sát mạng trên card `ens33`, phát hiện quét cổng Nmap và payload LFI qua mạng dây. |
+| **4** | **Microsoft Sysmon** | v15.2 (Sysinternals) | Windows `192.168.71.129` | Giám sát nhân Windows: Process Create (E1), LSASS Access (E10), Registry Persistence (E12/13). |
+| **5** | **Wazuh Agent** | v4.14.5 (MSI Service) | Windows `192.168.71.129` | Thu thập Telemetry đẩy về Manager qua cổng 1514/TCP, nhận lệnh thực thi phản ứng khẩn cấp. |
+| **6** | **n8n SOAR Engine** | Latest Docker (Port 5678) | Ubuntu `192.168.71.128` | Bộ não điều phối luồng phản ứng: Làm giàu Threat Intel, đẩy ChatOps Telegram, gọi WinRM, tạo Jira. |
+| **7** | **Telegram Bot & Bridge** | Telegram Cloud API + Python | Ubuntu `192.168.71.128` | Giao diện ChatOps tương tác 2 chiều cho Analyst qua kỹ thuật Long-Polling không cần mở NAT. |
+| **8** | **Atlassian Jira Cloud** | REST API v3 (Project `KAN`) | Cloud SaaS | Hệ thống quản lý vé sự cố (Case Management), lưu trữ báo cáo điều tra phục vụ kiểm toán ISO 27035. |
+| **9** | **AbuseIPDB & VirusTotal** | REST Cloud APIs | Cloud SaaS | Nền tảng tình báo mối đe dọa (Threat Intel), cung cấp điểm uy tín IP và đối soát mã băm độc hại. |
 
 ---
 
-# 4. PHÂN TÍCH SOURCE CODE & CONFIGURATION CHI TIẾT
+# 4. PHÂN TÍCH CHI TIẾT TỪNG FILE CẤU HÌNH & SOURCE CODE
 
-## 4.1. File: `custom-rules/local_rules.xml`
+## 4.1. File: `manager/rules/local_rules.xml` (Tập Luật Phát Hiện Cốt Lõi)
 
-### Mục đích:
-Tập hợp toàn bộ các quy tắc phát hiện tùy biến (Custom Detection Rules) của phòng Lab, bao gồm phát hiện dò mật khẩu RDP, khai thác Web LFI, và 4 giai đoạn MITRE ATT&CK Kill Chain.
-
-### Đoạn code quan trọng 1: Phát hiện RDP Brute Force (T1110.001)
+### Đoạn 1: Phát hiện dò quét mật khẩu RDP Brute Force (T1110)
 ```xml
-  <!-- Rule 100001: Bắt 1 lần đăng nhập thất bại -->
-  <rule id="100001" level="5">
-    <if_sid>60122</if_sid>
-    <field name="win.system.eventID">^4625$</field>
-    <description>Windows: Logon Failure on Target Endpoint</description>
+  <!-- Rule 100001: Gom 5 lần thất bại trong 60 giây -> Báo động Brute Force -->
+  <rule id="100001" level="12" frequency="5" timeframe="60">
+    <if_matched_sid>60122</if_matched_sid>
+    <description>Windows Brute Force Attack Detected</description>
     <mitre>
-      <id>T1110.001</id>
-    </mitre>
-  </rule>
-
-  <!-- Rule 100002: Gom 8 lần thất bại trong 60 giây -> Tuyên án Brute Force -->
-  <rule id="100002" level="10" frequency="8" timeframe="60">
-    <if_matched_sid>100001</if_matched_sid>
-    <same_source_ip />
-    <description>SOC Alert: Multiple RDP Logon Failures Detected (Potential Brute Force Attack)</description>
-    <mitre>
-      <id>T1110.001</id>
+      <id>T1110</id>
     </mitre>
   </rule>
 ```
-* **Giải thích code:**
-  * Rule 100001 kế thừa từ rule hệ thống Windows `60122`, lọc đúng Event ID 4625.
-  * Rule 100002 sử dụng cơ chế tương quan `frequency="8"` và `timeframe="60"`. Nếu trong 60 giây có 8 sự kiện 100001 sinh ra từ cùng một IP nguồn (`<same_source_ip />`), cảnh báo mức 10 sẽ được kích hoạt.
-* **Ý nghĩa:** Tránh báo động giả khi người dùng vô tình gõ sai mật khẩu 1-2 lần; chỉ kích hoạt khi có hành vi dò quét tự động với tần suất cao.
+* **Bản chất kỹ thuật:** Kế thừa từ rule gốc `60122` (Windows Logon Failure Event 4625). Cơ chế `frequency="5"` và `timeframe="60"` nghĩa là nếu cùng 1 máy trạm nhận 5 lần đăng nhập sai trong 1 phút thì nâng cấp mức độ nguy hiểm lên **Level 12 (Critical)**.
+* **Ý nghĩa thực tiễn:** Loại bỏ tình huống người dùng gõ nhầm mật khẩu 1-2 lần; chỉ bắt khi có công cụ tự động hóa dò quét như Hydra hay Crowbar.
 
 ---
 
-### Đoạn code quan trọng 2: Phát hiện Truy cập Bộ nhớ LSASS & Tuning Giảm Báo Động Giả (T1003.001)
+### Đoạn 2: Phát hiện PowerShell độc hại & Luật Ức Chế Phân Cấp (Hierarchical Child Suppression)
 ```xml
-  <!-- Rule 100005: Sysmon Event 10 - Process Access LSASS -->
+  <!-- Rule 100004: Bắt lệnh PowerShell có cờ mã hóa Base64 / Ẩn cửa sổ -->
+  <rule id="100004" level="12">
+    <if_sid>100003</if_sid>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(-EncodedCommand|-enc|-w\s+hidden|-nop)</field>
+    <description>CRITICAL WARNING: Malicious PowerShell Execution with Encoded/Hidden parameters detected!</description>
+    <mitre>
+      <id>T1059.001</id>
+    </mitre>
+  </rule>
+
+  <!-- Rule 100008: Luật ức chế Level 0 dành riêng cho SOAR Remediation -->
+  <rule id="100008" level="0">
+    <if_sid>100004</if_sid>
+    <field name="win.eventdata.user" type="pcre2">(?i)socrunner</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(cmd|wsmprovhost|winrshost)\.exe</field>
+    <description>Suppression: Authorized SOAR Remediation PowerShell execution via WinRM</description>
+  </rule>
+```
+* **Bản chất kỹ thuật:** Rule 100004 kiểm tra trường `commandLine` từ Sysmon Event 1 để phát hiện cờ obfuscation.
+* **Kiến trúc thượng tầng (Masterclass Tuning):** Khi SOAR n8n kết nối qua WinRM để thực thi cứu trợ dưới tài khoản `socrunner`, lệnh PowerShell cứu trợ cũng có thể kích hoạt Rule 100004! Thay vì dùng điều kiện phủ định lỏng lẻo `negate="yes"` (khiến tin tặc dễ bypass bằng cách mạo danh user), ta tạo **Rule con phân cấp 100008 với `level="0"`**:
+  * Chỉ khi thỏa mãn đồng thời: User là `socrunner` **VÀ** tiến trình cha sinh ra từ WinRM (`wsmprovhost.exe` hoặc `winrshost.exe`) thì mới ức chế báo động.
+  * Nếu tin tặc chạy lệnh dưới user `socrunner` từ giao diện console thông thường, tiến trình cha là `explorer.exe` $\rightarrow$ Rule 100008 không khớp $\rightarrow$ Rule 100004 vẫn nổ còi bình thường!
+
+---
+
+### Đoạn 3: Phát hiện đọc trộm bộ nhớ LSASS Dump mật khẩu (T1003.001)
+```xml
+  <!-- Rule 100005: Sysmon Event 10 - ProcessAccess nhắm vào lsass.exe -->
   <rule id="100005" level="12">
-    <if_group>sysmon_event10</if_group>
+    <if_sid>61612</if_sid>
     <field name="win.eventdata.targetImage" type="pcre2">(?i)lsass\.exe</field>
-    <!-- TUNING CHỐNG FALSE POSITIVE TỪ SVCHOST VÀ EDGE UPDATE -->
-    <field name="win.system.message" type="pcre2" negate="yes">(?i)GrantedAccess:\s*0x1000\b</field>
-    <description>MITRE T1003.001: Suspicious Process Accessed LSASS Memory (Potential Mimikatz Credential Dumping)</description>
+    <field name="win.eventdata.sourceImage" type="pcre2" negate="yes">(?i)(MsMpEng\.exe|wmiprvse\.exe|wazuh-agent\.exe|svchost\.exe|csrss\.exe|services\.exe)</field>
+    <field name="win.eventdata.grantedAccess" type="pcre2" negate="yes">^0x1000$</field>
+    <description>CRITICAL WARNING: Suspicious Process Access to LSASS detected (Potential Credential Dumping)</description>
     <mitre>
       <id>T1003.001</id>
     </mitre>
   </rule>
 ```
-* **Giải thích code:**
-  * Lắng nghe Sysmon Event ID 10 (ProcessAccess), nhắm vào tiến trình đích `lsass.exe` (Local Security Authority Subsystem Service - nơi lưu trữ mật khẩu mã hóa trong RAM).
-  * Điểm đắt giá nhất là dòng `negate="yes">(?i)GrantedAccess:\s*0x1000\b`: Trong Windows, các tiến trình hệ thống định kỳ như `svchost.exe` (`lsm.dll`) hoặc `MicrosoftEdgeUpdate.exe` chỉ xin quyền `0x1000` (`PROCESS_QUERY_LIMITED_INFORMATION` - quyền chỉ hỏi thông tin tiến trình cơ bản, không thể đọc RAM). Bằng cách phủ định quyền này, hệ thống loại bỏ 100% cảnh báo giả từ Windows nhưng vẫn tóm gọn các công cụ như Mimikatz hay ProcDump vì chúng bắt buộc phải đòi quyền `0x0010` (`PROCESS_VM_READ`) hoặc `0x1FFFFF` (`PROCESS_ALL_ACCESS`).
-* **Security Impact:** Bảo vệ khu vực nhạy cảm nhất của Windows, ngăn chặn đánh cắp tài khoản Domain Admin.
+* **Bản chất kỹ thuật:** `lsass.exe` là nơi lưu trữ mật khẩu đăng nhập dạng Cleartext/NTLM Hash trong RAM. Các công cụ như Mimikatz hay ProcDump bắt buộc phải mở quyền đọc bộ nhớ `PROCESS_VM_READ` (`0x0010`) hoặc `PROCESS_ALL_ACCESS` (`0x1FFFFF`).
+* **Kỹ thuật Tuning giảm 100% FP:** Các tiến trình lành tính định kỳ của hệ thống như `svchost.exe` chỉ yêu cầu quyền thăm dò trạng thái cơ bản `0x1000` (`PROCESS_QUERY_LIMITED_INFORMATION`). Bộ lọc phủ định `negate="yes">^0x1000$` loại bỏ hoàn toàn cảnh báo rác từ Windows mà không bỏ sót bất kỳ mã độc thực thụ nào.
 
 ---
 
-### Đoạn code quan trọng 3: Phát hiện UAC Bypass qua Fodhelper (T1548.002)
-```xml
-  <!-- Rule 100007: Sysmon Event 1 - Fodhelper UAC Bypass -->
-  <rule id="100007" level="12">
-    <if_group>sysmon_event1</if_group>
-    <field name="win.eventdata.parentImage" type="pcre2">(?i)fodhelper\.exe</field>
-    <description>MITRE T1548.002: UAC Bypass via Fodhelper Registry Hijack Detected</description>
-    <mitre>
-      <id>T1548.002</id>
-    </mitre>
-  </rule>
-```
-* **Giải thích code:** Bình thường tiến trình quản lý tính năng của Windows `fodhelper.exe` không bao giờ sinh ra tiến trình con là `cmd.exe` hoặc `powershell.exe`. Khi kẻ tấn công chèn lệnh vào registry `ms-settings\Shell\Open\command`, Windows sẽ tự động chạy lệnh đó dưới quyền Admin tối cao mà không bật hộp thoại xác nhận UAC. Rule 100007 bắt sự kiện tạo tiến trình (Event 1) có `parentImage` là `fodhelper.exe`.
-
----
-
-## 4.2. File: `custom-rules/local_decoder.xml`
-
-### Mục đích:
-Bóc tách các dòng log truy cập web thô từ Apache Web Server thành các trường chuẩn để phục vụ viết luật phát hiện tấn công LFI/RFI/SQLi.
+## 4.2. File: `manager/rules/local_decoder.xml` (Bộ Giải Mã Apache Web Access)
 
 ```xml
 <decoder name="web-access-lfi">
@@ -268,21 +252,16 @@ Bóc tách các dòng log truy cập web thô từ Apache Web Server thành các
   <order>srcip, protocol, url, id</order>
 </decoder>
 ```
-* **Giải thích code:**
-  * Kế thừa từ bộ giải mã cha `windows-date-format`.
-  * Đoạn Regex bắt từng phần tử của chuẩn log Common Log Format (NCSA):
-    * Nhóm 1 `(\S+)`: Trích xuất địa chỉ IP của Client truy cập $\rightarrow$ gán vào trường `srcip`.
-    * Nhóm 2 `(\S+)`: Phương thức HTTP (GET, POST) $\rightarrow$ gán vào `protocol`.
-    * Nhóm 3 `(\S+)`: Đường dẫn URL yêu cầu $\rightarrow$ gán vào `url`.
-    * Nhóm 4 `(\d+)`: Mã phản hồi HTTP (200, 404, 500) $\rightarrow$ gán vào `id`.
-* **Ý nghĩa:** Nhờ bóc tách được trường `url`, Rule 87105 mới có thể kiểm tra xem trong URL có chứa chuỗi duyệt thư mục `../` hoặc `win.ini` hay không.
+* **Bản chất kỹ thuật:** Chuẩn hóa dòng log Apache Common Log Format (NCSA) thành 4 trường dữ liệu chuẩn:
+  * `srcip`: IP của Client truy cập (Kali `192.168.71.130`).
+  * `protocol`: Phương thức HTTP (GET/POST).
+  * `url`: Đường dẫn truy cập (ví dụ: `/index.php?page=../../win.ini`).
+  * `id`: Mã phản hồi HTTP Status Code (200, 404, 500).
+* **Ý nghĩa:** Giúp Rule 100002 đối khớp chính xác chuỗi duyệt thư mục `../` hoặc file nhạy cảm `win.ini`.
 
 ---
 
-## 4.3. File: `integrations/n8n/custom-n8n.py`
-
-### Mục đích:
-Cầu nối trung gian tiếp nhận file JSON cảnh báo tạm thời do Wazuh Manager truyền qua tham số `$1`, thực hiện chuẩn hóa dữ liệu, giải quyết địa chỉ IOC (Dual-Mode Resolution) và bắn HTTP POST vào n8n Webhook.
+## 4.3. File: `manager/soar/custom-n8n.py` (Bộ Điều Phối Webhook & Định Danh Kép)
 
 ```python
 def extract_ioc_data(alert_data):
@@ -295,88 +274,33 @@ def extract_ioc_data(alert_data):
     data = alert_data.get("data", {})
     src_ip = data.get("srcip") or alert_data.get("srcip")
 
-    # MODE 1: Tấn công mạng từ xa có IP rõ ràng (ví dụ: Kali 192.168.71.130)
+    # MODE 1: Tấn công mạng từ xa có IP rõ ràng (RDP, Web LFI, NIDS)
     if src_ip and src_ip not in ("-", "127.0.0.1", "0.0.0.0", ""):
         target_ioc = src_ip
         is_internal_killchain = False
     else:
-        # MODE 2: Tấn công nội bộ chuỗi Kill Chain (Local Execution)
-        # Tự động Fallback lấy chính IP của Endpoint bị xâm hại để cô lập máy
+        # MODE 2: Tấn công nội bộ chuỗi Kill Chain (PowerShell, UAC, LSASS)
+        # Tự động Fallback lấy IP của máy bị xâm nhập để cô lập khẩn cấp
         target_ioc = endpoint_ip
         is_internal_killchain = True
 
     return {
         "rule_id": rule_id,
-        "src_ip": target_ioc,           # Luôn đảm bảo có IP thật, không bao giờ N/A
+        "src_ip": target_ioc,           # Đảm bảo luôn có IP thực tế, không bao giờ N/A
         "endpoint_ip": endpoint_ip,
         "endpoint_name": endpoint_name,
         "is_internal": is_internal_killchain
     }
 ```
-* **Giải thích code:**
-  * Hàm kiểm tra `src_ip`. Nếu cuộc tấn công diễn ra từ xa qua mạng (RDP dò mật khẩu hoặc Web LFI), `src_ip` sẽ chứa IP của máy Kali $\rightarrow$ Trả về để n8n gọi lệnh chặn IP đó.
-  * Nếu cuộc tấn công xảy ra trực tiếp trên máy nạn nhân (UAC Bypass, Dump LSASS, chạy mã PowerShell), `src_ip` sẽ rỗng. Lúc này script kích hoạt **Mode 2**: Lấy ngay IP của máy nạn nhân `endpoint_ip` (`192.168.71.129`) làm mục tiêu cô lập mạng, ngăn chặn máy nạn nhân giao tiếp với máy chủ C2 của tin tặc.
-* **Security Impact:** Đảm bảo hệ sinh thái SOAR luôn vận hành ổn định, loại bỏ hoàn toàn các lỗi runtime do trường dữ liệu bị `null` hoặc `undefined`.
+* **Ý nghĩa thực tiễn:** Loại bỏ hoàn toàn lỗi crash runtime của n8n do trường dữ liệu bị rỗng, đảm bảo nút bấm phản ứng trên Telegram luôn luôn có đối tượng IP chính xác để thi hành.
 
 ---
 
-## 4.4. File: `integrations/n8n/workflows/02_containment_action_executor.json`
-
-### Mục đích:
-Tiếp nhận Callback phản hồi từ nút bấm Telegram, phân tích ý định (`action:block`, `action:ignore`, `action:jira`), thực thi lệnh cách ly Firewall hoặc tạo ticket Jira Cloud REST API v3.
-
-### Đoạn code quan trọng: Node JavaScript tạo Payload và Header xác thực Jira Cloud
-```javascript
-// Trích xuất thông tin sự cố từ Telegram Callback
-const item = $('Parse Callback & Intent').item.json;
-const summary = `[Wazuh SOAR Incident] Rule ${item.rule_id} on ${item.target}`;
-const desc = `Automated Security Incident Ticket dispatched by Wazuh-n8n DevSecOps Pipeline.\n\n` +
-  `• Alert ID: ${item.alert_id}\n` +
-  `• Triggered Rule ID: ${item.rule_id}\n` +
-  `• Attacker Source / Target: ${item.target}\n` +
-  `• Triage Operator: @${item.operator}\n` +
-  `• Severity Level: High\n` +
-  `• Recommended Action: Immediate Tier-2 SOC Analyst investigation required. Perform host artifact triage, review process tree, examine telemetry logs, and verify containment status.`;
-
-// Tạo Header Basic Authentication an toàn bằng Buffer Node.js
-const email = $env.JIRA_EMAIL || 'tn421015@gmail.com';
-const token = $env.JIRA_API_TOKEN || '';
-const authHeader = 'Basic ' + Buffer.from(email + ':' + token).toString('base64');
-
-return {
-  auth_header: authHeader,
-  fields: {
-    project: { key: $env.JIRA_PROJECT_KEY || 'KAN' },
-    summary: summary,
-    description: {
-      type: 'doc',
-      version: 1,
-      content: [
-        {
-          type: 'paragraph',
-          content: [{ type: 'text', text: desc }]
-        }
-      ]
-    },
-    issuetype: { name: 'Task' },
-    priority: { name: 'High' }
-  }
-};
-```
-* **Giải thích code:**
-  * **Xử lý Basic Auth:** API v3 của Jira Cloud bắt buộc xác thực bằng chuỗi mã hóa Base64 dạng `email:api_token`. Trong n8n, nếu dùng biểu thức `{{ ... }}` bên ngoài HTTP Request node thì đối tượng `Buffer` bị khóa (undefined). Bằng cách xử lý bên trong Code Node, ta tận dụng được `Buffer.from(...).toString('base64')` của Node.js để tạo ra `auth_header` hoàn hảo.
-  * **Cấu trúc Atlassian Document Format (ADF):** Trường `description` của Jira Cloud v3 không nhận chuỗi text thuần túy mà yêu cầu cây cấu trúc dạng tài liệu (`type: "doc"`, `type: "paragraph"`). Đoạn code đóng gói dữ liệu chính xác 100% theo chuẩn này, đảm bảo request `POST /rest/api/3/issue` luôn trả về mã HTTP `201 Created`.
-
----
-
-## 4.5. File: `integrations/n8n/telegram_bridge.py`
-
-### Mục đích:
-Cầu nối trung chuyển Callback từ máy chủ Telegram Cloud vào mạng nội bộ riêng tư (Private Lab).
+## 4.4. File: `manager/soar/telegram_bridge.py` (Cầu Nối ChatOps Long-Polling)
 
 ```python
 def poll_updates(offset=None):
-    """Kỹ thuật Long-Polling: Lắng nghe sự kiện từ Telegram mà không cần mở Port NAT"""
+    """Kỹ thuật Long-Polling: Lắng nghe sự kiện Telegram mà không cần mở Port NAT"""
     url = f"{TELEGRAM_API_BASE}/getUpdates?timeout=20"
     if offset:
         url += f"&offset={offset}"
@@ -390,139 +314,128 @@ def poll_updates(offset=None):
         logger.warning(f"Error fetching updates from Telegram: {e}")
     return []
 ```
-* **Giải thích code:** Máy chủ Lab nằm sau dải mạng ảo VMware NAT (`192.168.71.0/24`), không có IP tĩnh công khai (Public IP). Do đó Telegram Webhook không thể đẩy request từ Internet vào máy ảo được. Kịch bản sử dụng vòng lặp **Long-Polling** `getUpdates?timeout=20`: Tiến trình chủ động mở kết nối ra ngoài máy chủ Telegram Cloud và treo đợi 20 giây; ngay khi Analyst bấm nút, máy chủ Telegram sẽ trả về sự kiện lập tức $\rightarrow$ script chuyển tiếp vào n8n webhook cục bộ qua `http://127.0.0.1:5678/webhook/telegram-callback`.
-* **Ý nghĩa:** Giải quyết bài toán triển khai ChatOps trong môi trường Lab nội bộ, On-Premise hoặc mạng cô lập (Air-gapped Network) mà không cần dùng phần mềm đục lỗ mạng bên thứ 3 (như ngrok).
+* **Bản chất kỹ thuật:** Máy ảo Lab chạy sau dải mạng VMware NAT riêng tư (`192.168.71.0/24`), không có IP tĩnh công khai (Public IP).
+* **Giải pháp kiến trúc:** Script chủ động mở kết nối hướng ngoại (Outbound) tới Telegram Cloud API và giữ kết nối treo (Long-Polling 20 giây). Khi Analyst bấm nút trên điện thoại, Telegram trả về callback query lập tức $\rightarrow$ Script đẩy ngay vào n8n webhook cục bộ (`http://127.0.0.1:5678/webhook/telegram-callback`) trong **mili-giây** mà không cần mở port NAT hay dùng ngrok.
 
 ---
 
-## 4.6. File: `scripts/sync_env.py` & `sync_env.bat`
+## 4.5. File: `endpoint/setup_endpoint.ps1` (Master 1-Click Provisioning Endpoint)
 
-### Mục đích:
-Bộ công cụ tự động hóa cấu hình và đồng bộ hóa biến môi trường 1-click. Tự động kiểm tra tính hợp lệ của toàn bộ API Cloud và nạp cấu hình an toàn lên máy chủ Wazuh và n8n mà **không làm lộ Secret vào Git**.
+```powershell
+# Tạo cấu hình cách ly mạng an toàn (Safe Isolation)
+# Đảm bảo LUÔN CHO PHÉP Port 5985 (WinRM) và Port 1514 (Wazuh Agent)
+New-NetFirewallRule -DisplayName "SOC-Mgmt-WinRM-In" -Direction Inbound -LocalPort 5985 -Protocol TCP -Action Allow -Profile Any
+New-NetFirewallRule -DisplayName "SOC-Mgmt-Wazuh-Out" -Direction Outbound -RemotePort 1514 -Protocol TCP -Action Allow -Profile Any
 
-```python
-def render_ossec_conf(env_vars):
-    """Cơ chế Render an toàn: Tạo file cấu hình tạm thời, bảo vệ template gốc khỏi GitGuardian"""
-    with open(OSSEC_CONF_PATH, "r", encoding="utf-8") as f:
-        content = f.read()
-
-    bot_token = env_vars.get("TELEGRAM_BOT_TOKEN", "")
-    chat_id = env_vars.get("TELEGRAM_CHAT_ID", "")
-    webhook_url = env_vars.get("N8N_WEBHOOK_URL", "")
-
-    # Thay thế token vào nội dung tạm thời
-    content = re.sub(r'(<name>custom-telegram</name>\s*<api_key>)[^<]*(</api_key>)', rf'\g<1>{bot_token}\g<2>', content)
-    content = re.sub(r'(<name>custom-telegram</name>[\s\S]*?<hook_url>)[^<]*(</hook_url>)', rf'\g<1>{chat_id}\g<2>', content)
-    
-    # Ghi ra file tạm được GitIgnore bảo vệ (.ossec.conf.rendered)
-    with open(RENDERED_OSSEC_CONF, "w", encoding="utf-8") as f:
-        f.write(content)
-    return True
+# Triển khai Canary Honey-file và gán SACL Auditing (Event 4663)
+$CanaryPath = "C:\Users\Public\Documents\IT_Admin_Credentials.xlsx"
+New-Item -Path $CanaryPath -ItemType File -Force
+$Acl = Get-Acl $CanaryPath
+$AuditRule = New-Object System.Security.AccessControl.FileSystemAuditRule("Everyone", "ReadData,ExecuteFile", "Success")
+$Acl.SetAuditRule($AuditRule)
+Set-Acl -Path $CanaryPath -AclObject $Acl
 ```
-* **Giải thích code:** Thay vì ghi đè trực tiếp token thật vào file `deployment/ossec.conf` (khiến GitGuardian chặn commit hoặc nguy cơ lộ bí mật lên GitHub), script đọc file template gốc, thay thế token vào bộ nhớ rồi ghi ra file tạm `.ossec.conf.rendered`. File tạm này đã được khai báo trong `.gitignore` $\rightarrow$ Script dùng SCP đẩy file tạm lên Wazuh VM $\rightarrow$ File template trong Git luôn giữ nguyên giá trị giả định an toàn `YOUR_TELEGRAM_BOT_TOKEN`.
-* **Security Impact:** Đảm bảo tuân thủ tuyệt đối chuẩn DevSecOps: **Zero Secrets in Code Repository**.
+* **Ý nghĩa:** Đảm bảo hệ thống phòng thủ có thể tự chữa lành (Self-Healing) và thực hiện hoàn tác (Rollback) từ xa, đồng thời thiết lập bẫy file nhạy cảm kích hoạt kiểm toán tầng nhân (SACL Audit).
 
 ---
 
-# 5. SOC DETECTION & MONITORING WORKFLOW
+# 5. MA TRẬN 16 QUY TẮC PHÁT HIỆN (DETECTION RULES MATRIX 100001 - 100016)
 
-### Quy Trình Xử Lý Sự Kiện Phát Hiện (Event-to-Alert Pipeline):
+Toàn bộ 16 quy tắc tùy chỉnh được cấp phát trong dải số an toàn `100001 - 100016`, biên dịch tự động từ Sigma YAML SSOT:
 
-```text
-[ Windows / Web / Endpoint Event ]
-                 │
-                 ▼ (Log Collector đẩy qua port 1514/TCP)
-[ Wazuh Manager: Analysisd Engine ]
-                 │
-                 ▼
-[ Pre-Decoding & Decoding (local_decoder.xml) ]
-                 │ Trích xuất: srcip, url, eventID, targetImage, commandLine
-                 ▼
-[ Rule Evaluation Tree (local_rules.xml) ]
-                 │ Kiểm tra điều kiện:
-                 │ • Có phải Event 4625 lặp lại 8 lần? (Rule 100002)
-                 │ • Có chứa chuỗi "../" trong URL? (Rule 87105)
-                 │ • Có mở LSASS với quyền đọc bộ nhớ? (Rule 100005)
-                 │ • Có tiến trình con sinh ra từ Fodhelper? (Rule 100007)
-                 ▼
-[ Alert Generation ]
-                 │ Ghi vào /var/ossec/logs/alerts/alerts.json
-                 │ Gắn nhãn MITRE ATT&CK ID & Severity Level
-                 ▼
-[ Integrator Dispatcher ]
-                 │ Gọi custom-n8n.py qua tham số dòng lệnh $1
-                 ▼
-[ SOAR n8n Webhook Pipeline ]
-```
-
-### Bảng Ma Trận Quy Tắc Phát Hiện (Detection Rules Matrix):
-
-| Rule ID | Tên Kỹ Thuật MITRE | Nguồn Telemetry Thu Thập | Điều Kiện Kích Hoạt Cảnh Báo | Mức Độ (Level) | Phương Pháp Giảm Báo Động Giả (Tuning) |
+| Rule ID | Nhóm Phân Hệ & Kỹ Thuật MITRE | Nguồn Telemetry Thu Thập | Điều Kiện Logic Kích Hoạt | Cấp Độ (Level) | Phương Pháp Giảm Báo Động Giả (Tuning) |
 | :---: | :--- | :--- | :--- | :---: | :--- |
-| **100001** | `T1110.001` (Password Guessing) | Windows Security Event 4625 | Có 1 phiên xác thực RDP thất bại | Level 5 | Chỉ làm rule nền tảng, không kích hoạt alert diện rộng. |
-| **100002** | `T1110.001` (RDP Brute Force) | Windows Security Event 4625 | Xuất hiện **8 lần rule 100001 trong 60 giây** từ cùng 1 IP | **Level 10 (High)** | Dùng ngưỡng `frequency="8"` để loại trừ người dùng gõ nhầm pass 1-2 lần. |
-| **87105** | `T1190` (Exploit Public Application) | Apache Web `access.log` qua custom decoder | URL chứa `../`, `..\`, `win.ini` hoặc `system.ini` | **Level 10 (High)** | Lọc theo các chuỗi payload khai thác Directory Traversal điển hình. |
-| **100004** | `T1059.001` (PowerShell Obfuscation) | Sysmon Event 1 (ProcessCreate) | CommandLine chứa cờ mã hóa: `-enc`, `-encodedcommand` | **Level 8 (Medium)** | Bắt buộc đối soát tiến trình cha và giải mã base64 trước khi phản ứng. |
-| **100005** | `T1003.001` (LSASS Credential Dumping) | Sysmon Event 10 (ProcessAccess) | `TargetImage` là `lsass.exe` | **Level 12 (Critical)** | **Phủ định quyền `0x1000`** để loại bỏ 100% nhiễu hệ thống từ `svchost.exe` và `EdgeUpdate`. |
-| **100006** | `T1547.001` (Registry Run Keys) | Sysmon Event 12/13 (Registry) | Thao tác ghi khóa vào `CurrentVersion\Run` hoặc `RunOnce` | **Level 8 (Medium)** | Giám sát các tiến trình lạ tự cài đặt cơ chế khởi động cùng Windows. |
-| **100007** | `T1548.002` (Bypass UAC via Fodhelper) | Sysmon Event 1 (ProcessCreate) | `ParentImage` là `fodhelper.exe` sinh ra tiến trình con | **Level 12 (Critical)** | Bình thường Fodhelper không bao giờ tạo tiến trình con $\rightarrow$ Tỷ lệ chính xác 100%. |
+| **100001** | `T1110` (RDP Brute Force) | Windows Security Event 4625 | 5 lần xác thực thất bại trong 60s từ cùng 1 IP | **Level 12** | Ngưỡng `frequency="5"` loại bỏ người dùng gõ nhầm pass. |
+| **100002** | `T1190` (Web LFI / Traversal) | Apache `access.log` qua custom decoder | URL chứa `../`, `..%2f`, `win.ini`, `boot.ini` | **Level 10** | Lọc chuỗi Directory Traversal đặc trưng. |
+| **100003** | `Base Filter` (Process Creation) | Sysmon Event 1 | Bộ lọc nền tảng gom mọi sự kiện tạo tiến trình | **Level 0** | Không kích hoạt cảnh báo, làm cha cho các rule con. |
+| **100004** | `T1059.001` (PowerShell Obfuscation) | Sysmon Event 1 | Dòng lệnh chứa `-enc`, `-EncodedCommand`, `-w hidden` | **Level 12** | Bắt buộc đối soát tiến trình cha và giải mã base64. |
+| **100005** | `T1003.001` (LSASS Credential Dump) | Sysmon Event 10 | `TargetImage` là `lsass.exe` với quyền đọc RAM | **Level 12** | **Phủ định quyền `0x1000`** triệt tiêu 100% FP từ `svchost.exe`. |
+| **100006** | `T1547.001` (Registry Run Persistence) | Sysmon Event 12/13 | Ghi khóa vào `CurrentVersion\Run` hoặc `RunOnce` | **Level 10** | Giám sát tiến trình lạ tự cài khởi động cùng Windows. |
+| **100007** | `T1548.002` (UAC Bypass Fodhelper) | Sysmon Event 12/13 | Hijack khóa Registry `ms-settings\Shell\Open\command` | **Level 12** | Fodhelper không bao giờ tạo tiến trình con $\rightarrow$ 100% chuẩn xác. |
+| **100008** | `Child Suppression` (SOAR Remediation) | Sysmon Event 1 | User `socrunner` chạy PowerShell từ WinRM | **Level 0** | Ức chế báo động giả khi n8n thực thi lệnh cứu trợ. |
+| **100009** | `Child Suppression` (UAC Cleanup) | Sysmon Event 12/13 | User `socrunner` dọn dẹp khóa Registry UAC | **Level 0** | Cho phép SOAR dọn rác mà không tự kích hoạt lại cảnh báo. |
+| **100010** | `Child Suppression` (Run Key Cleanup) | Sysmon Event 12/13 | User `socrunner` dọn dẹp khóa Run Persistence | **Level 0** | Cho phép SOAR dọn khóa Run mà không tự kích hoạt lại alert. |
+| **100011** | `T1046` (Nmap Reconnaissance) | Suricata NIDS (`eve.json`) | Bắt chuỗi signature quét cổng Nmap Stealth SYN | **Level 10** | Phân tích luồng gói tin trên wire trước khi chạm tới host. |
+| **100012** | `T1190` (LFI Attack on Wire) | Suricata NIDS (`eve.json`) | Signature phát hiện URL chứa ký tự vượt thư mục | **Level 12** | Đối soát tầng mạng độc lập với web server application log. |
+| **100013** | `T1595.002` (Vulnerability Scanner) | Suricata NIDS (`eve.json`) | Nhận diện chữ ký của Nikto, sqlmap, Gobuster | **Level 10** | Khóa IP máy quét tự động ngay từ giai đoạn Reconnaissance. |
+| **100014** | `T1083` (Canary Honey-File Accessed) | Windows Security Event 4663 | SACL Audit khi có ai đọc file `IT_Admin_Credentials.xlsx` | **Level 12** | **Zero False Positive (0% FP)**, tự kích hoạt DFIR dump RAM. |
+| **100015** | `T1078` (Honey-Account Logon Tripwire)| Windows Security Event 4625 | Có đăng nhập vào tài khoản mồi `backup_admin` | **Level 12** | **Zero False Positive (0% FP)**, báo hiệu dò pass tài khoản bẫy. |
+| **100016** | `T1046` (Decoy Port 21 Probe) | Windows EventLog / Port Decoy | Có kết nối tới cổng dịch vụ ảo FTP Port 21 | **Level 10** | Bắt kẻ tấn công dò quét mạng nội bộ (Internal Recon). |
 
 ---
 
-# 6. INCIDENT RESPONSE & SOAR WORKFLOW CHI TIẾT
+# 6. QUY TRÌNH PHẢN ỨNG KHÉP KÍN (SOAR CLOSED-LOOP & 1-CLICK ROLLBACK)
 
-Toàn bộ quá trình phản ứng tự động hóa được thiết kế theo vòng đời ứng phó sự cố của **NIST SP 800-61 Rev. 2** (Chu trình 4 bước: Preparation $\rightarrow$ Detection & Analysis $\rightarrow$ Containment, Eradication & Recovery $\rightarrow$ Post-Incident Activity):
+Quy trình phản ứng tuân thủ theo tiêu chuẩn **NIST SP 800-61 Rev. 2** gồm 5 giai đoạn:
 
 ```text
-========================================================================================
-                      CHI TIẾT VÒNG ĐỜI SOAR INCIDENT RESPONSE
-========================================================================================
+===================================================================================================
+                   CHI TIẾT VÒNG ĐỜI SOAR CLOSED-LOOP INCIDENT RESPONSE
+===================================================================================================
 
-1. CẢNH BÁO PHÁT SINH (Detection)
-   • Wazuh kích hoạt Rule (ví dụ Rule 100007 - UAC Bypass).
-   • wazuh-integratord chuyển alert JSON cho custom-n8n.py.
+[ BƯỚC 1: TIẾP NHẬN & ĐỐI SOÁT (Detection & Triage) ]
+  • Wazuh kích hoạt quy tắc (ví dụ: Rule 100007 - UAC Bypass hoặc Rule 100014 - Canary File).
+  • wazuh-integratord chuyển alert JSON sang custom-n8n.py -> Tự động xác định IP mục tiêu.
 
-2. CHUẨN HÓA & LÀM GIÀU DỮ LIỆU (Triage & Enrichment)
-   • custom-n8n.py phân tích: Cảnh báo nội bộ -> gán target_ioc = 192.168.71.129.
-   • Bắn HTTP POST -> n8n Webhook Ingest (/webhook/wazuh-alert).
-   • n8n kiểm tra: Nếu là Public IP -> Gọi AbuseIPDB API lấy Reputation Score.
-   • Xây dựng thẻ cảnh báo HTML phong phú (Rich Text) kèm 3 nút bấm tương tác.
+[ BƯỚC 2: LÀM GIÀU DỮ LIỆU THREAT INTEL (Context Enrichment) ]
+  • n8n Webhook Ingest nhận payload:
+    - Nếu là Public IP: Gọi AbuseIPDB API lấy Abuse Confidence Score & ISP xuất xứ.
+    - Nếu là File lạ: Đối soát VirusTotal API (Rule 87105).
+  • n8n xây dựng thẻ cảnh báo HTML phong phú (Rich Text Card).
 
-3. THÔNG BÁO TỨC THÌ (ChatOps Notification)
-   • Gửi tin nhắn Telegram trong < 3 giây tới @my_wazuh_soc_alert_bot.
-   • Trực ca SOC nghe tiếng chuông điện thoại, đọc ngay bối cảnh tấn công.
+[ BƯỚC 3: PHÁT CHATOPS & PHÊ DUYỆT 2 CHIỀU (Human-in-the-Loop) ]
+  • Gửi tin nhắn Telegram tới @my_wazuh_soc_alert_bot kèm 3 nút bấm tương tác:
+    - [🚫 Khóa IP 24h]            -> Cách ly mạng khẩn cấp máy trạm hoặc chặn IP tấn công.
+    - [🔄 Mở khóa (Rollback)]      -> Hoàn tác tức thì nếu phát hiện chặn nhầm.
+    - [📋 Mở Ticket Jira]          -> Khởi tạo hồ sơ điều tra L2 trên Jira Cloud.
 
-4. PHÊ DUYỆT CỦA CON NGƯỜI (Human-in-the-Loop Decision)
-   • Analyst chọn 1 trong 3 nút bấm trên Telegram:
-     - [🚫 Khóa IP 24h]    -> Kích hoạt cách ly mạng khẩn cấp.
-     - [⚠️ Báo động giả]   -> Đánh dấu sự kiện an toàn, ghi Audit Trail.
-     - [📋 Mở Ticket Jira] -> Chuyển vụ việc lên hàng đợi điều tra tầng sâu L2.
+[ BƯỚC 4: THỰC THI PHẢN ỨNG AN TOÀN (Containment & Forensics) ]
+  • Analyst bấm [🚫 Khóa IP 24h]:
+    - n8n gọi WinRM PowerShell sang máy Windows 10:
+      New-NetFirewallRule -DisplayName "SOAR-BLOCK" -Direction Inbound/Outbound -Action Block
+    - Đảm bảo duy trì thông kênh Port 5985 (WinRM) và Port 1514 (Wazuh Agent).
+  • Nếu là sự cố Deception: Tự động chạy collect_evidence.ps1 trích xuất MiniDump RAM,
+    netstat, EVTX, nén file .zip và đính kèm vào Jira Ticket.
 
-5. THI HÀNH PHẢN ỨNG (Containment & Case Management Execution)
-   • Nhánh Khóa IP: n8n gọi WinRM PowerShell sang máy Windows 10:
-     New-NetFirewallRule -DisplayName "SOAR-BLOCK-192.168.71.129" -Direction Inbound/Outbound -Action Block
-   • Nhánh Jira: n8n gửi request POST /rest/api/3/issue sang Atlassian Jira Cloud:
-     Tạo Ticket KAN-15 chứa đầy đủ Alert ID, MITRE Tactic, IOC và khuyến nghị L2.
-   • Phản hồi tin nhắn xác nhận kèm liên kết trực tiếp về Telegram cho Analyst.
+[ BƯỚC 5: HOÀN TÁC TỰ CHỮA LÀNH (1-Click Rollback in < 5s) ]
+  • Nếu trực ca SOC phát hiện chặn nhầm hoặc sự cố đã xử lý xong:
+    - Analyst bấm [🔄 Mở khóa (Rollback)] trên Telegram.
+    - n8n gọi lệnh WinRM: Remove-NetFirewallRule -DisplayName "SOAR-BLOCK*"
+    - Mạng máy trạm được khôi phục nguyên trạng trong 3-5 giây mà không cần can thiệp tay.
 ```
 
 ---
 
-# 7. HƯỚNG DẪN ÔN TẬP VẤN ĐÁP ĐỒ ÁN (VIVA DEFENSE Q&A)
+# 7. BỘ 8 CÂU HỎI VẤN ĐÁP ĐỒ ÁN & PHỎNG VẤN TUYỂN DỤNG (VIVA DEFENSE Q&A)
 
-Dưới đây là 5 câu hỏi trọng điểm giúp bạn tự tin đạt điểm tuyệt đối trước hội đồng:
+### Câu hỏi 1: Tại sao hệ thống phải kết hợp Sysmon với Wazuh Agent trên Endpoint?
+* **Trả lời:** Wazuh Agent mặc định chủ yếu thu thập Windows Event Log cơ bản và thông tin hệ điều hành bề mặt. Các kỹ thuật tấn công tinh vi trong chuỗi **MITRE ATT&CK Kill Chain** như **Dump bộ nhớ LSASS (T1003.001)** hoặc **UAC Bypass qua Fodhelper (T1548.002)** không để lại dấu vết rõ ràng trong Event Viewer mặc định. Sysmon v15.2 hoạt động như một trình điều khiển lọc tầng nhân (`SysmonDrv.sys`), cung cấp Telemetry chuyên sâu: Event 1 (Dòng lệnh CommandLine đầy đủ kèm mã băm SHA256), Event 10 (Quyền mở handle truy cập bộ nhớ giữa các tiến trình), Event 12/13 (Thao tác Registry chi tiết). Việc kết hợp này biến máy trạm thành một cảm biến **EDR thực thụ**.
 
-### Câu hỏi 1: Tại sao hệ thống phải dùng Sysmon kết hợp cùng Wazuh Agent?
-* **Trả lời:** Wazuh Agent mặc định chủ yếu thu thập Windows Event Log cơ bản và thông tin hệ thống bề nổi. Các kỹ thuật tấn công hiện đại như **Dump bộ nhớ LSASS (T1003.001)** hoặc **UAC Bypass (T1548.002)** không sinh ra log rõ ràng trong Windows Event Viewer. Sysmon v15.2 hoạt động như một trình điều khiển ở tầng nhân (Device Driver), cung cấp Telemetry chuyên sâu: Event 1 (Dòng lệnh CommandLine đầy đủ và Hash tiến trình), Event 10 (Tiến trình này mở handle truy cập tiến trình khác với quyền gì), Event 12/13 (Thao tác Registry chi tiết). Việc kết hợp này biến máy trạm thành một cảm biến **EDR thực thụ**.
+### Câu hỏi 2: Kỹ thuật Tuning Rule 100005 (LSASS) hoạt động như thế nào để loại bỏ 100% cảnh báo giả?
+* **Trả lời:** Khi giám sát `lsass.exe` bằng Sysmon Event 10, trong thực tế sẽ xuất hiện bão cảnh báo (Alert Fatigue) do các tiến trình hệ thống như `svchost.exe` (chạy dịch vụ Local Session Manager) hoặc `MicrosoftEdgeUpdate.exe` liên tục thăm dò LSASS. Em đã phân tích cấu trúc trường `GrantedAccess`: Các tiến trình hệ thống định kỳ chỉ xin quyền `0x1000` (`PROCESS_QUERY_LIMITED_INFORMATION` - quyền chỉ hỏi thông tin tiến trình, không thể đọc RAM). Trong khi đó, các công cụ tấn công như Mimikatz hay ProcDump bắt buộc phải mở handle với quyền `0x0010` (`PROCESS_VM_READ`) hoặc `0x1FFFFF` (`PROCESS_ALL_ACCESS`). Bằng cách thêm bộ lọc phủ định `<field name="win.eventdata.grantedAccess" type="pcre2" negate="yes">^0x1000$</field>`, hệ thống loại bỏ 100% cảnh báo giả từ Windows mà vẫn tóm gọn mọi hành vi trích xuất mật khẩu thật sự.
 
-### Câu hỏi 2: Tuning Rule 100005 (LSASS) hoạt động như thế nào để diệt trừ False Positive?
-* **Trả lời:** Khi giám sát `lsass.exe` bằng Sysmon Event 10, trong môi trường thực tế sẽ bị bão cảnh báo (Alert Fatigue) bởi các tiến trình Windows lành tính: `svchost.exe` (chạy dịch vụ Local Session Manager `lsm.dll`) và `MicrosoftEdgeUpdate.exe` liên tục thăm dò LSASS. Em đã phân tích sâu cấu trúc của trường `GrantedAccess`: Các tiến trình hệ thống định kỳ chỉ yêu cầu quyền `0x1000` (`PROCESS_QUERY_LIMITED_INFORMATION` - quyền chỉ đọc trạng thái tiến trình, không đọc được bộ nhớ). Trong khi đó, các công cụ tấn công như Mimikatz hay ProcDump bắt buộc phải mở handle với quyền `0x0010` (`PROCESS_VM_READ`) hoặc `0x1FFFFF` (`PROCESS_ALL_ACCESS`). Bằng cách thêm bộ lọc `<field name="win.system.message" type="pcre2" negate="yes">(?i)GrantedAccess:\s*0x1000\b</field>`, hệ thống loại bỏ 100% cảnh báo giả từ hệ điều hành nhưng vẫn tóm gọn mọi hành vi trích xuất mật khẩu thật sự.
+### Câu hỏi 3: Tại sao lại dùng Luật ức chế phân cấp (Hierarchical Level 0) thay vì viết điều kiện phủ định `negate="yes"` trong luật chính?
+* **Trả lời:** Nếu viết trực tiếp `negate="yes"` kiểm tra user `socrunner` trong Rule 100004, cú pháp XML của Wazuh sẽ áp dụng toán tử **OR lỏng lẻo** giữa các điều kiện phủ định. Tin tặc chỉ cần đặt tên user của chúng trùng với whitelist hoặc giả mạo một tham số là có thể bypass hoàn toàn luật phát hiện. Do đó, em áp dụng chuẩn **Hierarchical Child Suppression Rule (`level="0"`)**:
+  * Rule con 100008 kế thừa từ Rule cha 100004.
+  * Trong rule con, các thẻ `<field>` áp dụng logic **AND chặt chẽ**: Phải vừa đúng user `socrunner` **VÀ** vừa đúng tiến trình cha sinh ra từ WinRM (`wsmprovhost.exe`).
+  * Nhờ vậy, chỉ những hành động cứu trợ hợp lệ của SOAR mới được ức chế, loại bỏ hoàn toàn khả năng tin tặc lợi dụng để né tránh giám sát.
 
-### Câu hỏi 3: Cơ chế Dual-Mode IOC Resolution giải quyết bài toán gì trong SOAR?
+### Câu hỏi 4: Cơ chế Dual-Mode IOC Resolution giải quyết bài toán hóc búa gì trong SOAR?
 * **Trả lời:** Các bài lab SOAR thông thường chỉ xử lý được các cuộc tấn công từ bên ngoài qua mạng (khi log có trường `srcip`). Tuy nhiên, trong chuỗi tấn công **Kill Chain nội bộ (Local Execution)** như thực thi lệnh mã hóa PowerShell, UAC Bypass hay Dump LSASS, kẻ tấn công đã ở sẵn bên trong máy nạn nhân nên trường `srcip` bị trống (`null`). Nếu đẩy thẳng vào SOAR, hệ thống sẽ báo lỗi `Target: N/A` và không thể tạo luật tường lửa. Kịch bản `custom-n8n.py` của em áp dụng cơ chế định danh kép: Khi phát hiện không có IP mạng bên ngoài, hệ thống tự động fallback lấy chính IP của Endpoint bị xâm nhập (`192.168.71.129`) làm mục tiêu cô lập mạng, giúp cách ly khẩn cấp máy nạn nhân khỏi hệ thống.
 
-### Câu hỏi 4: Tại sao chọn n8n làm SOAR thay vì TheHive hoặc Cortex?
-* **Trả lời:** TheHive thực chất là một nền tảng **Case Management** (quản lý hồ sơ), còn Cortex chỉ là một công cụ phân tích observable (Analyzer). Bản thân TheHive không có động cơ điều phối luồng làm việc (Workflow Engine) linh hoạt như n8n. n8n hỗ trợ lập trình Node.js native, cho phép em xử lý dữ liệu phức tạp (như mã hóa Base64 cho Jira REST API v3, định tuyến Switch conditions), giao tiếp thời gian thực 2 chiều với Telegram ChatOps và kết nối trực tiếp với Atlassian Jira Cloud chỉ trong một giao diện duy nhất, tốn rất ít tài nguyên phần cứng (chạy gọn gàng trong 1 container Docker).
+### Câu hỏi 5: Nguyên tắc Safe Host Isolation và 1-Click Rollback vận hành ra sao?
+* **Trả lời:** Khi một máy trạm bị cô lập mạng bằng tường lửa Windows, nếu ta áp dụng chính sách chặn toàn bộ (Block All Inbound & Outbound) thì máy đó sẽ mất kết nối hoàn toàn với máy chủ điều khiển SIEM/SOAR. Kết quả là SOC Analyst không thể gửi lệnh cứu trợ tiếp theo và buộc phải tới tận nơi cắm bàn phím thủ công. Trong đồ án này, em áp dụng nguyên tắc **Cách ly an toàn (Safe Isolation)**:
+  * Khi tạo luật chặn, hệ thống **luôn mở Port 5985 (WinRM)** và **Port 1514/1515 (Wazuh Agent)**.
+  * Nhờ kênh quản trị được bảo lưu, Analyst có thể bấm nút **[🔄 Mở khóa (Rollback)]** trên Telegram để gọi lệnh WinRM xóa rule chặn, khôi phục mạng cho máy trạm trong **dưới 5 giây**.
 
-### Câu hỏi 5: Lợi ích của việc áp dụng triết lý Detection-as-Code (DaC) trong đồ án là gì?
-* **Trả lời:** Em không chỉ viết luật phát hiện rồi để đó, mà quản lý toàn bộ Rules, Decoders và kịch bản tấn công như mã nguồn phần mềm (Code). Em xây dựng các bộ kiểm thử đơn vị (`pytest tests/unit/`) để kiểm tra cú pháp XML, tính duy nhất của Rule ID trước khi triển khai; đồng thời xây dựng các bộ runner kiểm thử toàn trình (`scenario_full_killchain.py`, `scenario_rdp_bruteforce.py`, `scenario_lfi_web.py`) để tự động hóa việc giả lập tấn công từ Kali và xác minh trên SIEM. Điều này giúp đội ngũ an ninh mạng có thể kiểm tra hồi quy (Regression Testing) mỗi khi có bản cập nhật mới mà không sợ làm sập hệ thống giám sát.
+### Câu hỏi 6: Công nghệ Deception (Bẫy mồi) trong đồ án khác gì so với SIEM truyền thống?
+* **Trả lời:** SIEM truyền thống dựa trên việc phân tích hành vi bất thường, luôn đi kèm với tỷ lệ cảnh báo giả (False Positive) nhất định. Ngược lại, **Deception Technology** tạo ra các tài sản mồi không phục vụ bất kỳ mục đích nghiệp vụ nào (Canary Honey-file `IT_Admin_Credentials.xlsx`, tài khoản mồi `backup_admin`, Decoy Port 21). Nhân viên bình thường không bao giờ truy cập vào những tài nguyên này. Do đó, bất kỳ sự tương tác nào với bẫy mồi đều có **độ tin cậy 100% là hành vi thâm nhập trái phép (0% False Positive)**. Ngay khi có sự kiện SACL Event 4663, hệ thống lập tức kích hoạt script trích xuất chứng cứ số (Live DFIR Forensics: MiniDump RAM, kết nối mạng netstat, EVTX) nén `.zip` gửi thẳng lên Jira Ticket cho đội điều tra L2.
+
+### Câu hỏi 7: Lợi ích của việc áp dụng triết lý Detection-as-Code (DaC) và SigWaz Compiler là gì?
+* **Trả lời:** Thay vì chỉnh sửa file XML thủ công trên máy chủ (dễ gây lỗi cú pháp làm sập tiến trình `wazuh-analysisd` và không kiểm soát được phiên bản), em áp dụng quy trình **Detection-as-Code**:
+  * Toàn bộ quy tắc được viết bằng chuẩn **Sigma YAML** đặt tại `manager/rules/sigma/` (đóng vai trò Single Source of Truth - SSOT).
+  * Công cụ `scripts/sigma_compiler.py` tự động biên dịch Sigma YAML sang XML của Wazuh, tự động sinh các luật ức chế phân cấp Level 0 cho SOAR.
+  * Tích hợp vào **GitHub Actions CI/CD Pipeline** (`.github/workflows/test.yml`): Tự động chạy 22 bài kiểm thử (pytest) kiểm tra cú pháp XML, tính duy nhất của Rule ID, định dạng MITRE ATT&CK và kiểm tra chống lệch pha (`--check`) trước khi cho phép merge code vào nhánh chính.
+
+### Câu hỏi 8: Tại sao lại chọn n8n làm động cơ SOAR thay vì TheHive hay Cortex?
+* **Trả lời:** TheHive thực chất là một nền tảng **Case Management** (quản lý hồ sơ), còn Cortex chỉ là công cụ phân tích observable đơn lẻ. Bản thân TheHive không có động cơ điều phối luồng làm việc (Workflow Engine) linh hoạt. n8n hỗ trợ lập trình Node.js native, cho phép em xử lý dữ liệu phức tạp (như mã hóa Base64 cho Jira REST API v3, định tuyến Switch conditions), giao tiếp thời gian thực 2 chiều với Telegram ChatOps và kết nối trực tiếp với Atlassian Jira Cloud chỉ trong một giao diện trực quan duy nhất, tốn rất ít tài nguyên phần cứng (chạy gọn gàng trong 1 container Docker).

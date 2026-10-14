@@ -44,7 +44,7 @@ flowchart TD
 ## 🛠️ 4. CHI TIẾT THỰC THI DFIR
 
 ### Bước 1: Thu Thập Chứng Cứ Số Trực Tiếp (Live Forensics Collection)
-Ngay khi Rule Deception được kích hoạt, kịch bản [`collect_evidence.ps1`](../../deployment/deception/collect_evidence.ps1) được thực thi:
+Ngay khi Rule Deception được kích hoạt, kịch bản [`collect_evidence.ps1`](../endpoint/deception/collect_evidence.ps1) được thực thi:
 
 ```powershell
 # 1. Trích xuất MiniDump của tiến trình nghi vấn

@@ -37,10 +37,9 @@ except ImportError:
     print("[!] Error: 'pyyaml' is required. Run 'pip install pyyaml'.", file=sys.stderr)
     sys.exit(1)
 
-# Default Project Paths
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SIGMA_DIR = REPO_ROOT / "custom-rules" / "sigma"
-OUTPUT_RULES_XML = REPO_ROOT / "custom-rules" / "local_rules.xml"
+SIGMA_DIR = REPO_ROOT / "manager" / "rules" / "sigma" if (REPO_ROOT / "manager" / "rules" / "sigma").exists() else REPO_ROOT / "custom-rules" / "sigma"
+OUTPUT_RULES_XML = REPO_ROOT / "manager" / "rules" / "local_rules.xml" if (REPO_ROOT / "manager" / "rules" / "local_rules.xml").exists() else REPO_ROOT / "custom-rules" / "local_rules.xml"
 
 # SigWaz Standard Field Mapping Dictionary
 SIGMA_TO_WAZUH_FIELDS = {

@@ -7,7 +7,7 @@ Thư mục lưu trữ toàn bộ các bộ giải mã (decoders) và tập luậ
 ## 🗂️ Cấu Trúc Thư Mục
 
 ```text
-custom-rules/
+manager/rules/
 ├── sigma/             # Kho luật chuẩn hóa Sigma YAML (Single Source of Truth - SSOT)
 │   ├── win_*.yml      # Các luật phát hiện Endpoint Windows (Sysmon & Security EVTX)
 │   ├── net_*.yml      # Các luật phát hiện Network Suricata NIDS

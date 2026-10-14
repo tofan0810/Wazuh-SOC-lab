@@ -4,6 +4,8 @@ on:
   push:
     branches: [ "main", "master" ]
     paths:
+      - 'manager/**'
+      - 'endpoint/**'
       - 'custom-rules/**'
       - 'scripts/**'
       - 'tests/**'
@@ -14,6 +16,8 @@ on:
   pull_request:
     branches: [ "main", "master" ]
     paths:
+      - 'manager/**'
+      - 'endpoint/**'
       - 'custom-rules/**'
       - 'scripts/**'
       - 'tests/**'
@@ -66,9 +70,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Validation Category | Target Component | Status |" >> $GITHUB_STEP_SUMMARY
           echo "| :--- | :--- | :---: |" >> $GITHUB_STEP_SUMMARY
-          echo "| Sigma Rules SSOT & Drift Check | \`custom-rules/sigma/*.yml\` vs \`local_rules.xml\` | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
-          echo "| XML Syntax & Well-Formedness | \`custom-rules/local_rules.xml\`, \`local_decoder.xml\` | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
-          echo "| SIEM & Sysmon Schema | \`deployment/ossec.conf\`, \`sysmon-config.xml\` | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Sigma Rules SSOT & Drift Check | \`manager/rules/sigma/*.yml\` vs \`local_rules.xml\` | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          echo "| XML Syntax & Well-Formedness | \`manager/rules/local_rules.xml\`, \`local_decoder.xml\` | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          echo "| SIEM & Sysmon Schema | \`manager/docker/ossec.conf\`, \`endpoint/config/sysmon-config.xml\` | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
           echo "| Rule ID Uniqueness (>=100000) | Custom Rules 100001 - 100013 | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
           echo "| Alert Level Validation (0-16) | Severity Bounds & Hierarchy | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
           echo "| MITRE ATT&CK Format Verification | T1110, T1190, T1059, T1548, T1547, T1003, T1046, T1595 | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
