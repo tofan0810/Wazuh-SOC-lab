@@ -152,23 +152,6 @@ flowchart TD
 
 ---
 
-## 🏛️ Bảng Tổng Hợp 10 Giai Đoạn Triển Khai (Phase 1 – 10)
-
-| Giai Đoạn | Tên Phân Hệ & Chức Năng Chính | Trạng Thái | Báo Cáo Kỹ Thuật |
-| :---: | :--- | :---: | :---: |
-| **Phase 1** | **Hạ Tầng Triển Khai (Infrastructure Deployment)** | ✅ Hoàn thành | [Báo cáo Phase 1](reports/Phase-1_Infrastructure-Deployment.md) |
-| **Phase 2** | **Cấu Hình Giám Sát Endpoint (Sysmon & Agent)** | ✅ Hoàn thành | [Báo cáo Phase 2](reports/Phase-2_Agent-Sysmon-Configuration.md) |
-| **Phase 3** | **Kịch Bản Tấn Công & Phát Hiện Thực Chiến (Scenarios 1-3)** | ✅ Hoàn thành | [Báo cáo Phase 3](reports/Phase-3/README.md) |
-| **Phase 4** | **Tự Động Hóa Kiểm Thử Hồi Quy (Regression Testing)** | ✅ Hoàn thành | [Báo cáo Phase 4](reports/Phase-4/README.md) |
-| **Phase 5** | **Điều Phối SOAR & Phản Ứng Khép Kín (Closed-Loop)** | ✅ Hoàn thành | [Báo cáo Phase 5](reports/Phase-5/README.md) |
-| **Phase 6** | **DevSecOps CI/CD Pipeline (GitHub Actions 22/22 PASS)** | ✅ Hoàn thành | [Báo cáo Phase 6](reports/Phase-6/README.md) |
-| **Phase 7** | **Trực Quan Hóa Sự Cố (Executive Incident Dashboard)** | ✅ Hoàn thành | [Báo cáo Phase 7](reports/Phase-7/README.md) |
-| **Phase 8** | **Detection-as-Code SSOT (Sigma Rules & SigWaz Compiler)** | ✅ Hoàn thành | [Báo cáo Phase 8](reports/Phase-8/README.md) |
-| **Phase 9** | **Giám Sát Mạng Sâu Suricata NIDS (XDR Integration)** | ✅ Hoàn thành | [Báo cáo Phase 9](reports/Phase-9/README.md) |
-| **Phase 10** | **Bẫy Mồi Deception & Tự Động Thu Thập Chứng Cứ DFIR** | ✅ Hoàn thành | [Báo cáo Phase 10](reports/Phase-10/README.md) |
-
----
-
 ## 🗂️ Cấu Trúc Thư Mục Dự Án (Directory Hub)
 
 ```text
@@ -203,15 +186,14 @@ wazuh-soc-lab/
 │   ├── SOP-04_Endpoint_Kill_Chain_Response.md
 │   ├── SOP-05_Network_NIDS_Suricata_Response.md
 │   └── SOP-06_Deception_Honeypot_and_Forensics.md
-├── reports/                    # Báo cáo thực nghiệm chi tiết 10 giai đoạn (Phase 1 – 10)
+├── reports/                    # Báo cáo thực nghiệm chi tiết các giai đoạn
 │   ├── Phase-1 đến Phase-10/   # Báo cáo kỹ thuật chi tiết & ảnh chụp PoC minh chứng
-│   └── README.md               # Mục lục trung tâm điều hướng báo cáo
 ├── scripts/                    # Kịch bản tự động hóa vận hành hệ sinh thái
 │   ├── sync_env.py             # Engine 1-Click đồng bộ .env và kiểm tra API sống còn
 │   ├── import_dashboard.py     # Engine 1-Click nạp Dashboard lên OpenSearch qua REST API
 │   └── sigma_compiler.py       # SigWaz Compiler: Biên dịch Sigma YAML -> Wazuh XML + Zero Drift
 └── tests/                      # Khung kiểm thử tự động hóa Detection-as-Code
-    ├── e2e/                    # Kịch bản E2E: scenario_full_killchain.py, test_soar_closed_loop.py...
+    ├── e2e/                    # Kịch bản E2E
     └── unit/                   # 22 bài unit test kiểm tra tính toàn vẹn cú pháp rules & bảo mật
 ```
 
