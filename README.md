@@ -91,74 +91,53 @@ Dự án mô phỏng trung tâm điều hành an ninh mạng (**SOC / XDR / SOAR
 ## Interactive Dataflow
 
 ```mermaid
-flowchart TD
+flowchart LR
     classDef endpoint fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
     classDef siem fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#f8fafc;
     classDef soar fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#f8fafc;
     classDef cloud fill:#581c87,stroke:#c084fc,stroke-width:2px,color:#f8fafc;
     classDef action fill:#7c2d12,stroke:#fb923c,stroke-width:2px,color:#f8fafc;
 
-    subgraph INGEST ["📡 TẦNG 1: THU THẬP TELEMETRY & PHÁT HIỆN TẤN CÔNG (SIEM / XDR)"]
-        direction LR
-        subgraph SOURCES ["🖥️ Datasource & Target Endpoint"]
-            WIN["💻 Windows 10 Endpoint (192.168.71.129)<br/>• Sysmon v15.2 (Process, Net, Memory)<br/>• Security Logs (Event 4625, 4663 SACL)<br/>• Apache Logs & Honey-Files"]:::endpoint
-            KALI["⚔️ Kali Linux Attacker (192.168.71.130)<br/>• Hydra / RDP Brute-Force<br/>• Web LFI Traversal & Nmap SYN<br/>• Full Kill Chain (T1059, T1548, T1003)"]:::endpoint
-            KALI -.->|"Tấn công giả lập"| WIN
-        end
+    subgraph T1 ["📡 TẦNG 1: TELEMETRY & DETECTION"]
+        direction TB
+        KALI["⚔️ Kali Linux (.130)<br/>Hydra, LFI, Nmap SYN"]:::endpoint
+        WIN["💻 Win 10 (.129)<br/>Sysmon v15.2, SACL 4663"]:::endpoint
+        MGR["⚙️ Wazuh Manager (.128)<br/>Sigma Engine + Suricata NIDS"]:::siem
+        INTEG["🔌 custom-n8n Integration<br/>Dual-Mode IOC Resolution"]:::siem
 
-        subgraph WAZUH_CLUSTER ["🛡️ Wazuh SIEM Cluster (Ubuntu 192.168.71.128)"]
-            MGR["⚙️ Wazuh Manager 4.14.5<br/>• SigWaz Sigma Engine & Custom Rules<br/>• Suricata 8.x NIDS EVE JSON Ingest<br/>• Active Response Controller"]:::siem
-            INTEG["🔌 custom-n8n Integration<br/>Dual-Mode IOC Resolution"]:::siem
-            WIN -->|"Agent 1514/TCP"| MGR
-            MGR -->|"Trigger Alert JSON"| INTEG
-        end
+        KALI -.->|"Tấn công giả lập"| WIN
+        WIN -->|"Agent 1514/TCP"| MGR
+        MGR -->|"Alert JSON"| INTEG
+    end
+
+    subgraph T2 ["🤖 TẦNG 2: SOAR AUTOMATION (n8n)"]
+        direction TB
+        WF1["📥 Webhook Ingest<br/>/webhook/wazuh-alert"]:::soar
+        TI{"🌐 Threat Intel"}:::cloud
+        ABUSE["🔍 AbuseIPDB & VirusTotal"]:::cloud
+        CARD["📱 Interactive Card<br/>HTML Alert + Inline Buttons"]:::soar
+
+        WF1 --> TI --> ABUSE --> CARD
+    end
+
+    subgraph T3 ["👤 TẦNG 3: CHATOPS & CLOSED-LOOP REMEDIATION"]
+        direction TB
+        TG_ALERT["📲 Telegram SOC Alert Bot<br/>[🛑 Diệt] [🔒 Isolate] [🟢 Rollback] [📋 Jira]"]:::cloud
+        BRIDGE["🔄 telegram_bridge.py<br/>Long-Polling Callback Bridge"]:::soar
+        
+        ACT_BLOCK["🔒 Safe Host Isolation & Kill<br/>WinRM 5985 (Rollback 5s)"]:::action
+        ACT_JIRA["📋 Jira Cloud REST API v3<br/>Incident Ticket + DFIR .zip"]:::action
+
+        TG_ALERT -->|"Analyst bấm nút"| BRIDGE
+        BRIDGE -->|"Remediation"| ACT_BLOCK
+        BRIDGE -->|"Case Mgmt"| ACT_JIRA
+        ACT_BLOCK -.->|"Xác nhận"| TG_ALERT
+        ACT_JIRA -.->|"Ticket URL"| TG_ALERT
     end
 
     INTEG ==>|"HTTP POST (Webhook JSON)"| WF1
-
-    subgraph PIPELINE ["🤖 TẦNG 2: ĐIỀU PHỐI TỰ ĐỘNG HÓA SOAR N8N"]
-        direction LR
-        subgraph WF_ENRICH ["Workflow 1: Threat Enrichment & ChatOps Dispatcher"]
-            WF1["📥 Wazuh Webhook Ingest<br/>/webhook/wazuh-alert"]:::soar
-            PARSE["⚙️ Normalize & IOC Extract"]:::soar
-            TI_CHECK{"🌐 Public IP?"}:::soar
-            ABUSE["🔍 AbuseIPDB API"]:::cloud
-            VT["🛡️ VirusTotal API"]:::cloud
-            CARD["📱 Build Interactive Card<br/>HTML Alert + Inline Action Buttons"]:::soar
-
-            WF1 --> PARSE --> TI_CHECK
-            TI_CHECK -- "Yes" --> ABUSE --> CARD
-            TI_CHECK -- "No (Internal)" --> CARD
-            PARSE -.-> VT -.-> CARD
-        end
-    end
-
     CARD ==>|"Telegram Bot API"| TG_ALERT
-
-    subgraph CHATOPS ["👤 TẦNG 3: HUMAN-IN-THE-LOOP CHATOPS & CASE MANAGEMENT"]
-        direction TB
-        TG_ALERT["📲 Telegram SOC Alert Bot (@my_wazuh_soc_alert_bot)<br/>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br/>🔘 [🛑 Diệt Process] 🔘 [🔒 Safe Host Isolation] 🔘 [🟢 Mở khóa Rollback] 🔘 [📋 Mở Ticket Jira]"]:::cloud
-
-        BRIDGE["🔄 telegram_bridge.py<br/>Long-Polling Callback Bridge"]:::soar
-        TG_ALERT -.->|"Analyst Bấm Nút Phản Ứng"| BRIDGE
-        BRIDGE ==>|"Forward Callback"| SWITCH
-
-        subgraph ACTIONS ["Workflow 2: Containment & Case Management Executor"]
-            SWITCH{"⚡ Switch Action"}:::soar
-            ACT_KILL["🛑 Kill Malicious Process<br/>WinRM Stop-Process"]:::action
-            ACT_BLOCK["🔒 Safe Host Isolation<br/>WinRM Block (Giữ 5985, 1514)"]:::action
-            ACT_ROLLBACK["🟢 Instant Rollback 5s<br/>Xóa Rule Chặn Firewall"]:::action
-            ACT_JIRA["📋 Jira Cloud REST API v3<br/>Tạo Incident Ticket + Auto DFIR Zip"]:::action
-
-            SWITCH -- "action:kill" --> ACT_KILL
-            SWITCH -- "action:block" --> ACT_BLOCK
-            SWITCH -- "action:rollback" --> ACT_ROLLBACK
-            SWITCH -- "action:jira" --> ACT_JIRA
-        end
-
-        ACT_KILL & ACT_BLOCK & ACT_ROLLBACK -->|"Phản hồi kết quả"| TG_CONFIRM["✅ Xác Nhận Telegram"]:::cloud
-        ACT_JIRA ==>|"Atlassian REST API"| JIRA_BOARD["🎫 Jira Cloud Service Desk (tn421015.atlassian.net)"]:::cloud
-    end
+    ACT_BLOCK -.->|"WinRM"| WIN
 ```
 
 ---
@@ -347,3 +326,16 @@ python tests/e2e/scenario_full_killchain.py --execute
 * **[SOP-04: Endpoint Kill Chain & Credential Dumping Response](playbooks/SOP-04_Endpoint_Kill_Chain_Response.md)**: Ứng phó PowerShell Base64, UAC Bypass, Run Key Persistence và tấn công dump LSASS.
 * **[SOP-05: Network NIDS Suricata & XDR Intrusion Response](playbooks/SOP-05_Network_NIDS_Suricata_Response.md)**: Bắt packet trinh sát Nmap SYN, LFI on wire, phân tích stream EVE JSON và chặn IP nguồn.
 * **[SOP-06: Deception Honeypot Breach & Live DFIR Forensics](playbooks/SOP-06_Deception_Honeypot_and_Forensics.md)**: Xử lý kích hoạt bẫy mồi (0% FP), tự động trích xuất RAM dump, netstat, EVTX nén `.zip` gửi Jira Cloud.
+---
+
+<div align="center">
+
+## ⭐ **Star Project Nếu Bạn Thích!**
+
+Nếu dự án này hữu ích với bạn, hãy cho chúng tôi một ⭐ trên GitHub!S
+
+[🌟 Star](https://github.com/tofan0810/Wazuh-SOC-lab) | [🐛 Report Bug](https://github.com/tofan0810) | [💡 Request Feature](https://github.com/tofan0810)
+
+---
+![Thanks](https://readme-typing-svg.demolab.com?font=Fira+Code&weight=500&duration=4000&pause=1000&color=45A1FF&center=true&vCenter=true&width=650&lines=Thank+you+for+exploring+Wazuh+SOC+Lab!+🛡️;Next-Gen+SIEM%2C+SOAR+%26+Detection+Engineering+⚡;Continuous+Defense%2C+Automation+%26+Threat+Hunting+🚀)
+</div>
