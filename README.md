@@ -1,6 +1,5 @@
 # 🛡️ Wazuh Next-Gen SOC, SOAR & Detection Engineering Lab
-
-[![Stargazers](https://shields.io)](https://github.com/tofan0810/Wazuh-SOC-lab/stargazers)
+[![GitHub stars](https://img.shields.io/github/stars/tofan0810/Wazuh-SOC-lab?style=flat&logo=github&color=yellow)](https://github.com/tofan0810/Wazuh-SOC-lab/stargazers)               
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Wazuh](https://img.shields.io/badge/SIEM%2FXDR-Wazuh--4.14.5-blue)](https://wazuh.com/)
 [![Suricata](https://img.shields.io/badge/NIDS-Suricata--8.0.7-red)](https://suricata.io/)
@@ -15,7 +14,23 @@
 
 ---
 
-## ⚡ Executive Spotlight & Key Performance Indicators (KPIs)
+## Table of Contents
+- [Executive Spotlight & KPIs](#executive-spotlight--key-performance-indicators-kpis)
+  - [Architectural Highlights](#architectural-highlights)
+- [Visual Showcase & Proof of Concept](#visual-showcase--proof-of-concept)
+- [Interactive Dataflow](#interactive-dataflow)
+- [MITRE ATT&CK Matrix](#mitre-attck-matrix)
+- [Directory Hub](#directory-hub)
+- [Deployment Guide](#deployment-guide)
+  - [Bước 0: Chuẩn bị biến môi trường (.env)](#bước-0-chuẩn-bị-biến-môi-trường-env)
+  - [Bước 1: Triển khai trên máy chủ Ubuntu (Wazuh SIEM, NIDS Suricata & n8n SOAR)](#bước-1-triển-khai-trên-máy-chủ-ubuntu-wazuh-siem-nids-suricata--n8n-soar)
+  - [Bước 2: Triển khai trên máy trạm Windows 10 (Target Endpoint)](#bước-2-triển-khai-trên-máy-trạm-windows-10-target-endpoint)
+  - [Bước 3: Vận hành, Kiểm thử E2E & Kích hoạt Tấn công Giả lập](#bước-3-vận-hành-kiểm-thử-e2e--kích-hoạt-tấn-công-giả-lập)
+- [SOP Playbooks](#sop-playbooks)
+
+---
+
+## Executive Spotlight & Key Performance Indicators (KPIs)
 
 Dự án mô phỏng trung tâm điều hành an ninh mạng (**SOC / XDR / SOAR**) cấp doanh nghiệp, tích hợp phòng thủ chủ động và phản ứng sự cố khép kín với các chỉ số đo lường vượt trội:
 
@@ -23,16 +38,19 @@ Dự án mô phỏng trung tâm điều hành an ninh mạng (**SOC / XDR / SOAR
 | :---: | :---: | :---: | :---: | :---: |
 | **< 3 Giây**<br/>(Telegram Realtime Alert) | **< 20 Giây**<br/>(WinRM Safe Isolation & Kill) | **5 Giây**<br/>(Zero-Downtime Recovery) | **0% FP**<br/>(Canary SACL & Honeypot) | **22/22 Checks PASS**<br/>(GitHub Actions CI Gate) |
 
-#### 🏛️ Điểm Nhấn Kiến Trúc & Năng Lực Cốt Lõi (Architectural Highlights)
-* **Wazuh SIEM/XDR Single-Node Cluster:** Triển khai theo mô hình All-in-One containerized trên Docker (chạy đồng thời Manager 4.14.5, OpenSearch Indexer & Dashboard 443), tinh chỉnh Linux Kernel (`vm.max_map_count=262144`), thu nạp đồng thời telemetry từ Wazuh Agent (TCP 1514) và NIDS Suricata EVE JSON.
-* **Suricata 8.x NIDS Promiscuous Engine:** Đặt card mạng ở chế độ Promiscuous để giám sát luồng lưu lượng mạng, phân tích gói tin Layer 4–7 nhằm chặn đứng các kỹ thuật trinh sát (Nmap Stealth SYN) và khai thác Web LFI ngay từ tầng mạng.
-* **Endpoint Telemetry & Deception Grid:** Phối hợp Microsoft Sysmon v15.2 (Process, Memory LSASS, Registry) với Windows Object Access SACL (Event 4663) và lưới bẫy mồi chủ động (Canary Files / Honey-Accounts) triệt tiêu hoàn toàn báo động giả (0% False Positive).
-* **SOAR Event-Driven & 2-Way ChatOps:** Động cơ n8n kết nối 2 chiều với Telegram Bot và Atlassian Jira Cloud REST API v3; thực thi **Safe Host Isolation** qua WinRM (Port 5985 - bảo toàn tuyệt đối kênh quản trị) kèm cơ chế 1-Click Rollback hoàn tác trong 5 giây.
-* **Detection-as-Code & Quality Gate:** Quản lý quy tắc phát hiện tập trung theo chuẩn Sigma SSOT, tích hợp CI Gate tự động kiểm thử 22 bài unit test (100% PASS) trước khi đồng bộ cấu hình vào sản xuất.
+### Architectural Highlights
+
+| Trụ Cột Năng Lực | Công Nghệ Triển Khai | Cơ Chế Vận Hành & Điểm Vượt Trội |
+| :--- | :--- | :--- |
+| 🛡️ **SIEM / XDR Core** | **Wazuh 4.14.5 Single-Node**<br/>*(All-in-One Docker Stack)* | • Tối ưu Linux Kernel `vm.max_map_count=262144` cho OpenSearch<br/>• Thu nạp đồng thời telemetry từ Wazuh Agent (TCP 1514) & NIDS EVE JSON<br/>• Quản trị tập trung với OpenSearch Indexer & Dashboard (HTTPS 443) |
+| 📡 **Network Detection** | **Suricata 8.x NIDS**<br/>*(Promiscuous Mode Engine)* | • Deep Packet Inspection luồng lưu lượng mạng ở Layer 4–7<br/>• Phát hiện Nmap Stealth SYN Scan & Web LFI ngay từ tầng mạng<br/>• Stream log cảnh báo `eve.json` trực tiếp vào Wazuh Manager |
+| 💻 **Endpoint & Deception** | **Sysmon v15.2 + SACL Auditing**<br/>*(Active Deception Grid)* | • Giám sát tiến trình, hành vi dump RAM LSASS và Registry Run Key<br/>• **0% False Positive:** Lưới bẫy mồi chủ động Canary File + Honey-Account<br/>• Tự động thu thập chứng cứ DFIR nén `.zip` khi bẫy bị xâm phạm |
+| 🤖 **SOAR & Closed-Loop** | **n8n Engine + Telegram ChatOps**<br/>*(2-Way Human-in-the-Loop)* | • **Safe Host Isolation:** Cách ly máy trạm qua WinRM 5985 (bảo toàn kênh quản lý)<br/>• **1-Click Rollback:** Khôi phục kết nối mạng tức thì trong **5 giây**<br/>• Tự động tạo Incident Ticket trên **Jira Cloud REST API v3** kèm chứng cứ số |
+| 🧪 **DevSecOps Quality Gate** | **Sigma Rules SSOT**<br/>*(Detection-as-Code Pipeline)* | • Quản trị tập trung bộ quy tắc phát hiện theo chuẩn mở Sigma SSOT<br/>• **22/22 Checks PASS:** CI Gate tự động kiểm định chất lượng trước deploy<br/>• Zero Secret Leakage: 100% token bảo mật được quản lý độc lập qua `.env` |
 
 ---
 
-## 📸 Visual Showcase & Proof of Concept (Minh Chứng Thực Nghiệm)
+## Visual Showcase & Proof of Concept
 
 ### 1. 🌐 Bird's Eye View of my SOC & SOAR Infrastructure
 ![Architecture Diagram](architecture/architecture_soar_pipeline.svg)
@@ -70,7 +88,7 @@ Dự án mô phỏng trung tâm điều hành an ninh mạng (**SOC / XDR / SOAR
 
 ---
 
-## 🏗️ Kiến Trúc Luồng Dữ Liệu Tự Động Hóa (Interactive Dataflow)
+## Interactive Dataflow
 
 ```mermaid
 flowchart TD
@@ -145,7 +163,7 @@ flowchart TD
 
 ---
 
-## 🎯 Ma Trận Tấn Công & Phát Hiện (MITRE ATT&CK Matrix)
+## MITRE ATT&CK Matrix
 
 | Kịch Bản & Kỹ Thuật MITRE | Nguồn Telemetry | Cơ Chế Phát Hiện & Rule ID | Cơ Chế Phản Ứng Tự Động (Active Response / SOAR) | Minh Chứng (PoC) |
 | :--- | :--- | :--- | :--- | :---: |
@@ -161,7 +179,7 @@ flowchart TD
 
 ---
 
-## 🗂️ Cấu Trúc Thư Mục Dự Án (Directory Hub)
+## Directory Hub
 
 ```text
 wazuh-soc-lab/
@@ -190,7 +208,7 @@ wazuh-soc-lab/
 
 ---
 
-## ⚡ Hướng Dẫn Cài Đặt & Tái Lập Phòng Lab (Deployment Guide)
+## Deployment Guide
 
 Để một người dùng mới có thể áp dụng toàn bộ đồ án này vào hệ thống của họ, hệ thống yêu cầu cấu hình theo mô hình 3 máy ảo (hoặc máy vật lý) trong cùng dải mạng (ví dụ dải Lab mặc định: `192.168.71.0/24`):
 - **Wazuh SIEM / SOAR Server (Ubuntu 22.04 LTS):** `192.168.71.128` (4-8 GB RAM)
@@ -223,7 +241,7 @@ LAB_WINDOWS_USER="socrunner"
 LAB_WINDOWS_PASSWORD="YOUR_SOCRUNNER_PASSWORD"
 ```
 
-> [!TIP]
+> **[!TIP]**
 > Bạn có thể chạy [`sync_env.bat`](sync_env.bat) (trên Windows) hoặc `python scripts/sync_env.py` để tự động kiểm tra tính sống còn của các API Token và đồng bộ cấu hình vào toàn bộ hệ thống.
 
 ---
@@ -322,7 +340,7 @@ python tests/e2e/scenario_full_killchain.py --execute
 
 ---
 
-## 📚 Quy Trình Chuẩn Ứng Phó Sự Cố (SOP Playbooks)
+## SOP Playbooks
 * **[SOP-01: RDP Brute Force Response](playbooks/SOP-01_RDP_Brute_Force_Response.md)**: Ma trận phân loại sự cố, kiểm tra chiếm quyền thành công (Logon Type 10) và củng cố GPO.
 * **[SOP-02: Web LFI & Path Traversal Mitigation](playbooks/SOP-02_Web_LFI_Mitigation.md)**: Phân tích log Apache, rà soát Web Shell qua Sysmon và vá code PHP an toàn.
 * **[SOP-03: SOAR Automated Containment & ChatOps Response](playbooks/SOP-03_SOAR_Automated_Containment.md)**: Điều phối phản ứng khép kín, cách ly máy trạm an toàn và hoàn tác (Rollback) trong 5 giây.
