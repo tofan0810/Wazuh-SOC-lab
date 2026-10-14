@@ -1,21 +1,21 @@
 # 🛑 Endpoint Active Response Scripts
 
-Thư mục chứa các kịch bản thực thi phản ứng tức thì được kích hoạt bởi **Wazuh Active Response Engine** trên máy trạm Windows 10 Endpoint.
+This directory contains real-time response scripts triggered by the **Wazuh Active Response Engine** on the Windows 10 Endpoint workstation.
 
 ---
 
-## 📌 Danh Mục Kịch Bản
+## 📌 Script Directory
 
-| Kịch Bản | Mục Tiêu Phản Ứng | Cơ Chế An Toàn (Safety Guard) |
+| Script | Response Objective | Safety Guard Mechanism |
 | :--- | :--- | :--- |
-| `kill-process.ps1`<br/>`kill-process.cmd` | Tiêu diệt tiến trình độc hại tức thì (`Stop-Process -Force`) khi phát hiện PowerShell mã hóa (Rule 100004) hoặc LSASS Memory Dump (Rule 100005). | **Safe Whitelist:** Tuyệt đối không kill các tiến trình hệ thống trọng yếu (`csrss.exe`, `lsass.exe`, `winlogon.exe`, `services.exe`, `wazuh-agent.exe`) để ngăn chặn BSOD. |
-| `collect-evidence.ps1`<br/>`collect-evidence.cmd` | Thu thập dữ liệu pháp y số (Forensic Triage): RAM mini-dump, kết nối mạng `netstat -ano`, active sessions, và log EVTX trước khi triệt tiêu mối đe dọa. | Tự động đặt timeout, nén file `.zip` và không làm gián đoạn hiệu năng hệ thống. |
+| `kill-process.ps1`<br/>`kill-process.cmd` | Instantly terminates malicious processes (`Stop-Process -Force`) upon detecting Encoded PowerShell (Rule 100004) or LSASS Memory Dump (Rule 100005). | **Safe Whitelist:** Strictly prevents killing vital operating system processes (`csrss.exe`, `lsass.exe`, `winlogon.exe`, `services.exe`, `wazuh-agent.exe`) to prevent Blue Screen of Death (BSOD). |
+| `collect-evidence.ps1`<br/>`collect-evidence.cmd` | Performs digital forensic triage: RAM mini-dump, network connections via `netstat -ano`, active sessions, and EVTX logs prior to threat mitigation. | Automatically enforces timeouts, compresses artifacts into `.zip` archives, and prevents endpoint performance degradation. |
 
 ---
 
-## 🛠️ Vị Trí Cài Đặt Trên Windows Endpoint
-Toàn bộ các file `.cmd` và `.ps1` được sao chép vào thư mục Active Response của Wazuh Agent:
+## 🛠️ Deployment Path on Windows Endpoint
+All `.cmd` and `.ps1` files are deployed to the Wazuh Agent Active Response directory:
 ```text
 C:\Program Files (x86)\ossec-agent\active-response\bin\
 ```
-Được khai báo trong `<active-response>` block trên file cấu hình `ossec.conf`.
+Configured within `<active-response>` blocks in the `ossec.conf` file.

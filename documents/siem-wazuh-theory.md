@@ -1,81 +1,74 @@
-# GIẢI PHÁP **SIEM** VÀ KIẾN TRÚC **WAZUH**
+# **SIEM** SOLUTIONS AND **WAZUH** ARCHITECTURE
 
-## PHẦN 1: TỔNG QUAN VỀ GIẢI PHÁP SIEM
+## PART 1: OVERVIEW OF SIEM SOLUTIONS
 
-### 1. Định nghĩa và Ý nghĩa thuật ngữ
+### 1. Definition and Terminology
 
-**SIEM** là viết tắt của **Security Information and Event Management** (Quản lý Sự kiện và Thông tin An ninh mạng).
+**SIEM** stands for **Security Information and Event Management**.
 
-* **S**ecurity: Bảo mật / An ninh mạng.
-* **I**nformation: Thông tin.
-* **E**vent: Sự kiện.
-* **M**anagement: Quản lý.
+* **S**ecurity
+* **I**nformation
+* **E**vent
+* **M**anagement
 
-> **Điểm khác biệt cốt lõi:** Nếu như `Syslog` thuần túy chỉ là giải pháp lưu trữ các thông tin vận hành (log), thì **SIEM vượt trội hơn nhờ vào khả năng Phân tích dữ liệu (Data Analysis)** để phát hiện các mối đe dọa.
+> **Core Difference:** While plain `Syslog` functions solely as a passive storage mechanism for operational event logs, **SIEM excels through its Data Analysis capabilities** to detect threats.
 
-### 2. Các thành phần và Luồng xử lý dữ liệu chung của SIEM
+### 2. General SIEM Architecture and Data Processing Pipeline
 
-Một giải pháp SIEM tiêu chuẩn sẽ xử lý dữ liệu qua 5 giai đoạn cốt lõi sau:
+A standard SIEM solution processes telemetry data through five core stages:
 
 ```
 [Data Collection] ──> [Data Ingestion] ──> [Data Parsing] ──> [Data Analysis] ──> [Visualization & Alerting]
-
 ```
 
-#### **Giai đoạn 1: Thu thập dữ liệu (Data Collection)**
-* Thu thập tất cả thông tin liên quan đến Cyber Security từ mọi ngóc ngách trong doanh nghiệp: Thiết bị phần cứng, hệ điều hành, middleware, database, API, môi trường Cloud (Public, Private, Hybrid), cho đến các dịch vụ SaaS (Office 365, GitHub...).
-* Tích hợp sâu với các giải pháp bảo mật khác: Antivirus, WAF, PAM/PIM, DLP, Endpoint Protection, Threat Intelligence, Identity Protection, SOAR, SOC... nhằm tạo ra cái nhìn toàn diện nhất.
+#### **Stage 1: Data Collection**
+* Ingests cybersecurity-relevant telemetry across the entire enterprise estate: hardware appliances, operating systems, middleware, databases, APIs, cloud environments (Public, Private, Hybrid), and SaaS platforms (Office 365, GitHub, etc.).
+* Deeply integrates with peripheral security solutions: Antivirus, WAF, PAM/PIM, DLP, Endpoint Protection, Threat Intelligence, Identity Protection, SOAR, SOC tools to construct holistic situational awareness.
 
+#### **Stage 2: Data Ingestion**
+* Ingested telemetry is continuously streamed and aggregated into central recording ingestion buffers for downstream processing pipelines.
 
-#### **Giai đoạn 2: Tiếp nhận dữ liệu (Data Ingestion)**
-* Dữ liệu sau khi thu thập được gửi liên tục và tập trung về hệ thống ghi nhận để chuẩn bị cho các bước xử lý tiếp theo.
+#### **Stage 3: Data Parsing / Normalization**
+* Transforms disparate, heterogeneous raw logs into a **single unified data format**.
+* Objective: Eliminates schema inconsistencies to enable optimal query performance, storage compression, and correlation efficiency.
 
+#### **Stage 4: Data Analysis - The "Brain" of SIEM**
+* Inspects and correlates parsed telemetry to uncover anomalies, indicators of compromise (IOCs), and cyber attacks.
+* Employs advanced techniques: *Behavioral Analysis*, *Anomaly Detection*, *File Integrity Monitoring*, and *Machine Learning / AI* models to detect and mitigate multi-stage stealth attacks.
 
-#### **Giai đoạn 3: Chuẩn hóa dữ liệu (Data Parsing / Data Recording)**
-* Biến đổi dữ liệu thô (raw log) từ nhiều nguồn, nhiều định dạng khác nhau thành một **định dạng thống nhất duy nhất**.
-* Mục đích: Loại bỏ sự không nhất quán, giúp việc quản lý, phân tích và lưu trữ đạt hiệu quả tối ưu.
-
-
-#### **Giai đoạn 4: Phân tích dữ liệu (Data Analysis) - "Trái tim" của SIEM**
-* Sàng lọc, xem xét kỹ lưỡng dữ liệu đã chuẩn hóa để tìm ra các hành vi bất thường hoặc dấu hiệu tấn công (Cyber Attack).
-* Sử dụng các kỹ thuật nâng cao: *Behavior Analysis* (Phân tích hành vi), *Anomaly Detection* (Phát hiện thực thể bất thường), *Integrity Verification* (Xác thực tính toàn vẹn), và ứng dụng *AI/Machine Learning* để dự đoán, ngăn chặn sớm các cuộc tấn công tinh vi.
-
-
-#### **Giai đoạn 5: Trực quan hóa & Cảnh báo (Visualization & Alerting)**
-* Chuyển kết quả phân tích phức tạp thành giao diện trực quan thông qua các Dashboard, báo cáo chi tiết (Reports) và hệ thống cảnh báo linh hoạt (Alerts).
-* Giúp các nhà quản trị và chuyên gia SOC/Bảo mật nhanh chóng phản ứng và điều chỉnh chiến lược phòng thủ.
-
-
+#### **Stage 5: Visualization & Alerting**
+* Synthesizes complex analytical findings into interactive Dashboards, compliance reports, and flexible alerting channels.
+* Empowers security analysts and SOC teams to triage alerts rapidly and fine-tune threat mitigation postures.
 
 ---
 
-## PHẦN 2: KIẾN TRÚC TỔNG QUAN CỦA WAZUH
+## PART 2: WAZUH ARCHITECTURAL OVERVIEW
 
-Wazuh là một nền tảng bảo mật mã nguồn mở được xây dựng dựa trên kiến trúc module linh hoạt, bao gồm các thành phần chính sau:
+Wazuh is an open-source security platform architected around a modular and extensible micro-engine framework, comprising the following primary components:
 
-### 1. Wazuh Agent (Thành phần Thu thập)
+### 1. Wazuh Agent (Collection Tier)
 
-* **Vị trí:** Được cài đặt trực tiếp trên các endpoint cần giám sát (Windows, Linux, macOS, các môi trường Cloud hoặc thiết bị hạ tầng IT).
-* **Chức năng:** Thu thập dữ liệu trạng thái an ninh mạng từ máy chủ/ứng dụng, **mã hóa dữ liệu** này và gửi an toàn về cho Wazuh Manager.
+* **Placement:** Installed directly on monitored endpoints (Windows, Linux, macOS, cloud instances, or containerized environments).
+* **Role:** Gathers system events, integrity events, and security telemetry, **encrypts the payload**, and streams it securely to the Wazuh Manager.
 
-### 2. Wazuh Manager (Bộ não Trung tâm)
+### 2. Wazuh Manager (Central Analysis Engine)
 
-* **Chức năng:** Tiếp nhận, ghi nhận và phân tích các sự kiện an toàn thông tin từ Agent gửi về nhằm phát hiện dấu hiệu đe dọa, đồng thời điều phối các phản ứng phòng thủ (Cyber Kill Chain).
-* **Khả năng mở rộng:** Hỗ trợ tính năng **Clustering (Cluster các Worker Nodes)**, cho phép thêm/bớt các node linh hoạt để xử lý lượng log khổng lồ từ các hệ thống quy mô lớn mà không bị nghẽn.
+* **Role:** Ingests, normalizes (Decoders), and correlates (Rules engine) incoming telemetry from agents to detect threats and trigger defensive countermeasures (Active Response, Kill Chain disruption).
+* **Scalability:** Supports **Clustering (Master/Worker cluster topology)**, allowing horizontal scaling of worker nodes to ingest and analyze massive log volumes without bottlenecks.
 
-### 3. Wazuh Indexer (Kho lưu trữ & Tra cứu)
+### 3. Wazuh Indexer (Search & Storage Tier)
 
-* **Chức năng:** Lưu trữ, đánh chỉ mục (indexing) và hỗ trợ tìm kiếm siêu tốc các dữ liệu đã qua xử lý.
-* **Hiệu suất & An toàn:** Cho phép cấu hình Multi-node để tối ưu hóa truy vấn, tăng tốc độ tìm kiếm và đảm bảo tính toàn vẹn của dữ liệu thông qua cơ chế sao chép dữ liệu (**Data Replication**).
+* **Role:** Stores, indexes, and delivers near real-time full-text search across all enriched security events.
+* **Performance & High Availability:** Based on OpenSearch; supports multi-node clustering with **Data Replication** and sharding to guarantee resilience, fast analytical retrieval, and data durability.
 
-### 4. Wazuh Dashboard (Giao diện Trực quan)
+### 4. Wazuh Dashboard (Visualization Tier)
 
-* **Chức năng:** Cung cấp giao diện đồ họa (GUI) cho người dùng để trực quan hóa toàn bộ dữ liệu log, quản lý các cảnh báo, xuất báo cáo và theo dõi mức độ tuân thủ các tiêu chuẩn bảo mật.
-* **Mở rộng:** Cung cấp nhiều add-on và plugin hữu ích giúp tối ưu hóa quy trình vận hành cho các chuyên gia phân tích cú pháp và xử lý sự cố.
+* **Role:** Provides an interactive web-based graphical user interface (GUI) for visualizing threat data, tracking SIEM alerts, managing policies, generating reports, and auditing compliance frameworks (PCI-DSS, NIST 800-53, MITRE ATT&CK).
+* **Extensibility:** Accommodates plugins and custom visualizations to streamline daily triage for security analysts and incident responders.
 
 ---
 
-## TỔNG KẾT BÀI HỌC
+## SUMMARY
 
-* **SIEM** là một quy trình khép kín từ khâu **Thu thập -> Chuẩn hóa -> Phân tích hành vi nâng cao -> Cảnh báo trực quan**.
-* **Wazuh** hiện thực hóa mô hình SIEM này bằng kiến trúc phân tán: **Agent** (Thu thập) $\rightarrow$ **Manager** (Phân tích/Điều phối) $\rightarrow$ **Indexer** (Lưu trữ/Chỉ mục) $\rightarrow$ **Dashboard** (Trực quan hóa). Nhờ kiến trúc module và khả năng clustering, Wazuh có thể mở rộng vô hạn và dễ dàng tích hợp với hệ sinh thái bảo mật của doanh nghiệp.
+* **SIEM** represents an end-to-end closed-loop pipeline: **Collection -> Parsing & Normalization -> Advanced Behavioral Correlation -> Visual Alerting**.
+* **Wazuh** realizes this model through a distributed architecture: **Agent** (Collection) $\rightarrow$ **Manager** (Analysis/Orchestration) $\rightarrow$ **Indexer** (Storage/Indexing) $\rightarrow$ **Dashboard** (Visualization). Through modular design and cluster scalability, Wazuh scales horizontally and integrates seamlessly into enterprise security ecosystems.

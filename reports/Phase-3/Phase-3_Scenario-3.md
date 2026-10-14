@@ -1,31 +1,31 @@
-# CÁC KỊCH BẢN TẤN CÔNG & PHÁT HIỆN THỰC CHIẾN (PHASE 3)
+# REAL-WORLD ATTACK & DETECTION SCENARIOS (PHASE 3)
 
-## 🔹 KỊCH BẢN 3: FULL KILL CHAIN ATTACK & DETECTION VỚI MICROSOFT SYSMON TELEMETRY (T1059, T1548, T1547, T1003)
+## 🔹 SCENARIO 3: FULL KILL CHAIN ATTACK & DETECTION WITH MICROSOFT SYSMON TELEMETRY (T1059, T1548, T1547, T1003)
 
-Kịch bản này thể hiện năng lực **Giám sát chuyên sâu tầng nhân (Deep Kernel Telemetry)** và xây dựng chuỗi phát hiện toàn diện (**Full Attack Lifecycle / Kill Chain Detection**) của hệ thống SOC. Thay vì chỉ bắt các sự kiện đơn lẻ ở tầng ứng dụng (như Web hay xác thực RDP), kịch bản này mô phỏng chân thực các kỹ thuật nâng cao mà tin tặc thực hiện sau khi đã xâm nhập vào máy endpoint nạn nhân.
-
----
-
-## Mục tiêu
-
-Mục tiêu của Phase 3 - Kịch bản 3 là xây dựng và kiểm chứng một chuỗi tấn công đa giai đoạn khép kín theo chuẩn ma trận **MITRE ATT&CK**:
-1. **Execution (T1059.001):** Thực thi lệnh PowerShell ẩn danh với tham số mã hóa Base64 (`-EncodedCommand`, `-w hidden`, `-nop`).
-2. **Privilege Escalation (T1548.002):** Leo thang đặc quyền thông qua kỹ thuật lạm dụng Registry Hijacking (`ms-settings\Shell\Open\command`) để vượt mặt cơ chế UAC (User Account Control).
-3. **Persistence (T1547.001):** Thiết lập cơ chế ẩn náu bám trụ lâu dài bằng cách đăng ký khóa tự khởi động trong `HKCU\...\CurrentVersion\Run`.
-4. **Credential Access (T1003.001):** Trích xuất thông tin xác thực nhạy cảm từ bộ nhớ thông qua hành vi mở handle truy cập tiến trình hệ thống `lsass.exe`.
-
-Kết quả mong muốn:
-* Microsoft Sysmon v15.2 trên Windows Endpoint bắt trọn các hành vi tầng nhân (Kernel Events 1, 10, 12, 13).
-* Windows EventChannel chuyển tiếp toàn vẹn dữ liệu log sự kiện về Wazuh Manager.
-* Hệ thống SIEM Wazuh biên dịch và kích hoạt chuẩn xác các Custom Rules (`100004`, `100005`, `100006`, `100007`).
-* Phân hệ ChatOps tự động dispatch cảnh báo chi tiết theo thời gian thực về Telegram Bot.
-* Tự động hóa kiểm thử hồi quy 100% qua kịch bản `tests/e2e/scenario_full_killchain.py` và dọn dẹp sạch dấu vết sau kiểm thử.
+This scenario demonstrates the SOC system's **Deep Kernel Telemetry** capabilities and the construction of an end-to-end detection chain (**Full Attack Lifecycle / Kill Chain Detection**). Rather than solely capturing isolated application-level events (such as Web or RDP authentication), this scenario authentically simulates advanced techniques an adversary performs post-compromise on the victim endpoint.
 
 ---
 
-## Mô hình triển khai
+## Objectives
 
-Mô hình kiến trúc tổng thể của kịch bản Full Kill Chain:
+The objective of Phase 3 - Scenario 3 is to construct and validate a closed multi-stage attack chain aligned with the **MITRE ATT&CK** matrix:
+1. **Execution (T1059.001):** Execute stealthy PowerShell commands using Base64 obfuscation (`-EncodedCommand`, `-w hidden`, `-nop`).
+2. **Privilege Escalation (T1548.002):** Elevate privileges via Registry Hijacking (`ms-settings\Shell\Open\command`) to bypass User Account Control (UAC).
+3. **Persistence (T1547.001):** Establish long-term footholds by registering autostart keys under `HKCU\...\CurrentVersion\Run`.
+4. **Credential Access (T1003.001):** Extract sensitive credentials from memory by opening a process access handle to system process `lsass.exe`.
+
+Expected outcomes:
+* Microsoft Sysmon v15.2 on Windows Endpoint captures deep kernel telemetry (Kernel Events 1, 10, 12, 13).
+* Windows EventChannel seamlessly forwards event log telemetry to Wazuh Manager.
+* The Wazuh SIEM system accurately parses and triggers Custom Rules (`100004`, `100005`, `100006`, `100007`).
+* The ChatOps subsystem automatically dispatches real-time detailed alerts to the Telegram Bot.
+* 100% regression testing automation via `tests/e2e/scenario_full_killchain.py` with post-test environment cleanup.
+
+---
+
+## Deployment Architecture
+
+Overall architectural model of the Full Kill Chain scenario:
 
 ```text
        ┌────────────────────────────────────────────────────────┐
@@ -78,31 +78,31 @@ Mô hình kiến trúc tổng thể của kịch bản Full Kill Chain:
 
 ---
 
-## I. Cấu hình Microsoft Sysmon v15.2 & Custom Rules trên Wazuh
+## I. Microsoft Sysmon v15.2 & Custom Rules Configuration on Wazuh
 
-### 1. Cấu hình Sysmon chuyên sâu trên Windows Endpoint (`sysmon-config.xml`)
+### 1. Advanced Sysmon Configuration on Windows Endpoint (`sysmon-config.xml`)
 
-Để Sysmon ghi lại chi tiết các hành vi tương tác Registry và mở handle bộ nhớ `lsass.exe`, file cấu hình [`deployment/sysmon-config.xml`](../../deployment/sysmon-config.xml) được tinh chỉnh:
+To ensure Sysmon captures deep Registry interactions and `lsass.exe` process access handles, configuration file [`deployment/sysmon-config.xml`](../../deployment/sysmon-config.xml) is tuned:
 
 ```xml
 <Sysmon schemaversion="4.90">
   <HashAlgorithms>MD5,SHA256</HashAlgorithms>
   <EventFiltering>
-    <!-- Event 1: Giám sát toàn bộ tiến trình tạo mới -->
+    <!-- Event 1: Monitor all newly created processes -->
     <ProcessCreate onmatch="exclude" />
 
-    <!-- Event 3: Giám sát kết nối mạng từ cmd/powershell -->
+    <!-- Event 3: Monitor network connections from cmd/powershell -->
     <NetworkConnect onmatch="include">
       <Image condition="contains">cmd.exe</Image>
       <Image condition="contains">powershell.exe</Image>
     </NetworkConnect>
 
-    <!-- Event 10: ProcessAccess - Bắt hành vi mở handle truy cập lsass.exe -->
+    <!-- Event 10: ProcessAccess - Capture handles opened against lsass.exe -->
     <ProcessAccess onmatch="include">
       <TargetImage condition="end with">lsass.exe</TargetImage>
     </ProcessAccess>
 
-    <!-- Event 12, 13: RegistryEvent - Bắt cơ chế Persistence Run Key & UAC Bypass -->
+    <!-- Event 12, 13: RegistryEvent - Capture Persistence Run Key & UAC Bypass -->
     <RegistryEvent onmatch="include">
       <TargetObject condition="contains">CurrentVersion\Run</TargetObject>
       <TargetObject condition="contains">ms-settings</TargetObject>
@@ -111,16 +111,16 @@ Mô hình kiến trúc tổng thể của kịch bản Full Kill Chain:
 </Sysmon>
 ```
 
-Tiến hành nạp cấu hình trực tiếp vào nhân hệ điều hành thông qua lệnh:
+Load the configuration directly into the OS driver using the command:
 ```powershell
 & "C:\Windows\Sysmon64.exe" -c C:\Users\Public\sysmon-config.xml
 ```
 
-![Nạp cấu hình Sysmon thành công trên Windows 10](images/scenario3/01_sysmon_config_loaded.png)
+![Sysmon configuration loaded successfully on Windows 10](images/scenario3/01_sysmon_config_loaded.png)
 
-### 2. Xây dựng Bộ Custom Rules phát hiện Full Kill Chain (`local_rules.xml`)
+### 2. Developing Custom Rules Suite for Full Kill Chain Detection (`local_rules.xml`)
 
-Tại máy chủ **Wazuh Manager**, mở tệp [`custom-rules/local_rules.xml`](../../custom-rules/local_rules.xml) và bổ sung nhóm luật chuyên biệt bắt luồng sự kiện từ Sysmon EventChannel:
+On the **Wazuh Manager** server, open [`custom-rules/local_rules.xml`](../../custom-rules/local_rules.xml) and add the specialized rule group capturing Sysmon EventChannel streams:
 
 ```xml
 <group name="local_rules,sysmon,windows,killchain,">
@@ -183,7 +183,7 @@ Tại máy chủ **Wazuh Manager**, mở tệp [`custom-rules/local_rules.xml`](
 </group>
 ```
 
-Kiểm tra cú pháp và nạp cấu hình vào Wazuh Manager:
+Validate syntax and reload configuration on Wazuh Manager:
 ```bash
 docker exec single-node-wazuh.manager-1 /var/ossec/bin/wazuh-analysisd -t
 docker exec single-node-wazuh.manager-1 /var/ossec/bin/wazuh-control restart
@@ -191,98 +191,98 @@ docker exec single-node-wazuh.manager-1 /var/ossec/bin/wazuh-control restart
 
 ---
 
-## II. Chi tiết 4 Giai đoạn Mô phỏng & Bằng chứng Pháp y (PoC)
+## II. 4-Stage Simulation Details & Forensic Evidence (PoC)
 
 ---
 
-### 🔴 Giai đoạn 1: Execution (T1059.001 - Malicious PowerShell Execution)
+### 🔴 Stage 1: Execution (T1059.001 - Malicious PowerShell Execution)
 
-#### 1. Hành vi mô phỏng
-Kẻ tấn công sau khi có quyền truy cập sơ bộ sẽ thực thi các đoạn mã độc hại được làm rối (obfuscated) bằng cờ mã hóa Base64 `-EncodedCommand` kết hợp cờ ẩn cửa sổ `-WindowStyle Hidden` và bỏ qua cấu hình người dùng `-NoProfile`.
+#### 1. Simulated Behavior
+Upon obtaining initial access, an attacker executes obfuscated malicious code using the Base64 flag `-EncodedCommand` combined with window suppression `-WindowStyle Hidden` and profile bypass `-NoProfile`.
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand VwByAGkAdABlAC0ATwB1AHQAcAB1AHQAIAAiAFMATwBDAC0ATABhAGIAIABLAGkAbABsAEMAaABhAGkAbgAgAFMAdABhAGcAZQAxACAAVABlAHMAdAAgAEEAYwB0AGkAdgBlACI=
 ```
-Sau khi thực thi lệnh thì hệ thống sẽ alert lên ngay lập tức lên Telegram:
+Upon command execution, the system immediately fires an alert to Telegram:
 
-![Thực thi lệnh PowerShell EncodedCommand](images/scenario3/02_stage1_powershell_attack.png)
+![Executing PowerShell EncodedCommand](images/scenario3/02_stage1_powershell_attack.png)
 
-#### 2. Dấu vết Telemetry (Sysmon Event ID 1)
-Sysmon ghi nhận sự kiện tạo tiến trình với chi tiết câu lệnh dòng lệnh:
+#### 2. Telemetry Artifacts (Sysmon Event ID 1)
+Sysmon records the process creation event with full command-line arguments:
 * **Event ID:** 1 (Process Create)
 * **Image:** `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`
 * **CommandLine:** `powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand ...`
 * **ParentImage:** `C:\Windows\System32\cmd.exe`
 
-![Sysmon Event 1 ghi nhận PowerShell EncodedCommand](images/scenario3/03_stage1_sysmon_event1.png)
+![Sysmon Event 1 capturing PowerShell EncodedCommand](images/scenario3/03_stage1_sysmon_event1.png)
 
-#### 3. Cảnh báo trên Wazuh SIEM
-Hệ thống kích hoạt **Rule ID 100004 (Level 12 - High Severity)**:
+#### 3. Alerts on Wazuh SIEM
+The system triggers **Rule ID 100004 (Level 12 - High Severity)**:
 
-![Alert Rule 100004 trên Wazuh Dashboard](images/scenario3/04_stage1_wazuh_alert_100004.png)
-![Detail document](images/scenario3/04_stage1_wazuh_detal_document_100004.png)
+![Rule 100004 alert on Wazuh Dashboard](images/scenario3/04_stage1_wazuh_alert_100004.png)
+![Document details](images/scenario3/04_stage1_wazuh_detal_document_100004.png)
 
 ---
 
-### 🔴 Giai đoạn 2: Privilege Escalation (T1548.002 - UAC Bypass via Registry)
+### 🔴 Stage 2: Privilege Escalation (T1548.002 - UAC Bypass via Registry)
 
-#### 1. Hành vi mô phỏng
-Kẻ tấn công lạm dụng kỹ thuật **Registry Hijacking** nhắm vào giao thức `ms-settings` (phương pháp chuẩn Atomic Red Team T1548.002). Bằng cách ghi đè khóa lệnh `HKCU\Software\Classes\ms-settings\Shell\Open\command`, các tiến trình tự động nâng quyền (auto-elevated process như `fodhelper.exe` hoặc `ComputerDefaults.exe`) sẽ thực thi mã độc với quyền Administrator mà không hiển thị hộp thoại UAC Prompt:
+#### 1. Simulated Behavior
+The attacker leverages **Registry Hijacking** targeting the `ms-settings` protocol (standard Atomic Red Team T1548.002 methodology). By overriding the command key `HKCU\Software\Classes\ms-settings\Shell\Open\command`, auto-elevated processes (such as `fodhelper.exe` or `ComputerDefaults.exe`) execute arbitrary commands with Administrator privileges without presenting a UAC Prompt:
 ```powershell
 $regPath = "HKCU:\Software\Classes\ms-settings\Shell\Open\command"
 New-Item -Path $regPath -Force
 Set-ItemProperty -Path $regPath -Name "DelegateExecute" -Value "" -Force
 Set-Item -Path $regPath -Value "cmd.exe /c echo SOC_UAC_Bypass_Simulated" -Force
 ```
-Thông báo trên Telegram: 
-![Tạo khóa ms-settings trong Registry](images/scenario3/05_stage2_uac_bypass_registry.png)
+Notification on Telegram: 
+![Creating ms-settings key in Registry](images/scenario3/05_stage2_uac_bypass_registry.png)
 
 
-#### 2. Dấu vết Telemetry (Sysmon Event ID 12 & 13)
-Sysmon lập tức tóm bắt sự kiện tương tác Registry:
+#### 2. Telemetry Artifacts (Sysmon Event ID 12 & 13)
+Sysmon immediately intercepts the Registry interaction event:
 * **Event ID:** 12 (CreateKey) & 13 (SetValue)
 * **TargetObject:** `HKU\S-1-5-..._Classes\ms-settings\Shell\Open\command`
 * **Details:** `cmd.exe /c echo SOC_UAC_Bypass_Simulated`
 
-![Sysmon Event 12/13 ghi nhận sửa đổi Registry ms-settings](images/scenario3/06_stage2_sysmon_event13.png)
+![Sysmon Event 12/13 capturing ms-settings Registry modification](images/scenario3/06_stage2_sysmon_event13.png)
 
-#### 3. Cảnh báo trên Wazuh SIEM
-Hệ thống kích hoạt **Rule ID 100007 (Level 12 - High Severity)**:
+#### 3. Alerts on Wazuh SIEM
+The system triggers **Rule ID 100007 (Level 12 - High Severity)**:
 
-![Alert Rule 100007 trên Wazuh Dashboard](images/scenario3/07_stage2_wazuh_alert_100007.png)
+![Rule 100007 alert on Wazuh Dashboard](images/scenario3/07_stage2_wazuh_alert_100007.png)
 
 ---
 
-### 🔴 Giai đoạn 3: Persistence (T1547.001 - Registry Run Key Persistence)
+### 🔴 Stage 3: Persistence (T1547.001 - Registry Run Key Persistence)
 
-#### 1. Hành vi mô phỏng
-Kẻ tấn công thiết lập cơ chế tự khởi động khi người dùng đăng nhập hệ thống nhằm duy trì quyền kiểm soát vĩnh viễn (Persistence) bằng tiện ích dòng lệnh `reg.exe`:
+#### 1. Simulated Behavior
+The attacker establishes an autostart mechanism upon user logon to maintain persistent control (Persistence) using the `reg.exe` command-line utility:
 ```cmd
 reg.exe add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "SOCLabPersistTest" /t REG_SZ /d "C:\Windows\System32\cmd.exe /c echo soc_persist" /f
 ```
 
-![Đăng ký khóa tự khởi động bằng reg.exe](images/scenario3/08_stage3_persistence_run_key.png)
+![Registering autostart key with reg.exe](images/scenario3/08_stage3_persistence_run_key.png)
 
-#### 2. Dấu vết Telemetry (Sysmon Event ID 13)
-Sysmon ghi nhận giá trị Registry bị thay đổi:
+#### 2. Telemetry Artifacts (Sysmon Event ID 13)
+Sysmon records the modified Registry value:
 * **Event ID:** 13 (SetValue)
 * **Image:** `C:\Windows\system32\reg.exe`
 * **TargetObject:** `HKU\S-1-5-...\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\SOCLabPersistTest`
 * **Details:** `C:\Windows\System32\cmd.exe /c echo soc_persist`
 
-![Sysmon Event 13 ghi nhận SetValue trên Run Key](images/scenario3/09_stage3_sysmon_event13.png)
+![Sysmon Event 13 capturing SetValue on Run Key](images/scenario3/09_stage3_sysmon_event13.png)
 
-#### 3. Cảnh báo trên Wazuh SIEM
-Hệ thống kích hoạt **Rule ID 100006 (Level 10 - Medium/High Severity)**:
+#### 3. Alerts on Wazuh SIEM
+The system triggers **Rule ID 100006 (Level 10 - Medium/High Severity)**:
 
-![Alert Rule 100006 trên Wazuh Dashboard](images/scenario3/10_stage3_wazuh_alert_100006.png)
+![Rule 100006 alert on Wazuh Dashboard](images/scenario3/10_stage3_wazuh_alert_100006.png)
 
 ---
 
-### 🔴 Giai đoạn 4: Credential Access (T1003.001 - LSASS Memory Access)
+### 🔴 Stage 4: Credential Access (T1003.001 - LSASS Memory Access)
 
-#### 1. Hành vi mô phỏng
-Trong thực tế, tin tặc sử dụng Mimikatz, ProcDump hoặc Task Manager để dump bộ nhớ tiến trình `lsass.exe` (Local Security Authority Subsystem Service) nhằm đánh cắp NTLM hash và Kerberos tickets. 
-Trong bài lab này, hành vi được mô phỏng một cách an toàn và chuẩn mực thông qua .NET Process Diagnostics API (gọi hàm Win32 `OpenProcess` mở handle đọc thông tin `lsass.exe`):
+#### 1. Simulated Behavior
+In real-world attacks, adversaries use Mimikatz, ProcDump, or Task Manager to dump memory from the `lsass.exe` process (Local Security Authority Subsystem Service) to harvest NTLM hashes and Kerberos tickets. 
+In this lab, the activity is safely and realistically simulated using the .NET Process Diagnostics API (invoking Win32 `OpenProcess` to open a read handle against `lsass.exe`):
 ```powershell
 $p = Get-Process -Name lsass -ErrorAction Stop
 $h = $p.Handle
@@ -290,57 +290,57 @@ $id = $p.Id
 $p.Dispose()
 ```
 
-![Mô phỏng truy vấn handle bộ nhớ lsass.exe](images/scenario3/11_stage4_lsass_handle_query.png)
+![Simulating lsass.exe memory handle query](images/scenario3/11_stage4_lsass_handle_query.png)
 
-#### 2. Dấu vết Telemetry (Sysmon Event ID 10)
-Sysmon chặn đứng và ghi lại sự kiện can thiệp bộ nhớ nhạy cảm:
+#### 2. Telemetry Artifacts (Sysmon Event ID 10)
+Sysmon intercepts and records the sensitive memory access event:
 * **Event ID:** 10 (ProcessAccess)
 * **SourceImage:** `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`
 * **TargetImage:** `C:\WINDOWS\system32\lsass.exe`
-* **GrantedAccess:** Quyền truy cập đọc/truy vấn bộ nhớ.
+* **GrantedAccess:** Memory read/query access rights.
 
-![Sysmon Event 10 ProcessAccess nhắm vào lsass.exe](images/scenario3/12_stage4_sysmon_event10.png)
+![Sysmon Event 10 ProcessAccess targeting lsass.exe](images/scenario3/12_stage4_sysmon_event10.png)
 
-#### 3. Cảnh báo trên Wazuh SIEM
-Hệ thống kích hoạt **Rule ID 100005 (Level 12 - High Severity)**:
+#### 3. Alerts on Wazuh SIEM
+The system triggers **Rule ID 100005 (Level 12 - High Severity)**:
 
-![Alert Rule 100005 trên Wazuh Dashboard](images/scenario3/13_stage4_wazuh_alert_100005.png)
+![Rule 100005 alert on Wazuh Dashboard](images/scenario3/13_stage4_wazuh_alert_100005.png)
 
 ---
 
-## III. Tự động hóa Kiểm thử End-to-End (E2E Runner) & ChatOps Telegram
+## III. End-to-End Test Automation (E2E Runner) & Telegram ChatOps
 
-### 1. Kịch bản Tự động hóa Toàn diện (`scenario_full_killchain.py`)
+### 1. Comprehensive Automation Script (`scenario_full_killchain.py`)
 
-Toàn bộ quy trình từ thiết lập baseline, kích hoạt 4 giai đoạn tấn công, đối soát telemetry động và dọn dẹp môi trường được tích hợp trong file [`tests/e2e/scenario_full_killchain.py`](../../tests/e2e/scenario_full_killchain.py).
+The entire workflow from baseline setup, executing 4 attack stages, dynamic telemetry verification, to environment teardown is consolidated in [`tests/e2e/scenario_full_killchain.py`](../../tests/e2e/scenario_full_killchain.py).
 
-Thực thi kịch bản bằng lệnh:
+Execute the script with:
 ```bash
 python tests/e2e/scenario_full_killchain.py --execute
 ```
 
 
-![Kết quả chạy E2E Runner thành công 4/4 stages](images/scenario3/14_e2e_runner_pass.png)
+![E2E Runner execution result: 4/4 stages passed](images/scenario3/14_e2e_runner_pass.png)
 
 ---
 
-### 2. Thông báo Cảnh báo Realtime qua Telegram ChatOps
+### 2. Real-Time Alert Notifications via Telegram ChatOps
 
-Tất cả các Rule `100004`, `100005`, `100006`, `100007` đều được cấu hình đẩy trực tiếp về Telegram Bot. Đội ngũ SOC tiếp nhận thông báo chi tiết bao gồm:
-* Mức độ nghiêm trọng (Level 10 - 12).
-* Tên kỹ thuật và mã ánh xạ **MITRE ATT&CK**.
-* Tên endpoint và thông tin người dùng kích hoạt.
-* Dấu vết tiến trình/khóa Registry vi phạm.
+All rules `100004`, `100005`, `100006`, `100007` are configured to forward alerts directly to the Telegram Bot. The SOC team receives detailed notifications containing:
+* Severity Level (Level 10 - 12).
+* Technique name and mapped **MITRE ATT&CK** ID.
+* Endpoint name and triggering user context.
+* Violating process / Registry key telemetry trace.
 ---
 
-## IV. Điều tra Pháp y & Khắc phục Sự cố (Eradication & Remediation)
+## IV. Forensic Investigation & Incident Remediation (Eradication & Remediation)
 
-Sau khi cuộc tấn công diễn ra, kịch bản tự động thực thi chu trình phản ứng sự cố chuẩn (**NIST SP 800-61 / SANS**) để loại bỏ hoàn toàn các mối đe dọa:
-1. **Xóa bỏ khóa UAC Bypass:** Xóa bỏ toàn bộ nhánh `HKCU:\Software\Classes\ms-settings` để ngăn ngừa việc lạm dụng tự động leo thang đặc quyền.
-2. **Triệt tiêu khóa bám trụ (Run Key):** Sử dụng `reg.exe delete` loại bỏ giá trị `SOCLabPersistTest` khỏi `HKCU\...\CurrentVersion\Run`.
-3. **Đóng Handle & Giải phóng tài nguyên:** Tiến trình PowerShell giải phóng handle đọc bộ nhớ `lsass.exe`, đảm bảo tính toàn vẹn của dịch vụ xác thực Windows.
+Following attack execution, the script automatically carries out standard incident response procedures (**NIST SP 800-61 / SANS**) to eradicate threats completely:
+1. **Eradicate UAC Bypass Key:** Remove the entire `HKCU:\Software\Classes\ms-settings` hive to prevent unauthorized privilege escalation.
+2. **Eradicate Persistence Mechanism (Run Key):** Use `reg.exe delete` to remove the `SOCLabPersistTest` value from `HKCU\...\CurrentVersion\Run`.
+3. **Close Handle & Release Resources:** The PowerShell process releases the read handle against `lsass.exe` memory, ensuring Windows authentication service integrity.
 
-Lệnh khắc phục thủ công:
+Manual remediation commands:
 ```powershell
 # 1. Eradicate UAC Bypass hijacking
 Remove-Item -Path "HKCU:\Software\Classes\ms-settings" -Recurse -Force -ErrorAction SilentlyContinue
@@ -351,12 +351,12 @@ reg.exe delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "SOCLabPe
 
 ---
 
-## V. Tổng kết Kịch bản 3
+## V. Scenario 3 Summary
 
-Kịch bản 3 đã chứng minh:
-* **Khả năng giám sát chuyên sâu:** Sự kết hợp hoàn hảo giữa **Wazuh Agent** và **Microsoft Sysmon v15.2** giúp hệ thống SOC làm chủ hoàn toàn các hành vi bất thường ở tầng nhân hệ điều hành.
-* **Bao phủ chuỗi tấn công hoàn chỉnh:** Không chỉ dừng lại ở các cuộc tấn công bên ngoài mạng, hệ thống có khả năng phát hiện xuyên suốt chuỗi vòng đời tấn công của kẻ xâm nhập (Execution $\rightarrow$ Privilege Escalation $\rightarrow$ Persistence $\rightarrow$ Credential Access).
-* **Chuẩn hóa Detection-as-Code:** Quy trình kiểm thử được tự động hóa hoàn toàn với mã nguồn mở, tích hợp kiểm thử đơn vị (`pytest`) và kiểm thử đầu cuối (`E2E Runner`), sẵn sàng ứng dụng trong các trung tâm vận hành an ninh mạng (SOC/MDR) doanh nghiệp thực tế.
+Scenario 3 validated:
+* **Deep Monitoring Capabilities:** The synergy between **Wazuh Agent** and **Microsoft Sysmon v15.2** empowers the SOC to monitor abnormal operating system kernel activities comprehensively.
+* **Complete Attack Lifecycle Coverage:** Moving beyond perimeter network alerts, the system maintains detection coverage across the entire intruder lifecycle (Execution $\rightarrow$ Privilege Escalation $\rightarrow$ Persistence $\rightarrow$ Credential Access).
+* **Standardized Detection-as-Code:** The testing pipeline is fully automated with open-source tooling, integrating unit tests (`pytest`) and end-to-end tests (`E2E Runner`), ready for enterprise SOC/MDR deployment.
 
 ---
 

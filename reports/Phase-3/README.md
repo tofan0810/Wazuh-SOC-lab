@@ -1,13 +1,13 @@
-# ⚔️ Phase 3: Kịch Bản Tấn Công & Phát Hiện Thực Chiến
+# ⚔️ Phase 3: Real-World Attack & Detection Scenarios
 
-Thư mục lưu trữ các báo cáo chi tiết về 3 kịch bản tấn công và phát hiện thực nghiệm được triển khai từ máy Kali Linux (`192.168.71.130`) nhắm vào Windows 10 Endpoint (`192.168.71.129`).
+This directory contains detailed technical reports on the 3 simulated attack and detection scenarios executed from the Kali Linux host (`192.168.71.130`) targeting the Windows 10 Endpoint (`192.168.71.129`).
 
 ---
 
-## 📌 Danh Mục Báo Cáo Kịch Bản
+## 📌 Scenario Reports Directory
 
-| Báo Cáo Kỹ Thuật | Kỹ Thuật MITRE | Tóm Tắt Kịch Bản & Kết Quả |
+| Technical Report | MITRE Technique | Scenario Summary & Results |
 | :--- | :---: | :--- |
-| [`Phase-3_Scenario-1.md`](Phase-3_Scenario-1.md) | **T1110.001** | **RDP Brute Force:** Tấn công dò mật khẩu RDP bằng `xfreerdp`. Bắt Event ID 4625 qua Rule 100001, tự động kích hoạt `netsh` khóa IP kẻ tấn công 600s. |
-| [`Phase-3_Scenario-2.md`](Phase-3_Scenario-2.md) | **T1190** | **Web LFI / Path Traversal:** Khai thác đọc trộm file `win.ini` qua Apache HTTP. Bắt qua Apache Access Log bằng Rule 100002, tự động chặn IP kẻ tấn công. |
-| [`Phase-3_Scenario-3.md`](Phase-3_Scenario-3.md) | **T1059, T1548, T1547, T1003** | **Full Kill Chain:** Chuỗi 4 giai đoạn với Microsoft Sysmon (PowerShell Base64, UAC Bypass ms-settings, Registry Run Key, và LSASS Memory Dump). Tự động hóa qua `tests/e2e/scenario_full_killchain.py`. |
+| [`Phase-3_Scenario-1.md`](Phase-3_Scenario-1.md) | **T1110.001** | **RDP Brute Force:** Password spraying attack against RDP using `xfreerdp`. Captures Event ID 4625 via Rule 100001, automatically invoking `netsh` to block the attacker IP for 600s. |
+| [`Phase-3_Scenario-2.md`](Phase-3_Scenario-2.md) | **T1190** | **Web LFI / Path Traversal:** Exploitation to read `win.ini` via Apache HTTP. Captured via Apache Access Log using Rule 100002, automatically blocking the attacker IP. |
+| [`Phase-3_Scenario-3.md`](Phase-3_Scenario-3.md) | **T1059, T1548, T1547, T1003** | **Full Kill Chain:** 4-stage attack chain with Microsoft Sysmon (Base64 PowerShell, UAC Bypass ms-settings, Registry Run Key, and LSASS Memory Dump). Fully automated via `tests/e2e/scenario_full_killchain.py`. |

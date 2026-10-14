@@ -1,30 +1,30 @@
-# CÁC KỊCH BẢN TẤN CÔNG & PHÁT HIỆN THỰC CHIẾN (PHASE 3)
+# REAL-WORLD ATTACK & DETECTION SCENARIOS (PHASE 3)
 
-## 🔹 KỊCH BẢN 2: T1190 - KHAI THÁC LỖ HỔNG ỨNG DỤNG WEB (LOCAL FILE INCLUSION - LFI / DIRECTORY TRAVERSAL)
+## 🔹 SCENARIO 2: T1190 - WEB APPLICATION EXPLOITATION (LOCAL FILE INCLUSION - LFI / DIRECTORY TRAVERSAL)
 
-Kịch bản này phân tích cú pháp ký tự lạ bằng biểu thức chính quy nâng cao, kỹ thuật cấu hình thu thập tệp tin log từ ứng dụng bên thứ ba, viết **Custom Decoders / Custom Rules** đè hệ thống, và tích hợp giải pháp phòng thủ chủ động **Active Response** của một Kỹ sư Phát hiện (Detection Engineer) nhằm bảo vệ ứng dụng hướng ra bên ngoài.
+This scenario analyzes exotic character parsing using advanced regular expressions, third-party application log collection configuration, overwriting system definitions with **Custom Decoders / Custom Rules**, and integrating a proactive **Active Response** defense mechanism engineered by a Detection Engineer to protect public-facing applications.
 
-## Mục tiêu
+## Objectives
 
-* **Mục tiêu giả lập (Attacker's Goal):** Kẻ tấn công nhắm vào chiến thuật **Initial Access (Tiếp cận ban đầu)** thông qua kỹ thuật **`T1190 - Exploit Public-Facing Application`**. Bằng cách khai thác lỗ hổng Local File Inclusion (LFI) / Directory Traversal trên ứng dụng Web hướng ra ngoài biên (Apache), hacker cố gắng đọc trộm các tệp tin cấu hình nhạy cảm (`win.ini`) của hệ điều hành để thu thập thông tin trinh sát.
-* **Mục tiêu kiểm chứng hệ thống (SIEM/SOC Validation Goal):**
-* Kiểm chứng năng lực giám sát log ứng dụng từ bên thứ ba (XAMPP Apache) thông qua cấu hình đường ống thu thập của Wazuh Agent.
-* Đánh giá độ nhạy và tính chính xác của **Custom Decoder** trong việc bóc tách các tham số URL phức tạp.
-* Thử nghiệm năng lực phân tích của **Custom Rule (PCRE2 Regex)** trước các kỹ thuật ẩn mình, xáo trộn chuỗi của hacker như mã hóa đơn (`%2f`) và mã hóa kép (`%252f`).
-* Xác tồn cơ chế **Active Response**, kích hoạt tường lửa Windows Defender Firewall (`netsh.exe`) để tự động cô lập, chặn đứng IP nguồn tấn công theo thời gian thực.
+* **Attacker's Goal:** The attacker targets the **Initial Access** tactic via the **`T1190 - Exploit Public-Facing Application`** technique. By exploiting a Local File Inclusion (LFI) / Directory Traversal vulnerability on an external-facing Web application (Apache), the hacker attempts to read sensitive operating system configuration files (`win.ini`) to gather reconnaissance intelligence.
+* **SIEM/SOC Validation Goal:**
+* Validate third-party application log monitoring capabilities (XAMPP Apache) via Wazuh Agent log collection pipelines.
+* Evaluate the sensitivity and precision of **Custom Decoders** in parsing complex URL parameters.
+* Test the detection capabilities of **Custom Rules (PCRE2 Regex)** against evasion and string obfuscation techniques such as single encoding (`%2f`) and double encoding (`%252f`).
+* Verify the **Active Response** mechanism, triggering Windows Defender Firewall (`netsh.exe`) to automatically isolate and block the attacker source IP in real time.
 
 
-## I. Cấu hình Web Server và Đường ống thu thập Log
+## I. Web Server Configuration and Log Ingestion Pipeline
 
-### 1. Dựng môi trường ứng dụng Web dính lỗ hổng LFI
+### 1. Setting up an LFI-Vulnerable Web Application Environment
 
-Để có môi trường sinh log truy cập Web cho Wazuh, một Web Server Apache cục bộ được cấu hình thông qua gói XAMPP đặt tại đường dẫn `C:\xampp` trên máy Windows 10 Victim nhằm tránh xung đột quyền hạn UAC.
+To provide an environment that generates Web access logs for Wazuh, a local Apache Web Server is configured using the XAMPP suite installed at `C:\xampp` on the Windows 10 Victim machine to avoid UAC permission conflicts.
 
-Tại thư mục mã nguồn `C:\xampp\htdocs\`, xây dựng tệp tin mã nguồn tên `index.php` chứa lỗ hổng không kiểm duyệt tham số đầu vào đi thẳng vào hàm nạp hệ thống:
+In the source code directory `C:\xampp\htdocs\`, construct a source file named `index.php` containing an unsanitized input vulnerability feeding directly into a system include function:
 
 ```php
 <?php
-    // Lỗ hổng LFI: Lấy trực tiếp tham số 'page' từ URL và nạp vào hàm include mà không kiểm tra đầu vào
+    // LFI Vulnerability: Extracts 'page' parameter directly from URL and passes to include without sanitization
     if (isset($_GET['page'])) {
         $file = $_GET['page'];
         include($file);
@@ -34,18 +34,18 @@ Tại thư mục mã nguồn `C:\xampp\htdocs\`, xây dựng tệp tin mã ngu�
 ?>
 ```
 
-Kích hoạt dịch vụ **Apache** từ giao diện điều khiển XAMPP Control Panel, đảm bảo trạng thái chuyển sang màu xanh lá và lắng nghe trên cổng mặc định (80, 443).
-![Dịch vụ Apache lắng nghe](images/scenario2/XAMPP-control-panel.png)
+Start the **Apache** service from the XAMPP Control Panel, ensuring the status turns green and listens on default ports (80, 443).
+![Apache service listening](images/scenario2/XAMPP-control-panel.png)
 
-### 2. Điều hướng Wazuh Agent thu thập nhật ký truy cập
+### 2. Configuring Wazuh Agent to Ingest Access Logs
 
-Để chuyển tiếp luồng sự kiện Web về trung tâm phân tích, can thiệp vào file cấu hình tổng của Agent bằng quyền quản trị:
+To forward the Web event stream to the central analysis engine, edit the Agent's global configuration file with administrative privileges:
 
 ```cmd
 notepad "C:\Program Files (x86)\ossec-agent\ossec.conf"
 ```
 
-Bổ sung khối định vị giám sát tệp tin nhật ký cục bộ của Apache vào phân vùng cấu hình:
+Append the configuration block monitoring local Apache log files:
 
 ```xml
 <localfile>
@@ -54,7 +54,7 @@ Bổ sung khối định vị giám sát tệp tin nhật ký cục bộ của A
 </localfile>
 ```
 
-Thực hiện tái khởi động dịch vụ Agent từ cửa sổ Command Prompt quyền Administrator để chính thức kích hoạt đường ống đẩy log:
+Restart the Agent service from an Administrator Command Prompt to activate the log pipeline:
 
 ```cmd
 NET STOP WazuhSvc && NET START WazuhSvc
@@ -62,17 +62,17 @@ NET STOP WazuhSvc && NET START WazuhSvc
 
 ---
 
-## II. Xây dựng cấu hình phát hiện LFI nâng cao trên Wazuh Manager
+## II. Developing Advanced LFI Detection on Wazuh Manager
 
-### 1. Viết Custom Decoder bóc tách chuyên sâu tham số URL
+### 1. Writing Custom Decoder for Deep URL Parameter Extraction
 
-Mặc định Wazuh sử dụng bộ giải mã `web-accesslog` để xử lý log Apache. Để phục vụ riêng cho bài toán bóc tách payload thô đằng sau phương thức `GET`, tiến hành trích xuất và bổ sung bộ giải mã tùy biến tại file `local_decoder.xml` trong Docker Container:
+By default, Wazuh uses the `web-accesslog` decoder to parse Apache logs. To specifically extract raw payloads trailing behind the `GET` method, extract and modify the custom decoder in `local_decoder.xml` inside the Docker Container:
 
 ```bash
 sudo docker cp single-node-wazuh.manager-1:/var/ossec/etc/decoders/local_decoder.xml ./local_decoder.xml.bak
 ```
 
-Cấu hình biểu thức chính quy (Regex) bóc tách toàn bộ chuỗi tham số độc hại gán vào trường dữ liệu biến động:
+Configure a regular expression (Regex) to extract the entire malicious parameter string into a dynamic field:
 
 ```xml
 <decoder name="web-access-lfi">
@@ -82,9 +82,9 @@ Cấu hình biểu thức chính quy (Regex) bóc tách toàn bộ chuỗi tham 
 </decoder>
 ```
 
-### 2. Xây dựng hệ thống luật phòng chống Bypass (Double Encoding)
+### 2. Constructing Rule System to Counter Evasion (Double Encoding)
 
-Hacker thường sử dụng các kỹ thuật xáo trộn chuỗi như mã hóa đơn (`%2f`) hoặc mã hóa kép (`%252f`) để vượt qua các bộ luật thông thường. Thực hiện sao chép file luật để bổ sung bộ lọc có độ phủ rộng:
+Hackers frequently employ string obfuscation techniques such as single encoding (`%2f`) or double encoding (`%252f`) to bypass standard rule sets. Copy the rule file to add a broad-coverage filter:
 
 ```bash
 sudo docker cp single-node-wazuh.manager-1:/var/ossec/etc/rules/local_rules.xml ./local_rules.xml.bak
@@ -103,7 +103,7 @@ sudo docker cp single-node-wazuh.manager-1:/var/ossec/etc/rules/local_rules.xml 
 </group>
 ```
 
-Đồng bộ các file cấu hình đã sửa đổi vào lại Container, áp đặt quyền sở hữu nghiêm ngặt cho người dùng `wazuh` và thực hiện khởi động lại:
+Synchronize the modified configuration files back into the Container, enforce strict ownership for user `wazuh`, and restart:
 
 ```bash
 sudo docker cp ./local_decoder.xml.bak single-node-wazuh.manager-1:/var/ossec/etc/decoders/local_decoder.xml
@@ -117,19 +117,19 @@ sudo docker exec -it single-node-wazuh.manager-1 /var/ossec/bin/wazuh-control re
 
 ---
 
-## III. Triển khai cấu hình tự động khóa IP (Active Response)
+## III. Deploying Automated IP Blocking (Active Response)
 
-Nhằm nâng cấp hệ thống lên năng lực phản ứng sự cố tự động (SOAR Capabilities), cấu hình cơ chế phản kháng để chỉ thị cho Agent tự động khóa cứng IP kẻ tấn công thông qua Windows Defender Firewall.
+To elevate the system with automated incident response capabilities (SOAR Capabilities), configure the active response mechanism to instruct the Agent to automatically block the attacker IP via Windows Defender Firewall.
 
-### 1. Cấu hình Active Response trên Wazuh Manager
+### 1. Configure Active Response on Wazuh Manager
 
-Trích xuất tệp cấu hình trung tâm `ossec.conf` từ Docker ra máy trạm Ubuntu:
+Extract central configuration file `ossec.conf` from Docker to the Ubuntu host:
 
 ```bash
 sudo docker cp single-node-wazuh.manager-1:/var/ossec/etc/ossec.conf ./ossec.conf.bak
 ```
 
-Di chuyển đến phân vùng quản trị phản kháng, bổ sung khối cấu hình liên kết trực tiếp với Rule `100002` vừa tạo, sử dụng lệnh hệ thống `netsh` với thời gian cách ly tạm thời là 10 phút (600 giây):
+Navigate to the active response section, append the configuration block binding directly to newly created Rule `100002`, invoking system command `netsh` with a 10-minute (600-second) temporary containment timeout:
 
 ```xml
   <active-response>
@@ -140,22 +140,22 @@ Di chuyển đến phân vùng quản trị phản kháng, bổ sung khối cấ
   </active-response>
 ```
 
-Đẩy đè tệp cấu hình trở lại container và thực hiện áp quyền, tái khởi động như trên.
+Push the configuration file back into the container, enforce permissions, and restart as described above.
 ---
 
-## IV. Kiểm chứng thực tế và Thu nhập minh chứng pháp y (PoC)
+## IV. Real-World Verification and Forensic Evidence Collection (PoC)
 
-> ⚠️ **Lưu ý thực chiến:** Trước khi triển khai kiểm thử, truy cập vào giao diện tường lửa `wf.msc` trên máy Windows Victim để xóa bỏ hoặc hủy kích hoạt (Disable) các quy tắc chặn cũ `Wazuh_ActiveResponse_...` do kịch bản 1 để lại nhằm giải phóng quyền truy cập cho máy Kali.
+> ⚠️ **Operational Note:** Prior to testing, access the firewall interface `wf.msc` on the Windows Victim machine to delete or disable legacy blocking rules `Wazuh_ActiveResponse_...` left over from Scenario 1 to restore connectivity for the Kali machine.
 
-### 1. Giả lập khai thác LFI từ máy tấn công Kali Linux
+### 1. Simulating LFI Exploitation from Kali Linux Attack Machine
 
-Từ máy Kali Linux (`192.168.71.130`), tiến hành phát lệnh khai thác sử dụng tham số kiểm dò thô:
+From the Kali Linux machine (`192.168.71.130`), launch the exploit command using raw path traversal parameters:
 
 ```bash
 curl -G "http://192.168.71.129/index.php" --data-urlencode "page=../../../../Windows/win.ini"
 ```
 
-Kết quả in thẳng nội dung file cấu hình bảo mật `win.ini` của Windows lên màn hình, chứng thực lỗ hổng bị khai thác thành công:
+The command outputs the contents of the Windows security configuration file `win.ini` directly to the console, verifying successful exploitation:
 
 ```text
 ; for 16-bit app support
@@ -163,23 +163,23 @@ Kết quả in thẳng nội dung file cấu hình bảo mật `win.ini` của W
 [extensions]
 ```
 
-Tiếp tục giả lập kỹ thuật ẩn mình tinh vi bằng đòn tấn công mã hóa kép (Double Encoding):
+Next, simulate subtle evasion techniques using a Double Encoding attack:
 
 ```bash
 curl -G "http://192.168.71.129/index.php" --data-urlencode "page=..%252f..%252f..%252fWindows%252fwin.ini"
 ```
-![Attacker tấn công máy victim](images/scenario2/kaliattack.png)
-Mặc dù ứng dụng trả về cảnh báo lỗi do không tự giải mã chuỗi từ hàm `include()`, tuy nhiên toàn bộ chuỗi dấu vết độc hại gài bẫy này đã bị tóm gọn và ghi nhận toàn vẹn vào file nhật ký `access.log` của Apache.
-![File nhật ký của Apache](images/scenario2/access-log.png)
-### 2. Xác thực cấu trúc phân tích thông qua `wazuh-logtest`
+![Attacker attacking victim machine](images/scenario2/kaliattack.png)
+Although the application returns an error warning because `include()` does not automatically double-decode the string, the entire malicious payload footprint is captured and recorded intact in Apache's `access.log`.
+![Apache access log file](images/scenario2/access-log.png)
+### 2. Validating Parsing Structure via `wazuh-logtest`
 
-Gọi công cụ kiểm thử nội bộ trên Ubuntu Manager để đánh giá chất lượng phân tích dòng log độc hại:
+Invoke the internal test utility on the Ubuntu Manager to evaluate the parsing quality of the malicious log line:
 
 ```bash
 sudo docker exec -it single-node-wazuh.manager-1 /var/ossec/bin/wazuh-logtest
 ```
 
-Dán dòng log Double Encoding thực tế ghi nhận từ Apache vào, kết quả cho thấy `Phase 2` giải mã bóc tách thành công tham số độc hại sang trường `url`, và `Phase 3` lọc trúng đích **Rule 100002** mức độ 10:
+Pasting the actual Double Encoding log line recorded from Apache confirms that `Phase 2` successfully decodes the malicious parameter into the `url` field, and `Phase 3` triggers **Rule 100002** at Level 10:
 
 ```text
 **Phase 2: Completed decoding.
@@ -193,35 +193,35 @@ Dán dòng log Double Encoding thực tế ghi nhận từ Apache vào, kết qu
 
 ```
 
-### 3. Phân tích kết quả thực thi phản kháng trên Wazuh Dashboard
+### 3. Analyzing Response Execution Results on Wazuh Dashboard
 
-Truy cập trung tâm giám sát **Wazuh Dashboard** (`Threat Hunting` $\rightarrow$ `Events`), Hệ thống kích hoạt đồng thời hai loại cảnh báo đắt giá:
+Access the **Wazuh Dashboard** monitoring center (`Threat Hunting` $\rightarrow$ `Events`). The system fires two high-fidelity alert categories simultaneously:
 
-* **Cảnh báo phát hiện tấn công (Rule 100002):** Nổ dòng Alert màu cam mức độ 10 cảnh báo rõ hành vi duyệt thư mục trái phép nhắm vào Windows Endpoint. Khi kiểm tra trường chi tiết `Document Details`, hai giá trị `data.srcip: 192.168.71.130` và payload biến dị `data.url` được hiển thị rõ ràng, chứng minh năng lực bóc tách của Custom Decoder.
-![Kết quả alert của hành vi trên Dashboard](images/scenario2/dashboard.png)
-![Chi tiết alert](images/scenario2/alert-detail.png)
+* **Attack Detection Alert (Rule 100002):** An orange Level 10 alert triggers, warning of unauthorized directory traversal targeting the Windows endpoint. Inspecting `Document Details` clearly displays `data.srcip: 192.168.71.130` and the anomalous payload in `data.url`, validating the Custom Decoder's extraction capability.
+![Dashboard alert results for detected behavior](images/scenario2/dashboard.png)
+![Alert details](images/scenario2/alert-detail.png)
 
 
-* **Cảnh báo phản kháng chủ động (Rule 657):** Hệ thống ghi nhận sự kiện kích hoạt lệnh chặn `netsh.exe - add` thành công.
-Kiểm tra tệp tin nhật ký `active-responses.log` cục bộ tại đường dẫn `C:\Program Files (x86)\ossec-agent\active-responses.log` của máy Windows, dòng lệnh thực thi tường lửa được ghi nhận theo thời gian thực:
+* **Active Response Alert (Rule 657):** The system logs the successful execution of blocking command `netsh.exe - add`.
+Inspecting the local `active-responses.log` at `C:\Program Files (x86)\ossec-agent\active-responses.log` on the Windows host confirms real-time firewall execution entries:
 ```text
 active-response/bin/netsh.exe add - 192.168.71.130
 ```
-![Active response trên Dashboard](images/scenario2/active-response.png)
+![Active response on Dashboard](images/scenario2/active-response.png)
 
-Đồng thời, khi kiểm tra bảng quy tắc *Inbound Rules* tại giao diện tường lửa Windows Defender Firewall của nạn nhân, một quy tắc khẩn cấp mang tên **`WAZUH ACTIVE RESPONSE BLOCKED IP`** tự động sinh ra, ghim chặt IP máy Kali (`192.168.71.130`) vào danh sách cấm kết nối.
-![Block IP máy tấn công](images/scenario2/block-attacker-check.png)
+Concurrently, inspecting *Inbound Rules* in Windows Defender Firewall on the victim host reveals an emergency rule named **`WAZUH ACTIVE RESPONSE BLOCKED IP`**, locking the Kali IP (`192.168.71.130`) into the block list.
+![Block IP of attack machine](images/scenario2/block-attacker-check.png)
 
-Minh chứng cuối cùng, khi đứng từ máy Kali thực hiện gửi yêu cầu tấn công hoặc trinh sát lần thứ 3 đến Web Server, toàn bộ gói tin bị chặn đứng hoàn toàn ngay từ tầng biên mạng, lệnh `curl` rơi vào trạng thái đóng băng:
-![Chặn đứng máy kali](images/scenario2/block-attacker.png)
+As final proof, executing a third exploit or reconnaissance request from Kali toward the Web Server results in packets being dropped at the network boundary; the `curl` command hangs:
+![Blocking Kali machine](images/scenario2/block-attacker.png)
 
 ---
 
-## V. Tổng kết kịch bản 2
+## V. Scenario 2 Summary
 
-Kịch bản mô phỏng tấn công ứng dụng Web thông qua lỗ hổng Local File Inclusion (LFI) và kích hoạt cơ chế phản kháng Active Response kết thúc thành công tốt đẹp. Qua đó chứng minh được năng lực làm chủ công nghệ giải mã chuỗi ký tự phức tạp, thiết lập luật phân tích thông minh đè hệ thống (`overwrite="yes"`) xử lý tốt các biến thể lẩn trốn bộ lọc.
+The simulated web application attack via Local File Inclusion (LFI) and subsequent Active Response containment completed successfully. This demonstrates proficiency in decoding complex character sets, crafting custom rules that override system defaults (`overwrite="yes"`), and effectively handling filter evasion variants.
 
-Đặc biệt, chu trình bảo mật khép kín từ khâu Phát hiện, Cảnh báo đến Ngăn chặn tự động cách ly hiểm họa ở ranh giới mạng đã khẳng định sức mạnh thực chiến của một hệ thống SOC doanh nghiệp hiện đại, bảo vệ an toàn cho hạ tầng ứng dụng trước các kỹ thuật khai thác ứng dụng hướng ra bên ngoài (`T1190`).
+In particular, the closed-loop security cycle spanning Detection, Alerting, and Automated Containment at the network perimeter affirms the operational readiness of a modern enterprise SOC in shielding application infrastructure against public-facing exploitation techniques (`T1190`).
 
 ## References
 

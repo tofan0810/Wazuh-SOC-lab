@@ -1,84 +1,84 @@
-# 🤖 Cẩm Nang Vận Hành SOAR n8n, ChatOps Telegram & Jira Cloud
+# 🤖 SOAR n8n, ChatOps Telegram & Jira Cloud Operations Guide
 
-Tài liệu hướng dẫn điều phối, bảo trì, giám sát log và khắc phục sự cố hệ thống tự động hóa phản ứng an ninh mạng (SOAR Engine).
+Guide for orchestrating, maintaining, monitoring logs, and troubleshooting the security orchestration, automation, and response (SOAR) engine.
 
 ---
 
-## 📌 Các Cổng Dịch Vụ & Địa Chỉ Truy Cập
+## 📌 Service Ports & Access URLs
 
-| Dịch Vụ | Địa Chỉ URL / Port | Thông Tin Đăng Nhập / Ghi Chú |
+| Service | URL / Port | Credentials / Notes |
 | :--- | :--- | :--- |
-| **n8n Web Editor** | `http://192.168.71.128:5678` | Trực quan hóa và debug canvas 3 workflows |
+| **n8n Web Editor** | `http://192.168.71.128:5678` | Visualize and debug the 3 workflow canvases |
 | **Wazuh Dashboard** | `https://192.168.71.128:443` | `admin` / `SecretPassword123!` |
 | **Telegram Bot** | `https://t.me/my_wazuh_soc_alert_bot` | `@my_wazuh_soc_alert_bot` |
 | **Jira Cloud Board** | `https://tn421015.atlassian.net` | Project Key: `KAN` |
 
 ---
 
-## 1. ⚙️ Quản Lý Container n8n SOAR Engine (`wazuh-vm`)
+## 1. ⚙️ Managing the n8n SOAR Engine Container (`wazuh-vm`)
 
-### Xem trạng thái container n8n:
+### Check n8n container status:
 ```powershell
 ssh wazuh-vm "docker ps --filter name=n8n-soar-engine --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'"
 ```
 
-### Xem log trực tiếp của n8n (Realtime Debugging):
+### View real-time n8n logs (Realtime Debugging):
 ```powershell
-# Xem 50 dòng log mới nhất:
+# View the 50 most recent log lines:
 ssh wazuh-vm "docker logs --tail 50 n8n-soar-engine"
 
-# Theo dõi log thời gian thực (Follow):
+# Follow logs in real-time:
 ssh wazuh-vm "docker logs -f --tail 20 n8n-soar-engine"
-# (Bấm Ctrl+C để thoát)
+# (Press Ctrl+C to exit)
 ```
 
-### Khởi động lại hoặc dừng cụm n8n:
+### Restart or stop the n8n cluster:
 ```powershell
-# Khởi động lại:
+# Restart:
 ssh wazuh-vm "cd /home/nguyentoan/n8n-docker && docker compose restart"
 
-# Nạp lại cấu hình từ file .env mới:
+# Reload configuration from updated .env:
 ssh wazuh-vm "cd /home/nguyentoan/n8n-docker && docker compose up -d"
 
-# Dừng container:
+# Stop container:
 ssh wazuh-vm "cd /home/nguyentoan/n8n-docker && docker compose down"
 ```
 
 ---
 
-## 2. 📡 Quản Lý Cầu Nối Callback Telegram (`telegram_bridge.py`)
+## 2. 📡 Managing the Telegram Callback Bridge (`telegram_bridge.py`)
 
-Do máy chủ Lab ở trong dải mạng nội bộ không có IP Public, tiến trình Python `telegram_bridge.py` sử dụng kỹ thuật **Telegram Long-Polling** để đón các sự kiện bấm nút tương tác từ Telegram và chuyển tiếp vào webhook của n8n.
+Because the Lab server resides in an internal private network without a public IP, the `telegram_bridge.py` Python process uses **Telegram Long-Polling** to receive interactive button-click callback queries from Telegram and forward them to n8n webhooks.
 
-### Kiểm tra tiến trình đang chạy:
+### Verify running process:
 ```powershell
 ssh wazuh-vm "ps aux | grep telegram_bridge | grep -v grep"
 ```
 
-### Xem log tiếp nhận nút bấm Callback:
+### View callback button reception logs:
 ```powershell
 ssh wazuh-vm "tail -n 25 /home/nguyentoan/n8n-docker/telegram_bridge.log"
 ```
-*Log mẫu ghi nhận thành công:*
+*Sample log on successful callback delivery:*
 ```text
 2026-10-04 21:38:43,497 [INFO] Starting Telegram -> n8n ChatOps Callback Bridge...
 2026-10-04 21:38:43,499 [INFO] Target n8n Webhook: http://127.0.0.1:5678/webhook/telegram-callback
-2026-10-04 21:40:02,120 [INFO] Received Callback Query from @Khánh Toàn: action:jira:100005:192.168.71.129:1791103745
+2026-10-04 21:40:02,120 [INFO] Received Callback Query from @Khanh Toan: action:jira:100005:192.168.71.129:1791103745
 2026-10-04 21:40:02,185 [INFO] Forwarded callback 456583364 to n8n -> HTTP 200
 ```
 
-### Khởi động lại thủ công tiến trình Telegram Bridge:
+### Manually restart the Telegram Bridge process:
 ```powershell
 ssh wazuh-vm "/home/nguyentoan/n8n-docker/restart_bridge.sh"
 ```
 
 ---
 
-## 3. 🛡️ Kiểm Tra & Thu Hồi Luật Tường Lửa (Containment Verification)
+## 3. 🛡️ Firewall Rule Verification & Rollback (Containment Verification)
 
-Khi Analyst bấm nút **`[🚫 Khóa IP 24h]`** trên Telegram:
+When an Analyst clicks the **`[🚫 Block IP 24h]`** button on Telegram:
 
-### Kiểm tra các luật chặn đã tạo trên Windows 10:
+### Check created blocking rules on Windows 10:
 ```powershell
 $cred = Get-Credential -UserName socrunner
 Invoke-Command -ComputerName 192.168.71.129 -Credential $cred -ScriptBlock {
@@ -86,21 +86,21 @@ Invoke-Command -ComputerName 192.168.71.129 -Credential $cred -ScriptBlock {
 }
 ```
 
-### Xóa bỏ (Thu hồi) lệnh cách ly để mở lại kết nối cho máy thử nghiệm:
+### Remove (Rollback) isolation rules to restore connectivity for testing:
 ```powershell
 Invoke-Command -ComputerName 192.168.71.129 -Credential $cred -ScriptBlock {
     Get-NetFirewallRule | Where-Object { $_.DisplayName -like "*WAZUH*" -or $_.DisplayName -like "*SOAR*" } | Remove-NetFirewallRule
-    Write-Host "✅ Đã gỡ bỏ toàn bộ luật chặn firewall thử nghiệm."
+    Write-Host "✅ All experimental firewall blocking rules have been removed."
 }
 ```
 
 ---
 
-## 4. 🎫 Kiểm Tra Tích Hợp Jira Cloud REST API
+## 4. 🎫 Jira Cloud REST API Integration Testing
 
-### Kiểm tra tính hợp lệ của Token Atlassian từ máy Host:
+### Validate Atlassian Token credentials from Host machine:
 ```powershell
-# Chạy script test đồng bộ để xác thực tức thì:
+# Run synchronous test script for immediate validation:
 python -c "
 import urllib.request, base64, os
 from dotenv import load_dotenv
@@ -113,6 +113,6 @@ with urllib.request.urlopen(req) as resp:
 "
 ```
 
-### Xem trực tiếp danh sách Ticket vừa tạo trên Jira Web:
-Truy cập trình duyệt: `https://tn421015.atlassian.net/jira/software/projects/KAN/boards/2`
-Hoặc truy vấn ticket cụ thể: `https://tn421015.atlassian.net/browse/KAN-15`
+### View created tickets directly on Jira Web:
+Browse to: `https://tn421015.atlassian.net/jira/software/projects/KAN/boards/2`
+Or query a specific ticket: `https://tn421015.atlassian.net/browse/KAN-15`

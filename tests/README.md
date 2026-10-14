@@ -1,28 +1,28 @@
 # 🧪 Test Automation Framework (Detection-as-Code)
 
-Thư mục lưu trữ toàn bộ khung kiểm thử tự động hóa của đồ án, bao gồm **Kiểm thử đơn vị (Unit Tests)** trong CI/CD Pipeline và **Kiểm thử đầu-cuối (End-to-End Tests)** trên môi trường thực tế.
+This directory houses the project's comprehensive automated testing framework, encompassing **Unit Tests** within the CI/CD Pipeline and **End-to-End (E2E) Tests** executed against the live laboratory environment.
 
 ---
 
-## 🗂️ Cấu Trúc Khung Kiểm Thử
+## 🗂️ Testing Framework Structure
 
-| Phân Hệ | Đường Dẫn | Mục Đích Kiểm Thử |
+| Subsystem | Path | Testing Objective |
 | :--- | :--- | :--- |
-| **Unit Testing (CI/CD)** | [`unit/`](unit/) | Chạy 22 bài kiểm thử tự động xác thực cú pháp XML Rules, Decoders, Regex PCRE2, định dạng MITRE ATT&CK, và chuẩn bảo mật Zero Secret Leakage. Được kích hoạt bởi GitHub Actions. |
-| **End-to-End Testing (E2E)** | [`e2e/`](e2e/) | Kịch bản tự động hóa tấn công giả lập từ Kali Linux $\rightarrow$ Windows Endpoint $\rightarrow$ Wazuh SIEM $\rightarrow$ SOAR Telegram/Jira. Kiểm toán luồng sự kiện thực tế. |
+| **Unit Testing (CI/CD)** | [`unit/`](unit/) | Executes 22 automated unit tests validating XML Rule syntax, Decoders, PCRE2 regex expressions, MITRE ATT&CK taxonomy mappings, and Zero Secret Leakage security standards. Integrated with GitHub Actions. |
+| **End-to-End Testing (E2E)** | [`e2e/`](e2e/) | Automated attack simulation runners executing attacks from Kali Linux $\rightarrow$ Windows Endpoint $\rightarrow$ Wazuh SIEM $\rightarrow$ SOAR Telegram/Jira. Audits live real-world detection pipelines. |
 
 ---
 
-## ⚡ Lệnh Thực Thi Kiểm Thử
-* **Chạy kiểm thử đơn vị cục bộ:**
+## ⚡ Test Execution Commands
+* **Run local unit tests:**
   ```powershell
   pytest tests/unit/ -v
   ```
-* **Chạy kiểm tra sức khỏe 3 máy ảo:**
+* **Run 3-VM lab health check:**
   ```powershell
   python tests/e2e/lab_health.py
   ```
-* **Chạy kịch bản tấn công Full Kill Chain:**
+* **Run Full Kill Chain attack scenario:**
   ```powershell
   python tests/e2e/scenario_full_killchain.py --execute
   ```

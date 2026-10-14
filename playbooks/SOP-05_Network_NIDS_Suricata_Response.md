@@ -1,35 +1,35 @@
-# 📋 QUY TRÌNH ỨNG PHÓ XÂM NHẬP TẦNG MẠNG SURICATA NIDS & XDR (SOP-05)
-> **Mã quy trình:** SOP-SOC-IR-005  
-> **Kỹ thuật MITRE ATT&CK:** [T1046 - Network Service Discovery](https://attack.mitre.org/techniques/T1046/), [T1595 - Active Scanning](https://attack.mitre.org/techniques/T1595/), [T1190 - Exploit Public-Facing Application](https://attack.mitre.org/techniques/T1190/)  
-> **Quy tắc phát hiện:** Wazuh Rule `100011` (Nmap Stealth SYN Scan), `100012` (Web LFI on Wire), `100013` (Vulnerability Scanners)  
-> **Nguồn Telemetry:** Suricata 8.0.7 NIDS EVE JSON Stream (`/var/log/suricata/eve.json`)  
-> **Chuẩn tuân thủ:** NIST SP 800-61 Rev. 2 & SANS PICERL  
-> **Đối tượng áp dụng:** SOC Analyst L1/L2, Network Security Engineer, XDR Operations Specialist  
+# 📋 INCIDENT RESPONSE PLAYBOOK: SURICATA NIDS NETWORK INTRUSION & XDR (SOP-05)
+> **Playbook Code:** SOP-SOC-IR-005  
+> **MITRE ATT&CK Techniques:** [T1046 - Network Service Discovery](https://attack.mitre.org/techniques/T1046/), [T1595 - Active Scanning](https://attack.mitre.org/techniques/T1595/), [T1190 - Exploit Public-Facing Application](https://attack.mitre.org/techniques/T1190/)  
+> **Detection Rules:** Wazuh Rule `100011` (Nmap Stealth SYN Scan), `100012` (Web LFI on Wire), `100013` (Vulnerability Scanners)  
+> **Telemetry Source:** Suricata 8.0.7 NIDS EVE JSON Stream (`/var/log/suricata/eve.json`)  
+> **Compliance Standards:** NIST SP 800-61 Rev. 2 & SANS PICERL  
+> **Target Audience:** SOC Analyst L1/L2, Network Security Engineer, XDR Operations Specialist  
 
 ---
 
-## 🎯 1. TỔNG QUAN & MỤC TIÊU QUY TRÌNH
+## 🎯 1. OVERVIEW & OBJECTIVES
 
-Quy trình này chuẩn hóa các bước tiếp nhận, phân tích lưu lượng mạng thô và ứng phó các cuộc tấn công do thám mạng, dò quét cổng và khai thác lỗ hổng web được bắt bởi **Suricata NIDS Engine** trên card mạng giám sát (`ens33`).
+This procedure standardizes the steps for receiving, analyzing raw network traffic, and responding to network reconnaissance, port scanning, and web exploitation attacks captured by the **Suricata NIDS Engine** on the monitoring network interface (`ens33`).
 
-### Mục tiêu cốt lõi:
-1. **Phát hiện sớm ở giai đoạn trinh sát (Pre-Attack Reconnaissance):** Chặn đứng kẻ tấn công ngay khi thực hiện quét cổng ngầm (Stealth SYN scan) trước khi chúng kịp tìm ra dịch vụ có lỗ hổng.
-2. **Đối chiếu XDR đa nguồn (Network + Host Correlation):** Kết hợp cảnh báo mạng từ Suricata với log ứng dụng Web Apache và Sysmon trên Endpoint để xác định cuộc tấn công có thành công hay không.
-3. **Phản ứng chặn IP tự động trên mạng (Perimeter & Host Blocking):** Tự động phát lệnh khóa IP nguồn thông qua SOAR n8n và Windows Firewall.
+### Core Objectives:
+1. **Early Detection at Pre-Attack Reconnaissance:** Halt attackers during covert port scanning (Stealth SYN scan) before they discover vulnerable services.
+2. **Cross-source XDR Correlation (Network + Host Correlation):** Correlate network alerts from Suricata with Apache Web application logs and Sysmon telemetry on the Endpoint to determine attack success.
+3. **Automated Network & Host IP Blocking:** Automatically trigger source IP block commands through SOAR n8n and Windows Firewall.
 
 ---
 
-## 🔍 2. BẢNG PHÂN LOẠI CẢNH BÁO SURICATA TRỌNG YẾU
+## 🔍 2. KEY SURICATA ALERT CLASSIFICATION TABLE
 
-| Suricata SID | Wazuh Rule ID | Tên Cảnh Báo Mạng | Mức Độ | Hành Vi Kẻ Tấn Công |
+| Suricata SID | Wazuh Rule ID | Network Alert Title | Severity | Attacker Behavior |
 | :---: | :---: | :--- | :---: | :--- |
-| **`2000001`** | **`100011`** | Suricata: Nmap Stealth SYN Scan Detected | Level 8 (Medium) | Kali quét dồn dập gói TCP SYN với cờ `flags: S;` trên nhiều cổng khác nhau để vẽ bản đồ mạng nội bộ. |
-| **`2000002`** | **`100012`** | Suricata: Web LFI Directory Traversal on Wire | Level 10 (High) | Payload chứa chuỗi URL traversal (`..%2f`, `win.ini`) đi qua dây mạng trước khi chạm tới tầng ứng dụng Web. |
-| **`2000003`** | **`100013`** | Suricata: Suspicious Vulnerability Scanner UA | Level 8 (Medium) | Máy quét tự động (Nikto, sqlmap, gobuster, dirb) gửi HTTP Request với User-Agent đặc trưng. |
+| **`2000001`** | **`100011`** | Suricata: Nmap Stealth SYN Scan Detected | Level 8 (Medium) | Kali floods TCP SYN packets with flag `flags: S;` across multiple ports to map the internal network. |
+| **`2000002`** | **`100012`** | Suricata: Web LFI Directory Traversal on Wire | Level 10 (High) | Payload contains URL traversal strings (`..%2f`, `win.ini`) traversing the network wire before reaching the Web application layer. |
+| **`2000003`** | **`100013`** | Suricata: Suspicious Vulnerability Scanner UA | Level 8 (Medium) | Automated vulnerability scanners (Nikto, sqlmap, gobuster, dirb) sending HTTP requests with distinctive User-Agents. |
 
 ---
 
-## 🧭 3. CÁC BƯỚC THỰC HIỆN ỨNG PHÓ (STEP-BY-STEP)
+## 🧭 3. INCIDENT RESPONSE EXECUTION (STEP-BY-STEP)
 
 ```mermaid
 sequenceDiagram
@@ -39,39 +39,39 @@ sequenceDiagram
     participant n8n as n8n SOAR Dispatcher
     participant Analyst as SOC Analyst (Telegram)
 
-    Kali->>Suricata: Gửi gói tin Nmap SYN / HTTP LFI Traversal
-    Suricata->>Suricata: Bắt packet, ghi log eve.json (alert)
-    Wazuh->>Wazuh: Đọc eve.json, kích hoạt Rule 100011/100012
+    Kali->>Suricata: Send Nmap SYN / HTTP LFI Traversal packets
+    Suricata->>Suricata: Capture packets, log eve.json (alert)
+    Wazuh->>Wazuh: Ingest eve.json, trigger Rule 100011/100012
     Wazuh->>n8n: POST Webhook alert
-    n8n->>Analyst: Bắn Card Telegram kèm IP nguồn & MITRE ID
-    Analyst->>n8n: Bấm nút [🚫 Khóa IP 24h]
-    n8n->>Kali: Áp rule DROP trên Windows Firewall qua WinRM
+    n8n->>Analyst: Dispatch Telegram Card with source IP & MITRE ID
+    Analyst->>n8n: Click [🚫 Block IP 24h]
+    n8n->>Kali: Apply DROP rule on Windows Firewall via WinRM
 ```
 
-### Bước 1: Điều Tra & Bóc Tách Luồng Mạng (Network Packet Triage)
-1. Truy vấn chi tiết sự kiện Suricata trên Wazuh Server:
+### Step 1: Investigation & Network Packet Triage
+1. Query detailed Suricata events on Wazuh Server:
    ```bash
    grep "2000001" /var/log/suricata/eve.json | tail -n 5 | jq .
    ```
-2. Rà soát các trường quan trọng:
-   - `src_ip`: Địa chỉ IP nguồn phát động tấn công.
-   - `dest_port`: Cổng dịch vụ đang bị thăm dò (ví dụ: 80 HTTP, 3389 RDP, 21 FTP).
-   - `http.url` và `http.http_user_agent`: Nội dung chuỗi payload và công cụ quét.
+2. Examine critical fields:
+   - `src_ip`: Source IP address launching the attack.
+   - `dest_port`: Targeted service port (e.g., 80 HTTP, 3389 RDP, 21 FTP).
+   - `http.url` and `http.http_user_agent`: Malicious payload strings and scanning tool signatures.
 
-### Bước 2: Đối Chiếu Trạng Thái XDR (Correlation Check)
-* **Kịch bản LFI (Rule 100012):** Đối chiếu với Apache Access Log trên máy trạm Windows:
-  - Nếu mã phản hồi là `HTTP 404` hoặc `403` $\rightarrow$ Tấn công thất bại, xếp mức **P3 - Medium**.
-  - Nếu mã phản hồi là `HTTP 200` và dung lượng response lớn (chứa nội dung `win.ini`) $\rightarrow$ Tấn công thành công, nâng mức khẩn cấp lên **P1 - Critical**.
+### Step 2: XDR Correlation Check
+* **LFI Scenario (Rule 100012):** Correlate with Apache Access Logs on the Windows endpoint:
+  - If response code is `HTTP 404` or `403` $\rightarrow$ Attack failed, classify as **P3 - Medium**.
+  - If response code is `HTTP 200` with substantial payload response size (containing `win.ini` content) $\rightarrow$ Attack succeeded, escalate to **P1 - Critical**.
 
-### Bước 3: Ngăn Chặn Khẩn Cấp (Containment)
-* Bấm nút **`[🚫 Khóa IP 24h]`** trên Telegram ChatOps để chặn ngay toàn bộ gói tin từ IP kẻ tấn công.
-* Trường hợp có dải IP quét mạng rộng lớn (Subnet Scan), cấu hình rule chặn trực tiếp trên Router/Tường lửa hoặc iptables trên Ubuntu:
-  ```bash
-  sudo iptables -I INPUT -s 192.168.71.130 -j DROP
-  ```
+### Step 3: Emergency Containment
+* Click the **`[🚫 Block IP 24h]`** button on Telegram ChatOps to immediately drop all traffic from the attacking IP.
+* In case of broad subnet scans (Subnet Scan), configure direct drop rules on the Router/Firewall or iptables on Ubuntu:
+   ```bash
+   sudo iptables -I INPUT -s 192.168.71.130 -j DROP
+   ```
 
-### Bước 4: Tối Ưu Hóa & Đóng Vụ Việc (Tuning & Lessons Learned)
-1. Trường hợp cảnh báo phát sinh từ máy quét bảo mật nội bộ hợp lệ (Nessus, Qualys):
-   - Cập nhật Whitelist trong file cấu hình Suricata: `/etc/suricata/rules/local.rules` hoặc tạo suppress rule.
-2. Kiểm tra lại lưu lượng mạng trên OpenSearch Dashboards đảm bảo không còn gói tin độc hại từ IP vi phạm.
-3. Ghi nhận báo cáo vào Jira Cloud Ticket và hoàn tất xử lý.
+### Step 4: Rule Tuning & Case Closure (Tuning & Lessons Learned)
+1. In case of alerts generated by legitimate internal vulnerability scanners (Nessus, Qualys):
+   - Update whitelist in Suricata rules: `/etc/suricata/rules/local.rules` or create suppression rules.
+2. Verify network traffic in OpenSearch Dashboards to confirm no further malicious packets from the offending IP.
+3. Document findings in the Jira Cloud Ticket and close the case.

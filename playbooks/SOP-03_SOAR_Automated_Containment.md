@@ -1,27 +1,27 @@
-# 📋 QUY TRÌNH ỨNG PHÓ SỰ CỐ TỰ ĐỘNG HÓA QUA SOAR VÀ CHATOPS KHÉP KÍN (SOP-03)
-> **Mã quy trình:** SOP-SOC-IR-003  
-> **Kỹ thuật MITRE ATT&CK:** [T1110 - Brute Force](https://attack.mitre.org/techniques/T1110/), [T1190 - Exploit Public-Facing App](https://attack.mitre.org/techniques/T1190/), [T1059.001 - PowerShell](https://attack.mitre.org/techniques/T1059/001/), [T1548.002 - Bypass UAC](https://attack.mitre.org/techniques/T1548/002/), [T1547.001 - Registry Run Keys](https://attack.mitre.org/techniques/T1547/001/), [T1003.001 - LSASS Memory](https://attack.mitre.org/techniques/T1003/001/)  
-> **Cảnh báo liên quan:** Wazuh Rule IDs `100001, 100002, 100004, 100005, 100006, 100007, 87105`  
-> **Hệ thống điều phối:** Wazuh SIEM Manager 4.14.5 + n8n SOAR Engine + Telegram ChatOps + Jira Cloud REST API v3 + WinRM Endpoint Automation  
-> **Đối tượng áp dụng:** SOC Analyst L1/L2, Incident Response Lead, SecOps Automation Engineer  
+# 📋 AUTOMATED INCIDENT RESPONSE PLAYBOOK VIA SOAR AND CLOSED-LOOP CHATOPS (SOP-03)
+> **Playbook Code:** SOP-SOC-IR-003  
+> **MITRE ATT&CK Techniques:** [T1110 - Brute Force](https://attack.mitre.org/techniques/T1110/), [T1190 - Exploit Public-Facing App](https://attack.mitre.org/techniques/T1190/), [T1059.001 - PowerShell](https://attack.mitre.org/techniques/T1059/001/), [T1548.002 - Bypass UAC](https://attack.mitre.org/techniques/T1548/002/), [T1547.001 - Registry Run Keys](https://attack.mitre.org/techniques/T1547/001/), [T1003.001 - LSASS Memory](https://attack.mitre.org/techniques/T1003/001/)  
+> **Associated Alerts:** Wazuh Rule IDs `100001, 100002, 100004, 100005, 100006, 100007, 87105`  
+> **Orchestration Stack:** Wazuh SIEM Manager 4.14.5 + n8n SOAR Engine + Telegram ChatOps + Jira Cloud REST API v3 + WinRM Endpoint Automation  
+> **Target Audience:** SOC Analyst L1/L2, Incident Response Lead, SecOps Automation Engineer  
 
 ---
 
-## 🎯 1. TỔNG QUAN & MỤC TIÊU
+## 🎯 1. OVERVIEW & OBJECTIVES
 
-Quy trình này chuẩn hóa các bước tiếp nhận cảnh báo, làm giàu thông tin tình báo mối đe dọa (Threat Enrichment), và thực thi các biện pháp ngăn chặn – hoàn tác khép kín thông qua **mô hình phối hợp Người - Máy (Human-in-the-Loop ChatOps & Closed-Loop Containment)**.
+This procedure standardizes the steps for alert ingestion, threat intelligence enrichment (Threat Enrichment), and execution of closed-loop containment and rollback actions through a **Human-in-the-Loop ChatOps & Closed-Loop Containment collaborative model**.
 
-### Mục tiêu cốt lõi:
-1. **Giảm thiểu MTTA & MTTR:** Rút ngắn thời gian tiếp nhận cảnh báo (MTTA) xuống dưới **3 giây** và thời gian phản ứng cô lập/xử lý (MTTR) từ 30 phút xuống dưới **15 giây**.
-2. **Ngăn chặn & Hoàn tác khép kín (Closed-Loop Containment & Rollback):** Hỗ trợ cách ly tức thời kèm cơ chế hoàn tác 1-click (`[🟢 Mở khóa IP]`) nhằm đảm bảo tính sẵn sàng dịch vụ (High Availability) khi có trường hợp báo động nhầm.
-3. **Phản ứng đa tầng (Multi-vector Remediation):** Không chỉ chặn IP mạng mà còn có khả năng tiêu diệt tiến trình độc hại (`[🛑 Diệt Tiến Trình]`) và dọn sạch mã độc bám rễ (`[🧹 Dọn Persistence]`) trên Endpoint qua WinRM.
-4. **Kiểm soát chặt chẽ quyết định phản ứng:** Mọi hành động can thiệp Endpoint hoặc khởi tạo ticket điều tra đều yêu cầu xác nhận của SOC Analyst qua ChatOps Telegram 2 chiều.
+### Core Objectives:
+1. **Minimize MTTA & MTTR:** Shorten Mean Time to Acknowledge (MTTA) to under **3 seconds** and containment/remediation response time (MTTR) from 30 minutes to under **15 seconds**.
+2. **Closed-Loop Containment & Rollback:** Support immediate isolation accompanied by a 1-click rollback mechanism (`[🟢 Unblock IP]`) to maintain service availability (High Availability) in false positive scenarios.
+3. **Multi-vector Remediation:** Expand beyond network IP blocking to terminate malicious processes (`[🛑 Kill Process]`) and purge persistence footholds (`[🧹 Clean Persistence]`) on the Endpoint via WinRM.
+4. **Strict Decision Control:** All Endpoint intervention actions or investigation ticket creation require confirmation from a SOC Analyst via bidirectional 2-way Telegram ChatOps.
 
 ---
 
-## 🔍 2. GIAI ĐOẠN 1: TIẾP NHẬN CẢNH BÁO & LÀM GIÀU THÔNG TIN (ENRICHMENT)
+## 🔍 2. PHASE 1: ALERT INGESTION & ENRICHMENT
 
-Khi bất kỳ Rule mức độ cao nào (Level 8 – 12) được kích hoạt trên Wazuh Manager:
+When any high-severity Rule (Level 8 – 12) is triggered on the Wazuh Manager:
 
 ```mermaid
 sequenceDiagram
@@ -52,50 +52,50 @@ sequenceDiagram
 
 ---
 
-## 🎮 3. GIAI ĐOẠN 2: MA TRẬN HÀNH ĐỘNG TƯƠNG TÁC 2 CHIỀU (CHATOPS DECISION MATRIX)
+## 🎮 3. PHASE 2: 2-WAY CHATOPS DECISION MATRIX
 
-Dựa trên bản chất của mối đe dọa (tấn công từ mạng ngoài hay chuỗi tấn công nội bộ Endpoint), giao diện ChatOps tự động hiển thị các nút phản ứng ngữ cảnh:
+Based on the nature of the threat (external network attack vs host-internal endpoint kill chain), the ChatOps interface dynamically presents contextual response buttons:
 
-| Loại Cảnh Báo | Nút Bấm Tương Tác | Callback Payload | Hành Động Tự Động Được Kích Hoạt |
+| Alert Type | Interactive Button | Callback Payload | Automated Action Triggered |
 | :--- | :--- | :--- | :--- |
-| **Tấn công Mạng (Remote Attack)** | **`[🚫 Khóa IP 24h]`** | `action:block:<ip>:<alert_id>` | WinRM tạo Inbound & Outbound Block Rules trên Windows Defender Firewall; Gửi kèm nút **`[🟢 Mở khóa IP]`** để Rollback. |
-| **Sau khi Khóa IP (Rollback)** | **`[🟢 Mở khóa IP]`** | `action:unblock:<ip>:<alert_id>` | WinRM xóa quy tắc chặn tường lửa, khôi phục lưu thông mạng tức thì mà không cần đăng nhập máy nạn nhân. |
-| **Tiến trình Độc hại (Kill Chain)** | **`[🛑 Diệt Tiến Trình]`** | `action:killproc:<proc>:<alert_id>` | WinRM cưỡng chế dừng tiến trình độc hại (`Stop-Process -Force`), ngắt phiên điều khiển của tin tặc. |
-| **Bám rễ Hệ thống (Persistence)** | **`[🧹 Dọn Persistence]`** | `action:cleanpersist:<ip>:<alert_id>` | WinRM gỡ bỏ Registry Run Key (`WazuhLabPersistenceTest`) và xóa nhánh hijack UAC (`ms-settings`). |
-| **Hồ sơ Sự cố (Case Management)** | **`[📋 Mở Ticket Jira]`** | `action:jira:<rule_id>:<target>:<alert_id>` | n8n gọi Jira Cloud REST API v3 tạo Task/Incident trong Project `KAN`, trả về URL theo dõi trực tiếp. |
-| **Báo động Giả (False Positive)** | **`[⚠️ Báo động giả]`** | `action:ignore:<target>:<alert_id>` | Ghi nhận sự kiện vào SOAR Audit Trail với trạng thái False Positive, không can thiệp Endpoint. |
+| **Network Attack (Remote Attack)** | **`[🚫 Block IP 24h]`** | `action:block:<ip>:<alert_id>` | WinRM creates Inbound & Outbound Block Rules on Windows Defender Firewall; Appends a **`[🟢 Unblock IP]`** button for Rollback. |
+| **Post-Block (Rollback)** | **`[🟢 Unblock IP]`** | `action:unblock:<ip>:<alert_id>` | WinRM removes firewall block rules, immediately restoring network traffic without requiring host login. |
+| **Malicious Process (Kill Chain)** | **`[🛑 Kill Process]`** | `action:killproc:<proc>:<alert_id>` | WinRM forcibly terminates the malicious process (`Stop-Process -Force`), severing the attacker's command-and-control session. |
+| **Persistence Foothold (Persistence)** | **`[🧹 Clean Persistence]`** | `action:cleanpersist:<ip>:<alert_id>` | WinRM removes Registry Run Key (`WazuhLabPersistenceTest`) and deletes the hijacked UAC branch (`ms-settings`). |
+| **Case Management** | **`[📋 Open Jira Ticket]`** | `action:jira:<rule_id>:<target>:<alert_id>` | n8n invokes Jira Cloud REST API v3 to create a Task/Incident in Project `KAN`, returning a direct tracking URL. |
+| **False Positive** | **`[⚠️ False Positive]`** | `action:ignore:<target>:<alert_id>` | Records the event into the SOAR Audit Trail as False Positive without intervening on the Endpoint. |
 
 ---
 
-## 🛡️ 4. CHI TIẾT THỰC THI PHẢN ỨNG TỰ ĐỘNG & HOÀN TÁC (CLOSED-LOOP RUNBOOK)
+## 🛡️ 4. AUTOMATED RESPONSE EXECUTION & ROLLBACK RUNBOOK (CLOSED-LOOP RUNBOOK)
 
-### 4.1. Cách ly Tường lửa & Sinh nút Hoàn tác (`action:block`)
-1. **Lệnh PowerShell thực thi qua WinRM:**
+### 4.1. Firewall Isolation & Rollback Button Generation (`action:block`)
+1. **PowerShell command executed via WinRM:**
    ```powershell
    New-NetFirewallRule -DisplayName "SOAR-BLOCK-$TargetIP" -Direction Inbound -Action Block -RemoteAddress $TargetIP -ErrorAction SilentlyContinue
    New-NetFirewallRule -DisplayName "SOAR-BLOCK-Out-$TargetIP" -Direction Outbound -Action Block -RemoteAddress $TargetIP -ErrorAction SilentlyContinue
    ```
-2. **Thông báo Telegram:** n8n gửi Card xác nhận thành công kèm nút bấm inline:
-   - Label: `🟢 [Mở khóa IP (Rollback)]`
+2. **Telegram Notification:** n8n sends a success confirmation Card with an inline button:
+   - Label: `🟢 [Unblock IP (Rollback)]`
    - Callback: `action:unblock:$TargetIP:$AlertID`
 
-### 4.2. Hoàn tác Mở khóa Tường lửa (`action:unblock`)
-1. **Lệnh PowerShell thực thi qua WinRM:**
+### 4.2. Firewall Unblock Rollback (`action:unblock`)
+1. **PowerShell command executed via WinRM:**
    ```powershell
    Remove-NetFirewallRule -DisplayName "SOAR-BLOCK-$TargetIP*" -ErrorAction SilentlyContinue
    ```
-2. **Kết quả:** Lưu lượng mạng giữa Endpoint và IP được phục hồi ngay lập tức, phục vụ kịch bản điều tra hoàn tất hoặc khắc phục lỗi chặn nhầm (False Positive Containment).
+2. **Result:** Network traffic between the Endpoint and the IP is immediately restored, supporting completed investigation scenarios or remediating false-positive containment.
 
-### 4.3. Tiêu diệt Tiến trình Độc hại (`action:killproc`)
-1. **Lệnh PowerShell thực thi qua WinRM:**
+### 4.3. Malicious Process Termination (`action:killproc`)
+1. **PowerShell command executed via WinRM:**
    ```powershell
    $ProgressPreference = 'SilentlyContinue'
    Get-Process -Name "$CleanProcName" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
    ```
-2. **Kết quả:** Các tiến trình nguy hiểm như `powershell.exe`, `fodhelper.exe`, mã độc inject bộ nhớ bị chấm dứt tức thì.
+2. **Result:** Malicious processes such as `powershell.exe`, `fodhelper.exe`, or memory-injected payloads are immediately terminated.
 
-### 4.4. Dọn dẹp Mã độc Bám rễ (`action:cleanpersist`)
-1. **Lệnh PowerShell thực thi qua WinRM:**
+### 4.4. Persistence Cleanup (`action:cleanpersist`)
+1. **PowerShell command executed via WinRM:**
    ```powershell
    $ProgressPreference = 'SilentlyContinue'
    Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "WazuhLabPersistenceTest" -Force -ErrorAction SilentlyContinue
@@ -103,25 +103,25 @@ Dựa trên bản chất của mối đe dọa (tấn công từ mạng ngoài h
        Remove-Item -Path "HKCU:\Software\Classes\ms-settings" -Recurse -Force -ErrorAction SilentlyContinue
    }
    ```
-2. **Kết quả:** Triệt tiêu điểm bám tự khởi động (Autorun Foothold) và kỹ thuật Hijack cơ chế kiểm soát tài khoản (UAC Bypass Registry Hijacking).
+2. **Result:** Eradicates the auto-run foothold (Autorun Foothold) and the User Account Control bypass hijacking mechanism (UAC Bypass Registry Hijacking).
 
-### 4.5. Tạo Hồ sơ Sự cố Jira Cloud REST API v3 (`action:jira`)
-1. **Gọi API Atlassian Jira Cloud:**
+### 4.5. Case Management via Jira Cloud REST API v3 (`action:jira`)
+1. **Invoke Atlassian Jira Cloud API:**
    - **Method:** `POST https://tn421015.atlassian.net/rest/api/3/issue`
-   - **Payload:** Tự động tạo Issue loại `Task` kèm thông tin MITRE ATT&CK, Rule ID, Target IOC, và Reporter là tài khoản Telegram của Analyst.
-2. **Kết quả:** Phản hồi tin nhắn Telegram chứa Issue Key (ví dụ: `KAN-24`) và đường dẫn Direct link để chuyên viên SOC L2 mở tiếp nhận điều tra.
+   - **Payload:** Automatically creates a Task issue containing MITRE ATT&CK details, Rule ID, Target IOC, with Reporter set to the Analyst's Telegram account.
+2. **Result:** Returns a Telegram message containing the Issue Key (e.g., `KAN-24`) and a Direct link for the SOC L2 analyst to proceed with the investigation.
 
 ---
 
-## 🧪 5. KIỂM THỬ HỒI QUY TỰ ĐỘNG (AUTOMATED E2E VERIFICATION)
+## 🧪 5. AUTOMATED REGRESSION TESTING (AUTOMATED E2E VERIFICATION)
 
-Quy trình phản ứng khép kín được kiểm thử tự động toàn diện qua kịch bản:
+The closed-loop response procedure is comprehensively and automatically tested via the scenario script:
 ```bash
 python tests/e2e/test_soar_closed_loop.py
 ```
-Bộ kiểm thử thực hiện 15 bài test tự động bao gồm:
-- Kiểm tra sức khỏe n8n SOAR Engine & Windows 10 WinRM.
-- Gửi Alert Ingest mô phỏng đe dọa nội bộ Kill Chain vào Workflow 01.
-- Gửi 5 callback tương tác (Block, Unblock, KillProc, CleanPersist, Ignore) vào Workflow 02.
-- Kiểm thử thực tế chu trình Tạo Rule Firewall $\rightarrow$ Xác thực có Rule $\rightarrow$ Hoàn tác Rollback Rule $\rightarrow$ Xác thực đã xóa Rule trên Windows 10.
-- Kiểm thử thực tế tạo và dọn sạch Registry Run Key & an toàn cú pháp Stop-Process.
+The test suite executes 15 automated test cases, including:
+- Health check for n8n SOAR Engine & Windows 10 WinRM.
+- Alert ingestion simulating host-internal Kill Chain threats into Workflow 01.
+- 5 interactive callbacks (Block, Unblock, KillProc, CleanPersist, Ignore) dispatched to Workflow 02.
+- End-to-end verification of the cycle: Create Firewall Rule $\rightarrow$ Verify Rule presence $\rightarrow$ Rollback Rule $\rightarrow$ Verify Rule removal on Windows 10.
+- Live testing of Registry Run Key creation and cleanup & safe Stop-Process syntax.

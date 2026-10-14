@@ -1,12 +1,12 @@
 # 🔄 Phase 6: DevSecOps CI/CD Pipeline (GitHub Actions)
 
-Thư mục lưu trữ báo cáo kỹ thuật và minh chứng của **Phase 6**, triển khai quy trình CI/CD tự động kiểm định chất lượng luật phát hiện (Detection Engineering) theo chuẩn doanh nghiệp.
+Directory containing technical reports and proof-of-concept evidence for **Phase 6**, implementing an enterprise-grade automated CI/CD pipeline for detection engineering quality assurance.
 
 ---
 
-## 📌 Báo Cáo Kỹ Thuật Chính
-* **Tài liệu chi tiết:** [`Phase-6_Detection-Engineering-CICD-Pipeline.md`](Phase-6_Detection-Engineering-CICD-Pipeline.md)
-* **Nội dung:**
-  - Thiết kế GitHub Actions workflow chạy trên môi trường đa phiên bản Python (`3.10`, `3.11`).
-  - Bộ 22 bài kiểm thử tự động (Pytest Unit Checks): kiểm tra cú pháp XML, tính duy nhất của Rule ID, dải mức độ nghiêm trọng (0–16), format kỹ thuật MITRE ATT&CK, an toàn biên dịch Regex/PCRE2, và quy chuẩn Zero Secret Leakage.
-  - Tự động chặn các commit hoặc Pull Request vi phạm trước khi đưa vào môi trường sản xuất.
+## 📌 Main Technical Report
+* **Detailed Document:** [`Phase-6_Detection-Engineering-CICD-Pipeline.md`](Phase-6_Detection-Engineering-CICD-Pipeline.md)
+* **Contents:**
+  - Design of a GitHub Actions workflow running across a multi-version Python environment (`3.10`, `3.11`).
+  - Suite of automated test cases (Pytest Unit Checks): validating XML syntax, Rule ID uniqueness, severity levels (0–16), MITRE ATT&CK technique formatting, Regex/PCRE2 compilation safety, and Zero Secret Leakage compliance.
+  - Automatically blocks violating commits or Pull Requests prior to production deployment.

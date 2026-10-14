@@ -1,20 +1,20 @@
 # 🤖 n8n SOAR Workflows
 
-Thư mục lưu trữ 3 luồng công việc (workflows) chuẩn hóa của **n8n SOAR Engine** dưới dạng định dạng tệp JSON, sẵn sàng nạp (Import) trực tiếp vào giao diện web của n8n (`http://192.168.71.128:5678`).
+This directory stores 3 standardized workflows for the **n8n SOAR Engine** in JSON format, ready for direct import into the n8n Web UI (`http://192.168.71.128:5678`).
 
 ---
 
-## 📌 Danh Mục Workflows
+## 📌 Workflow Catalog
 
-| Tệp Cấu Hình | Tên Workflow | Mô Tả Chức Năng |
+| Configuration File | Workflow Name | Functional Description |
 | :--- | :--- | :--- |
-| `01_wazuh_soar_threat_enrichment.json` | **Workflow 1: Threat Enrichment & ChatOps Dispatcher** | Tiếp nhận Webhook alert từ Wazuh (`/webhook/wazuh-alert`), bóc tách IoC, truy vấn AbuseIPDB/VirusTotal, tạo HTML Card với các nút bấm inline và gửi về Telegram Bot. |
-| `02_containment_action_executor.json` | **Workflow 2: Containment & Case Management Executor** | Lắng nghe callback khi Analyst bấm nút: thực thi diệt tiến trình (`Stop-Process`), cách ly host qua WinRM, hoàn tác giải phóng mạng (Rollback), và tạo Incident Ticket trên Jira Cloud REST API v3. |
-| `03_scheduled_healthcheck_cron.json` | **Workflow 3: Scheduled Healthcheck Cron** | Tự động chạy định kỳ mỗi 6 giờ kiểm tra tính khả dụng của các máy ảo, dịch vụ Wazuh Manager và container Docker, gửi báo cáo tình trạng về Telegram. |
+| `01_wazuh_soar_threat_enrichment.json` | **Workflow 1: Threat Enrichment & ChatOps Dispatcher** | Ingests Webhook alerts from Wazuh (`/webhook/wazuh-alert`), parses IoCs, queries AbuseIPDB/VirusTotal, generates HTML Cards with inline buttons, and dispatches to Telegram Bot. |
+| `02_containment_action_executor.json` | **Workflow 2: Containment & Case Management Executor** | Listens for callback events when an Analyst clicks interactive buttons: executes process termination (`Stop-Process`), host isolation via WinRM, network unblock rollback (Rollback), and Incident Ticket creation on Jira Cloud REST API v3. |
+| `03_scheduled_healthcheck_cron.json` | **Workflow 3: Scheduled Healthcheck Cron** | Runs automatically on a 6-hour recurring schedule to check availability of virtual machines, Wazuh Manager services, and Docker containers, transmitting status reports to Telegram. |
 
 ---
 
-## ⚡ Hướng Dẫn Nạp Vào n8n (Import)
-1. Truy cập giao diện n8n: `http://192.168.71.128:5678`
-2. Chọn **Workflows** $\rightarrow$ **Add Workflow** $\rightarrow$ bấm biểu tượng ba chấm $\rightarrow$ chọn **Import from File**.
-3. Chọn lần lượt từng file `.json` trên và bấm **Activate (Kích hoạt)**.
+## ⚡ Import Instructions for n8n
+1. Access n8n Web UI: `http://192.168.71.128:5678`
+2. Select **Workflows** $\rightarrow$ **Add Workflow** $\rightarrow$ click the three dots icon $\rightarrow$ select **Import from File**.
+3. Select each `.json` file sequentially and click **Activate**.

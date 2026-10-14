@@ -1,39 +1,39 @@
-# PHỤ LỤC A. CÁC THAO TÁC QUẢN TRỊ WAZUH TRÊN DOCKER
+# APPENDIX A. WAZUH DOCKER MANAGEMENT OPERATIONS
 
-## A.1. Khởi động và dừng hệ thống Wazuh
+## A.1. Starting and Stopping the Wazuh System
 
-Trong quá trình triển khai, Wazuh được cài đặt theo mô hình Single Node sử dụng Docker Compose. Các lệnh quản trị cơ bản được sử dụng thường xuyên như sau.
+During deployment, Wazuh is installed in a Single Node architecture using Docker Compose. The basic administration commands frequently used are as follows.
 
-### Dừng toàn bộ hệ thống
+### Stopping the entire system
 
-Trước khi tắt máy ảo hoặc thực hiện bảo trì hệ thống, nên dừng toàn bộ dịch vụ Wazuh:
+Before shutting down the virtual machine or performing system maintenance, gracefully stop all Wazuh services:
 
 ```bash
 sudo docker compose stop
 ```
 
-Lệnh này dừng các container Dashboard, Manager và Indexer nhưng vẫn giữ nguyên dữ liệu.
+This command stops the Dashboard, Manager, and Indexer containers while preserving all data volumes intact.
 
 ---
 
-### Khởi động lại hệ thống
+### Restarting the system
 
-Khởi động toàn bộ cụm dịch vụ Wazuh ở chế độ chạy nền:
+Start the entire Wazuh service cluster in detached mode:
 
 ```bash
 sudo docker compose up -d
 ```
 
-Trong đó:
+Where:
 
-* `up`: khởi tạo và chạy các container.
-* `-d`: chạy ở chế độ nền (Detached Mode).
+* `up`: builds, creates, and starts containers.
+* `-d`: runs containers in the background (Detached Mode).
 
 ---
 
-### Khởi động lại riêng Wazuh Manager
+### Restarting only Wazuh Manager
 
-Sau khi chỉnh sửa Rule hoặc Decoder, cần khởi động lại Manager để nạp cấu hình mới:
+After modifying Rules or Decoders, restart the Manager to reload the updated configuration:
 
 ```bash
 sudo docker compose restart wazuh.manager
@@ -41,26 +41,26 @@ sudo docker compose restart wazuh.manager
 
 ---
 
-## A.2. Kiểm tra trạng thái các container
+## A.2. Checking Container Status
 
-Xem danh sách container đang hoạt động:
+View running containers:
 
 ```bash
 sudo docker ps
 ```
 
-Kiểm tra tiến trình con
+Check internal Wazuh processes:
 ```
 sudo docker exec -it single-node-wazuh.manager-1 /var/ossec/bin/wazuh-control status
 ```
 
-Xem toàn bộ container bao gồm cả container đã dừng:
+View all containers including stopped ones:
 
 ```bash
 sudo docker ps -a
 ```
 
-Kết quả mong muốn:
+Expected result:
 
 ```text
 single-node-wazuh.dashboard-1
@@ -68,7 +68,7 @@ single-node-wazuh.manager-1
 single-node-wazuh.indexer-1
 ```
 
-đều ở trạng thái:
+All should be in the state:
 
 ```text
 Up
@@ -76,29 +76,29 @@ Up
 
 ---
 
-## A.3. Truy cập Wazuh Manager Container
+## A.3. Accessing the Wazuh Manager Container
 
-Để thực hiện các thao tác quản trị nâng cao, cần truy cập vào container Manager:
+To execute advanced administrative tasks, access the Manager container shell:
 
 ```bash
 sudo docker exec -it single-node-wazuh.manager-1 bash
 ```
 
-Sau khi thực hiện, dấu nhắc lệnh sẽ chuyển thành:
+Upon execution, the terminal prompt changes to:
 
 ```bash
 bash-5.2#
 ```
 
-Từ đây có thể chỉnh sửa Rule, Decoder hoặc kiểm tra trạng thái dịch vụ Wazuh.
+From here, you can edit Rules and Decoders, or inspect Wazuh service health.
 
 ---
 
-## A.4. Sao lưu và chỉnh sửa Custom Rule
+## A.4. Backing Up and Editing Custom Rules
 
-Do container Manager không cài sẵn trình soạn thảo văn bản như nano hoặc vim, việc chỉnh sửa Rule được thực hiện trên máy chủ Ubuntu rồi sao chép trở lại container.
+Because the Manager container does not come with text editors such as nano or vim pre-installed, Rule editing is performed on the Ubuntu host and then copied back into the container.
 
-### Bước 1. Sao chép file Rule từ container ra máy chủ
+### Step 1. Copy the Rule file from container to host
 
 ```bash
 sudo docker cp \
@@ -106,7 +106,7 @@ single-node-wazuh.manager-1:/var/ossec/etc/rules/local_rules.xml \
 ~/local_rules.xml
 ```
 
-Kiểm tra file đã được sao chép:
+Verify that the file has been copied:
 
 ```bash
 ls -l ~/local_rules.xml
@@ -114,23 +114,23 @@ ls -l ~/local_rules.xml
 
 ---
 
-### Bước 2. Chỉnh sửa file Rule trên Ubuntu
+### Step 2. Edit the Rule file on Ubuntu
 
 ```bash
 nano ~/local_rules.xml
 ```
 
-hoặc:
+or:
 
 ```bash
 gedit ~/local_rules.xml
 ```
 
-Thêm hoặc chỉnh sửa các Custom Rule theo yêu cầu.
+Add or modify Custom Rules as required.
 
 ---
 
-### Bước 3. Sao chép file đã chỉnh sửa trở lại container
+### Step 3. Copy the modified file back to the container
 
 ```bash
 sudo docker cp \
@@ -140,33 +140,33 @@ single-node-wazuh.manager-1:/var/ossec/etc/rules/local_rules.xml
 
 ---
 
-### Bước 4. Cấp lại quyền cho file Rule
+### Step 4. Re-assign permissions to the Rule file
 
-Truy cập container:
+Access the container:
 
 ```bash
 sudo docker exec -it single-node-wazuh.manager-1 bash
 ```
 
-Thiết lập lại chủ sở hữu:
+Reset file ownership:
 
 ```bash
 chown wazuh:wazuh /var/ossec/etc/rules/local_rules.xml
 ```
 
-Cấp quyền truy cập:
+Set file permissions:
 
 ```bash
 chmod 660 /var/ossec/etc/rules/local_rules.xml
 ```
 
-Kiểm tra:
+Verify:
 
 ```bash
 ls -l /var/ossec/etc/rules/local_rules.xml
 ```
 
-Kết quả mong muốn:
+Expected result:
 
 ```text
 -rw-rw---- 1 wazuh wazuh
@@ -174,78 +174,78 @@ Kết quả mong muốn:
 
 ---
 
-## A.5. Kiểm tra tính hợp lệ của Rule
+## A.5. Validating Rule Syntax
 
-Sau khi chỉnh sửa Rule, cần kiểm tra cú pháp trước khi khởi động lại Manager:
+After editing Rules, test syntax validity before restarting the Manager:
 
 ```bash
 /var/ossec/bin/wazuh-analysisd -t
 ```
 
-Nếu cấu hình hợp lệ, lệnh sẽ kết thúc mà không xuất hiện thông báo:
+If the configuration is valid, the command terminates without displaying:
 
 ```text
 ERROR
 CRITICAL
 ```
 
-Nếu xuất hiện lỗi, cần chỉnh sửa lại Rule trước khi tiếp tục.
+If errors appear, fix the Rule syntax before proceeding.
 
 ---
 
-## A.6. Kiểm tra log Wazuh Manager
+## A.6. Inspecting Wazuh Manager Logs
 
-Xem log thời gian thực:
+View logs in real time:
 
 ```bash
 sudo docker logs -f single-node-wazuh.manager-1
 ```
 
-Xem 50 dòng log gần nhất:
+View the 50 most recent log lines:
 
 ```bash
 sudo docker logs single-node-wazuh.manager-1 --tail 50
 ```
 
-Các log này giúp xác định lỗi liên quan đến:
+These logs help identify errors related to:
 
 * Rules.
 * Decoders.
 * Active Response.
 * Filebeat.
-* Kết nối Indexer.
+* Indexer connectivity.
 
 ---
 
-## A.7. Kiểm tra log Dashboard
+## A.7. Inspecting Dashboard Logs
 
 ```bash
 sudo docker logs single-node-wazuh.dashboard-1 --tail 50
 ```
 
-Dùng để phân tích các lỗi giao diện Dashboard hoặc lỗi API.
+Used to analyze Dashboard UI or API errors.
 
 ---
 
-## A.8. Kiểm tra log Indexer
+## A.8. Inspecting Indexer Logs
 
 ```bash
 sudo docker logs single-node-wazuh.indexer-1 --tail 50
 ```
 
-Dùng để phân tích lỗi lưu trữ dữ liệu, lỗi OpenSearch hoặc lỗi kết nối giữa Manager và Indexer.
+Used to analyze data storage issues, OpenSearch errors, or connectivity between Manager and Indexer.
 
 ---
 
-## A.9. Kiểm tra nội dung Rule hiện tại
+## A.9. Checking Current Rule Content
 
-Hiển thị nội dung file local_rules.xml:
+Display contents of local_rules.xml:
 
 ```bash
 cat /var/ossec/etc/rules/local_rules.xml
 ```
 
-Liệt kê toàn bộ thư mục Rules:
+List all files in the Rules directory:
 
 ```bash
 ls -l /var/ossec/etc/rules/
@@ -253,17 +253,17 @@ ls -l /var/ossec/etc/rules/
 
 ---
 
-## A.10. Một số thao tác xử lý sự cố thường gặp
+## A.10. Common Troubleshooting Procedures
 
-### Dashboard báo lỗi 500
+### Dashboard reports 500 error
 
-Kiểm tra:
+Check:
 
 ```bash
 sudo docker ps
 ```
 
-Đảm bảo:
+Ensure:
 
 ```text
 single-node-wazuh.dashboard-1
@@ -271,11 +271,11 @@ single-node-wazuh.manager-1
 single-node-wazuh.indexer-1
 ```
 
-đều đang ở trạng thái hoạt động.
+are all running in healthy states.
 
 ---
 
-### Khởi động lại toàn bộ hệ thống
+### Restart the entire system
 
 ```bash
 sudo docker compose restart
@@ -283,31 +283,31 @@ sudo docker compose restart
 
 ---
 
-### Kiểm tra kết nối giữa Manager và Indexer
+### Verify connectivity between Manager and Indexer
 
 ```bash
 sudo docker logs single-node-wazuh.manager-1 --tail 100
 ```
 
-Nếu xuất hiện:
+If the following string appears:
 
 ```text
 Connection established
 ```
 
-thì Manager đã kết nối thành công tới Indexer.
+then the Manager has successfully connected to the Indexer.
 
 ---
 
-## A.11. Các đường dẫn quan trọng trong Wazuh
+## A.11. Important Paths in Wazuh
 
-| Thành phần      | Đường dẫn                              |
-| --------------- | -------------------------------------- |
-| Cấu hình chính  | `/var/ossec/etc/ossec.conf`            |
-| Custom Rules    | `/var/ossec/etc/rules/local_rules.xml` |
-| Custom Decoders | `/var/ossec/etc/decoders/`             |
-| Alerts JSON     | `/var/ossec/logs/alerts/alerts.json`   |
-| Active Response | `/var/ossec/active-response/bin/`      |
-| Agent Keys      | `/var/ossec/etc/client.keys`           |
+| Component | Path |
+| --- | --- |
+| Main Configuration | `/var/ossec/etc/ossec.conf` |
+| Custom Rules | `/var/ossec/etc/rules/local_rules.xml` |
+| Custom Decoders | `/var/ossec/etc/decoders/` |
+| Alerts JSON | `/var/ossec/logs/alerts/alerts.json` |
+| Active Response | `/var/ossec/active-response/bin/` |
+| Agent Keys | `/var/ossec/etc/client.keys` |
 
-Các đường dẫn trên được sử dụng thường xuyên trong quá trình xây dựng Rule, Decoder và Active Response.
+These paths are frequently used throughout Rule authoring, Decoder development, and Active Response integration.

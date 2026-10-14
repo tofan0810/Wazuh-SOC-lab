@@ -1,87 +1,87 @@
-# 📱 TÍCH HỢP CHATOPS: BẮN CẢNH BÁO TỰ ĐỘNG VỀ TELEGRAM (WAZUH SIEM)
+# 📱 CHATOPS INTEGRATION: AUTOMATED ALERTING VIA TELEGRAM (WAZUH SIEM)
 
-Tài liệu này hướng dẫn cách kết nối hệ thống **Wazuh Manager** với ứng dụng **Telegram** để tự động gửi thông báo cứu cánh (SOC Alert) kèm đầy đủ thông tin: IP tấn công, Mức độ nghiêm trọng, MITRE ATT&CK và trạng thái phản ứng Active Response của tường lửa.
+This document guides connecting the **Wazuh Manager** system with **Telegram** to automatically send real-time SOC alerts containing comprehensive incident details: Attacking IP, Severity level, MITRE ATT&CK technique, and firewall Active Response containment status.
 
 ---
 
-## 📌 1. NGUYÊN LÝ HOẠT ĐỘNG (CHATOPS PIPELINE)
+## 📌 1. OPERATING PRINCIPLE (CHATOPS PIPELINE)
 
 ```
- [Sự kiện Tấn công] (RDP Brute Force, Web LFI, File mã độc)
+ [Attack Event] (RDP Brute Force, Web LFI, Malicious File)
          │
          ▼
  [Wazuh Manager]
          │
-         │ (1) Khớp Rule 100001 / 100002 / 87105
+         │ (1) Matches Rule 100001 / 100002 / 87105
          ▼
  [wazuh-integratord]
          │
-         │ (2) Chuyển alert JSON qua script /var/ossec/integrations/custom-telegram
+         │ (2) Passes alert JSON to /var/ossec/integrations/custom-telegram
          ▼
  [custom-telegram.py]
          │
-         │ (3) Định dạng tin nhắn HTML chuyên nghiệp & gửi qua Telegram Bot API
+         │ (3) Formats professional HTML message & transmits via Telegram Bot API
          ▼
- [Kênh Telegram SOC Team]
-   Nhận thông báo ngay lập tức trên điện thoại / máy tính (< 1 giây)
+ [SOC Team Telegram Channel]
+   Receives instant notifications on mobile / desktop (< 1 second)
 ```
 
 ---
 
-## 🤖 2. BƯỚC 1: TẠO TELEGRAM BOT & LẤY CHAT ID (2 PHÚT)
+## 🤖 2. STEP 1: CREATE TELEGRAM BOT & RETRIEVE CHAT ID (2 MINUTES)
 
-### 2.1. Tạo Bot Telegram để lấy `BOT_TOKEN`:
-1. Mở ứng dụng Telegram, tìm kiếm bot chính thức: **`@BotFather`** (có tích xanh).
-2. Nhấn **Start** và gửi lệnh: `/newbot`
-3. Nhập tên hiển thị cho bot (ví dụ: `Wazuh SOC Lab Alert Bot`).
-4. Nhập username kết thúc bằng `bot` (ví dụ: `my_wazuh_soc_alert_bot`).
-5. `@BotFather` sẽ gửi lại cho bạn chuỗi **HTTP API Token** (dạng `1234567890:ABCdefGhIJKlmNoPQRsTUVwxyZ`).
+### 2.1. Create Telegram Bot to obtain `BOT_TOKEN`:
+1. Open the Telegram app, search for the official bot: **`@BotFather`** (verified checkmark).
+2. Click **Start** and send command: `/newbot`
+3. Enter a display name for the bot (e.g., `Wazuh SOC Lab Alert Bot`).
+4. Enter a username ending in `bot` (e.g., `my_wazuh_soc_alert_bot`).
+5. `@BotFather` will return your **HTTP API Token** (format `1234567890:ABCdefGhIJKlmNoPQRsTUVwxyZ`).
 
-### 2.2. Lấy `CHAT_ID` nhận tin nhắn:
-1. Nhấp vào đường link bot vừa tạo (ví dụ: `t.me/my_wazuh_soc_alert_bot`) và nhấn **Start** (bắt buộc phải Start bot).
-2. Tìm bot: **`@userinfobot`**, nhấn **Start** -> Bot sẽ trả về số **`Id`** của bạn (ví dụ: `987654321`).
-   > *Mẹo:* Nếu muốn gửi vào một Group: Thêm bot của bạn vào Group, gửi 1 tin nhắn bất kỳ, sau đó mở trình duyệt truy cập: `https://api.telegram.org/bot<TOKEN>/getUpdates` để tìm chuỗi `"chat":{"id": -100xxxxxxxxxx}`.
+### 2.2. Retrieve `CHAT_ID` to receive messages:
+1. Click the link of your newly created bot (e.g., `t.me/my_wazuh_soc_alert_bot`) and click **Start** (mandatory to start the bot).
+2. Search for bot: **`@userinfobot`**, click **Start** -> The bot returns your numerical **`Id`** (e.g., `987654321`).
+   > *Tip:* To send alerts to a Group: Add your bot to the Group, send any message, then open your browser and navigate to: `https://api.telegram.org/bot<TOKEN>/getUpdates` to locate the string `"chat":{"id": -100xxxxxxxxxx}`.
 
 ---
 
-## 🧪 3. BƯỚC 2: ĐIỀN CẤU HÌNH VÀO `.env` & KIỂM THỬ TRỰC TIẾP
+## 🧪 3. STEP 2: CONFIGURE `.env` & EXECUTE LIVE TESTING
 
-1. Mở file `.env` tại thư mục gốc của dự án và điền:
+1. Open the `.env` file in the project root and configure:
    ```text
    TELEGRAM_BOT_TOKEN=1234567890:ABCdefGhIJKlmNoPQRsTUVwxyZ
    TELEGRAM_CHAT_ID=987654321
    ```
-2. Chạy tool kiểm thử có sẵn để bắn thử thông báo:
+2. Run the included test tool to trigger test alerts:
    ```powershell
-   # Bắn thử cảnh báo RDP Brute Force:
+   # Send test RDP Brute Force alert:
    python integrations/telegram/test_telegram_alert.py --scenario rdp
 
-   # Bắn thử cảnh báo Web LFI:
+   # Send test Web LFI alert:
    python integrations/telegram/test_telegram_alert.py --scenario lfi
 
-   # Bắn thử cảnh báo VirusTotal:
+   # Send test VirusTotal alert:
    python integrations/telegram/test_telegram_alert.py --scenario virustotal
    ```
-   *Kiểm tra ứng dụng Telegram trên máy của bạn sẽ thấy ngay thông báo đẹp mắt.*
+   *Verify your Telegram application to confirm prompt receipt of formatted alert cards.*
 
 ![Test Telegram alert](images/test_telegram_alert.png)
 
-## ⚙️ 4. BƯỚC 3: CÀI ĐẶT LÊN WAZUH MANAGER
+## ⚙️ 4. STEP 3: INSTALL ON WAZUH MANAGER
 
-### 4.1. Đẩy script tích hợp vào container `wazuh.manager`
-Từ máy Host, copy 2 file tích hợp vào thư mục `/var/ossec/integrations/` của Manager:
+### 4.1. Copy integration scripts to `wazuh.manager` container
+From the Host machine, copy both integration files into `/var/ossec/integrations/` on the Manager:
 
 ```powershell
-# Copy qua SSH vào Ubuntu rồi nạp vào Docker:
+# Copy via SSH to Ubuntu then inject into Docker:
 scp integrations/telegram/custom-telegram integrations/telegram/custom-telegram.py wazuh-vm:/tmp/
 ssh wazuh-vm "docker cp /tmp/custom-telegram single-node-wazuh.manager-1:/var/ossec/integrations/; docker cp /tmp/custom-telegram.py single-node-wazuh.manager-1:/var/ossec/integrations/; docker exec single-node-wazuh.manager-1 chmod 750 /var/ossec/integrations/custom-telegram /var/ossec/integrations/custom-telegram.py; docker exec single-node-wazuh.manager-1 chown root:wazuh /var/ossec/integrations/custom-telegram /var/ossec/integrations/custom-telegram.py"
 ```
 
-### 4.2. Khai báo khối `<integration>` trong `ossec.conf`
-Mở `/var/ossec/etc/ossec.conf` trên Manager và bổ sung khối tích hợp:
+### 4.2. Declare `<integration>` block in `ossec.conf`
+Open `/var/ossec/etc/ossec.conf` on the Manager and add the integration block:
 
 ```xml
-  <!-- Tích hợp ChatOps cảnh báo thời gian thực về Telegram -->
+  <!-- Real-time Telegram ChatOps Alerting Integration -->
   <integration>
     <name>custom-telegram</name>
     <api_key>YOUR_TELEGRAM_BOT_TOKEN</api_key>
@@ -91,7 +91,7 @@ Mở `/var/ossec/etc/ossec.conf` trên Manager và bổ sung khối tích hợp:
   </integration>
 ```
 
-### 4.3. Khởi động lại dịch vụ
+### 4.3. Restart Wazuh Service
 ```bash
 docker exec single-node-wazuh.manager-1 /var/ossec/bin/wazuh-control restart
 ```

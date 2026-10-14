@@ -1,49 +1,49 @@
-# BÁO CÁO TRIỂN KHAI CI/CD PIPELINE CHO DETECTION ENGINEERING (PHASE 6 - DETECTION-AS-CODE WITH GITHUB ACTIONS)
+# CI/CD PIPELINE IMPLEMENTATION REPORT FOR DETECTION ENGINEERING (PHASE 6 - DETECTION-AS-CODE WITH GITHUB ACTIONS)
 
-* **Dự án:** Hệ thống Giám sát An ninh mạng & Ứng phó Sự cố Tập trung (Wazuh SIEM/XDR Lab)
-* **Vị trí giả lập:** Detection Engineer / SOC Automation Engineer (DevSecOps / SecOps Lead)
-* **Môi trường thực hiện:**
-  * **Hạ tầng CI/CD:** GitHub Actions Cloud Runner (`ubuntu-latest`) với ma trận kiểm thử song song Python `3.10` và `3.11`.
-  * **Môi trường điều khiển cục bộ (Host):** Windows 10/11 Pro, Python 3.11.9, `pytest 9.0.2`, `pytest-cov 7.1.0`.
-  * **Mục tiêu kiểm toán (Under Test):** Tập luật tùy biến [`custom-rules/local_rules.xml`](../../custom-rules/local_rules.xml), bộ giải mã [`custom-rules/local_decoder.xml`](../../custom-rules/local_decoder.xml), cấu hình SIEM [`deployment/ossec.conf`](../../deployment/ossec.conf), cấu hình kiểm toán máy trạm [`deployment/sysmon-config.xml`](../../deployment/sysmon-config.xml) và tệp cấu hình mẫu [`.env.example`](../../.env.example).
-
----
-
-## I. TỔNG QUAN VẤN ĐỀ & TRIẾT LÝ DETECTION-AS-CODE (DaC)
-
-### 1. Thách thức Vận hành Thực tế Tại Trung Tâm SOC Doanh Nghiệp
-Trong một trung tâm điều hành an ninh mạng (Next-Gen SOC) hiện đại, các kỹ sư **Detection Engineering** thường xuyên phải nghiên cứu các mối đe dọa mới (Emerging Threats, CVEs, kỹ thuật MITRE ATT&CK mới) để viết thêm hoặc tinh chỉnh luật phát hiện SIEM. Tuy nhiên, quy trình quản lý luật truyền thống (thao tác trực tiếp trên giao diện GUI hoặc sửa file cấu hình bằng tay trên máy chủ SIEM) tiềm ẩn những rủi ro thảm khốc:
-
-1. **Nguy cơ làm sập Lõi Phân tích SIEM (Daemon Crash):**
-   * Wazuh sử dụng daemon phân tích log `wazuh-analysisd`. Nếu một kỹ sư sơ suất gõ sai cú pháp XML (thiếu thẻ đóng `</rule>`, sai thuộc tính `level`, lồng thẻ không đúng quy cách) và reload service, `wazuh-analysisd` sẽ **ngừng hoạt động lập tức**.
-   * Hậu quả: Toàn bộ hệ thống SOC bị "mù" (Blind Spot), không còn khả năng thu nhận log và phát hiện bất kỳ sự cố nào từ hàng nghìn máy trạm trong doanh nghiệp.
-2. **Xung đột Định danh Luật (Rule ID Collisions):**
-   * Nếu hai kỹ sư cùng tạo các luật mới với trùng mã số `id` (hoặc xâm lấn vào dải ID mặc định của hệ thống `< 100000`), Wazuh sẽ từ chối khởi động hoặc vô hiệu hóa một trong hai luật, tạo kẽ hở cho tin tặc xâm nhập.
-3. **Lỗi Biểu thức Chính quy (Regex / PCRE2 Failure):**
-   * Các biểu thức chính quy sai cú pháp hoặc gây ra hiện tượng quay lui vô hạn (Catastrophic Backtracking) sẽ làm tiêu tốn 100% CPU của máy chủ SIEM hoặc sinh ra cảnh báo giả (False Positives) làm kiệt quệ tinh thần trực ca của Analyst L1.
-4. **Rò rỉ Thông tin Bí mật (Credential & Secret Leakage):**
-   * Khi đẩy mã nguồn lên Git repository chung của nhóm, rủi ro vô tình commit các API Token thật (Telegram Bot Token, VirusTotal API Key, AbuseIPDB Key, Jira Password) là cực kỳ lớn nếu không có cơ chế rà soát bảo mật tự động.
-5. **Phá vỡ Tính toàn vẹn của Luật Giảm Nhiễu Tự Động (Broken Suppression):**
-   * Các hành động khắc phục của SOAR (như WinRM `socrunner` diệt tiến trình hay cô lập mạng) cần các luật ức chế phân cấp (Hierarchical Suppression Rules - Level 0) để không tự kích hoạt cảnh báo vòng lặp. Nếu các luật này bị chỉnh sửa sai lệch, hệ thống sẽ rơi vào trạng thái bão cảnh báo (Alert Storm).
+* **Project:** Centralized Cybersecurity Monitoring & Incident Response System (Wazuh SIEM/XDR Lab)
+* **Simulated Role:** Detection Engineer / SOC Automation Engineer (DevSecOps / SecOps Lead)
+* **Execution Environment:**
+  * **CI/CD Infrastructure:** GitHub Actions Cloud Runner (`ubuntu-latest`) with Python `3.10` and `3.11` parallel test matrix.
+  * **Local Controller Environment (Host):** Windows 10/11 Pro, Python 3.11.9, `pytest 9.0.2`, `pytest-cov 7.1.0`.
+  * **Audit Targets (Under Test):** Custom rule set [`custom-rules/local_rules.xml`](../../custom-rules/local_rules.xml), custom decoder [`custom-rules/local_decoder.xml`](../../custom-rules/local_decoder.xml), SIEM configuration [`deployment/ossec.conf`](../../deployment/ossec.conf), endpoint audit configuration [`deployment/sysmon-config.xml`](../../deployment/sysmon-config.xml), and configuration template [`.env.example`](../../.env.example).
 
 ---
 
-### 2. Triết Lý Giải Pháp: Detection-as-Code (DaC) Kết Hợp CI/CD Pipeline
-Để giải quyết triệt để các rủi ro trên, dự án áp dụng mô hình **Detection-as-Code (DaC)** theo chuẩn công nghiệp quốc tế:
-* **Mọi quy tắc phát hiện và bộ giải mã đều được quản lý như mã nguồn (Source Code)** trong hệ thống Git Version Control.
-* **Mọi thay đổi (Commit / Pull Request) bắt buộc phải vượt qua cánh cổng kiểm thử tự động (CI Gatekeeper)** trên nền tảng **GitHub Actions**.
-* Nếu phát hiện bất kỳ lỗi cú pháp XML, xung đột ID, regex hỏng hoặc rò rỉ mã bí mật, GitHub Actions sẽ **chặn đứng (Fail Build ❌)**, ngăn chặn việc merge mã lỗi vào nhánh chính (`main`) và bảo vệ 100% thời gian hoạt động liên tục (Uptime) của cụm máy chủ Wazuh SIEM.
+## I. PROBLEM OVERVIEW & DETECTION-AS-CODE (DaC) PHILOSOPHY
+
+### 1. Real-World Operational Challenges in an Enterprise SOC
+In a modern Next-Gen Security Operations Center (Next-Gen SOC), **Detection Engineering** personnel frequently research emerging threats (Emerging Threats, CVEs, new MITRE ATT&CK techniques) to craft or fine-tune SIEM detection rules. However, traditional rule management processes (direct GUI manipulation or manual configuration file editing on the SIEM server) carry catastrophic risks:
+
+1. **Risk of Crashing the SIEM Analysis Core (Daemon Crash):**
+   * Wazuh relies on the `wazuh-analysisd` log analysis daemon. If an engineer inadvertently enters invalid XML syntax (missing closing tag `</rule>`, invalid `level` attribute, malformed tag nesting) and reloads the service, `wazuh-analysisd` will **terminate immediately**.
+   * Consequence: The entire SOC becomes "blind" (Blind Spot), losing the ability to ingest logs and detect any security incident across thousands of enterprise endpoints.
+2. **Rule ID Collisions:**
+   * If two engineers create new rules with colliding `id` values (or encroach on the system default ID range `< 100000`), Wazuh will fail to start or disable one of the rules, creating a security gap for attackers.
+3. **Regular Expression Failures (Regex / PCRE2 Failure):**
+   * Malformed regular expressions or patterns causing catastrophic backtracking will consume 100% of SIEM server CPU or generate massive false positives, exhausting L1 SOC analysts on shift.
+4. **Credential & Secret Leakage:**
+   * When pushing source code to a shared team Git repository, the risk of accidentally committing real API tokens (Telegram Bot Token, VirusTotal API Key, AbuseIPDB Key, Jira Password) is extremely high without automated security scanning.
+5. **Breaking the Integrity of Automated Noise Reduction Rules (Broken Suppression):**
+   * SOAR remediation actions (such as WinRM `socrunner` terminating processes or isolating networks) require hierarchical suppression rules (Hierarchical Suppression Rules - Level 0) to avoid triggering alert feedback loops. If these rules are corrupted or misconfigured, the system enters an alert storm state.
+
+---
+
+### 2. Solution Philosophy: Detection-as-Code (DaC) Combined with CI/CD Pipeline
+To systematically eliminate the above risks, the project adopts the **Detection-as-Code (DaC)** paradigm following international industry standards:
+* **All detection rules and decoders are managed as source code** within Git Version Control.
+* **Every change (Commit / Pull Request) must pass through an automated CI Gatekeeper** hosted on **GitHub Actions**.
+* If any XML syntax error, ID collision, broken regex, or secret leak is detected, GitHub Actions will **halt execution (Fail Build ❌)**, preventing invalid code from merging into the main branch (`main`) and protecting 100% uptime for the Wazuh SIEM cluster.
 
 ```text
   ┌────────────────────────────────────────────────────────────────────────┐
-  │                 QUY TRÌNH DETECTION-AS-CODE VẬN HÀNH                   │
+  │                 DETECTION-AS-CODE OPERATIONAL WORKFLOW                 │
   └───────────────────────────────────┬────────────────────────────────────┘
-                                      │ Kỹ sư commit rule XML mới
+                                      │ Engineer commits new XML rule
                                       ▼
   ┌────────────────────────────────────────────────────────────────────────┐
   │         GITHUB ACTIONS CI PIPELINE (.github/workflows/test.yml)        │
   │                                                                        │
-  │  [Ubuntu Runner: Ma trận Python 3.10 & Python 3.11]                     │
+  │  [Ubuntu Runner: Python 3.10 & Python 3.11 Matrix]                     │
   │   ├── 1. XML Well-formedness & Syntax Parser (local_rules, decoder)    │
   │   ├── 2. Rule ID Uniqueness & Namespace Validation (>= 100000)         │
   │   ├── 3. Alert Severity Range Audit (Level 0 - 16)                     │
@@ -63,25 +63,25 @@ Trong một trung tâm điều hành an ninh mạng (Next-Gen SOC) hiện đại
                    ▼                                     ▼
   ┌─────────────────────────────────┐   ┌─────────────────────────────────┐
   │     MERGE TO PRODUCTION SIEM    │   │         BLOCK MERGE P.R.        │
-  │ • Hiển thị Badge Build Passing  │   │ • Báo động đỏ trên GitHub       │
-  │ • Đồng bộ an toàn lên Wazuh VM  │   │ • Bảo vệ daemon analysisd       │
+  │ • Displays Build Passing Badge  │   │ • Red alert on GitHub           │
+  │ • Safely synchronizes to Wazuh  │   │ • Protects analysisd daemon     │
   └─────────────────────────────────┘   └─────────────────────────────────┘
 ```
 
 ---
 
-## II. KIẾN TRÚC KỸ THUẬT CỦA PIPELINE GITHUB ACTIONS
+## II. TECHNICAL ARCHITECTURE OF THE GITHUB ACTIONS PIPELINE
 
-### 1. Tệp Cấu Hình Workflow ([`.github/workflows/test.yml`](../../.github/workflows/test.yml))
-Workflow được cấu hình với các thông số kỹ thuật tối ưu:
-* **Tên Workflow:** `Detection Engineering CI`
-* **Sự kiện kích hoạt (Triggers):**
-  * `push` và `pull_request` vào các nhánh `main`, `master`.
-  * Bộ lọc đường dẫn (`paths`): Chỉ kích hoạt khi có thay đổi trong `custom-rules/**`, `tests/**`, `deployment/**`, `.github/workflows/**`, `Makefile`, `.env.example`. Giúp tiết kiệm tài nguyên và thời gian chạy CI khi chỉ sửa tài liệu thông thường.
-  * Hỗ trợ kích hoạt thủ công (`workflow_dispatch`) phục vụ kiểm tra tức thời.
-* **Ma trận Môi trường (Matrix Strategy):**
-  * Chạy song song trên **Python 3.10** và **Python 3.11** trên nền tảng `ubuntu-latest`.
-  * Thuộc tính `fail-fast: false`: Đảm bảo nếu một phiên bản lỗi thì phiên bản còn lại vẫn hoàn thành để thu thập đầy đủ báo cáo đối soát.
+### 1. Workflow Configuration File ([`.github/workflows/test.yml`](../../.github/workflows/test.yml))
+The workflow is configured with optimal technical parameters:
+* **Workflow Name:** `Detection Engineering CI`
+* **Trigger Events (Triggers):**
+  * `push` and `pull_request` to `main`, `master` branches.
+  * Path filters (`paths`): Only triggers on changes within `custom-rules/**`, `tests/**`, `deployment/**`, `.github/workflows/**`, `Makefile`, `.env.example`. This saves resources and reduces CI runtime when editing documentation.
+  * Manual trigger support (`workflow_dispatch`) for immediate on-demand validation.
+* **Environment Matrix (Matrix Strategy):**
+  * Executes in parallel on **Python 3.10** and **Python 3.11** on `ubuntu-latest`.
+  * `fail-fast: false`: Ensures that if one version fails, the other still completes to gather comprehensive comparative reports.
 
 ```yaml
 name: Detection Engineering CI
@@ -159,9 +159,9 @@ jobs:
 
 ---
 
-## III. CHI TIẾT 12 HẠNG MỤC KIỂM THỬ ĐƠN VỊ TỰ ĐỘNG
+## III. DETAILS OF THE 12 AUTOMATED UNIT TEST SUITES
 
-Toàn bộ 12 tiêu chí kiểm toán được lập trình trong tệp [`tests/unit/test_detection_config.py`](../../tests/unit/test_detection_config.py) kế thừa từ thư viện chuẩn `unittest.TestCase`:
+All 12 audit checks are implemented in [`tests/unit/test_detection_config.py`](../../tests/unit/test_detection_config.py) subclassing the standard library `unittest.TestCase`:
 
 ```python
 import os
@@ -179,67 +179,66 @@ SYSMON_CONF = ROOT / "deployment" / "sysmon-config.xml"
 ENV_EXAMPLE = ROOT / ".env.example"
 ```
 
-### Bảng Ma Trận Phân Tích 12 Tiêu Chí Kiểm Toán:
+### 12 Audit Criteria Analysis Matrix:
 
-| STT | Tên Phương Thức Kiểm Thử | Đối Tượng Xác Thực | Mô Tả Ý Nghĩa An Ninh & Tiêu Chuẩn Kỹ Thuật |
+| No. | Test Method Name | Validation Target | Security Significance & Technical Standards |
 | :---: | :--- | :--- | :--- |
-| **1** | `test_xml_files_well_formed` | `local_rules.xml`<br/>`local_decoder.xml`<br/>`ossec.conf`<br/>`sysmon-config.xml` | Phân tích cây DOM XML. Đảm bảo toàn bộ thẻ mở/đóng, định dạng ký tự UTF-8 không bị lỗi cú pháp, ngăn ngừa sập dịch vụ `wazuh-analysisd`. |
-| **2** | `test_rule_ids_are_unique_and_valid` | Tất cả thẻ `<rule id="...">` | Xác thực tính duy nhất của từng Rule ID trong hệ thống. Đảm bảo tất cả các ID tự định nghĩa đều là số nguyên và thuộc dải số người dùng quy ước (`id >= 100000`). |
-| **3** | `test_rule_levels_in_valid_range` | Thuộc tính `level` của Rules | Kiểm tra mức độ cảnh báo (Severity Level) nằm trong dải số chuẩn của Wazuh (`0 <= level <= 16`), ngăn chặn việc cấu hình nhầm level gây sai lệch cơ chế lọc. |
-| **4** | `test_mitre_attack_id_format` | Thẻ `<mitre><id>` | Dùng regex `^T\d{4}(\.\d{3})?$` để xác thực định dạng kỹ thuật MITRE ATT&CK (ví dụ `T1110`, `T1059.001`), đảm bảo dữ liệu hiển thị chuẩn xác trên ma trận Heatmap. |
-| **5** | `test_brute_force_rule` | Rule `100001` | Xác thực cấu hình Scenario 1: `level="12"`, `frequency="5"`, `timeframe="60"`, kế thừa `if_matched_sid="60122"` và ánh xạ kỹ thuật `T1110`. |
-| **6** | `test_lfi_rule` | Rule `100002` | Xác thực cấu hình Scenario 2: `level="10"`, kế thừa `if_sid="31100"`, ánh xạ `T1190`, nhận diện đầy đủ chuỗi tấn công Path Traversal: `win.ini`, `boot.ini`, `..%2f`, `..%252f`, `../`. |
-| **7** | `test_lfi_decoder_extracts_url` | Decoder `web-access-lfi` | Kiểm tra bộ giải mã log Web Apache: kế thừa cha `web-accesslog`, bóc tách trường `url` qua biểu thức `GET (\S+)\sHTTP`. |
-| **8** | `test_killchain_rules_present_and_configured` | Rule `100004`, `100007`, `100006`, `100005` | Xác thực đủ 4 giai đoạn Windows Kill Chain: PowerShell Encoded (`T1059.001`), UAC Bypass `ms-settings` (`T1548.002`), Registry Run Key (`T1547.001`), và LSASS Memory Dump (`T1003.001`). |
-| **9** | `test_hierarchical_suppression_rules` | Rule `100008`, `100009`, `100010` | Đảm bảo các luật ức chế SOAR có `level="0"`, liên kết đúng Rule cha qua `if_sid`, sử dụng logic AND chặt chẽ với người dùng ủy quyền `socrunner` và tiến trình WinRM (`cmd.exe`, `wsmprovhost.exe`). |
-| **10** | `test_decoder_and_rule_regexes_compile` | Tất cả `<regex>` và `<field type="pcre2">` | Nạp và biên dịch thử nghiệm toàn bộ biểu thức chính quy bằng engine `re.compile`. Phát hiện sớm các lỗi cú pháp regex làm treo tiến trình quét. |
-| **11** | `test_single_n8n_integration_block` | Thẻ `<integration>` trong `ossec.conf` | Đảm bảo chỉ tồn tại duy nhất 1 khối cấu hình tích hợp `custom-n8n` trỏ về webhook `/webhook/wazuh-alert`, tránh việc phân phối cảnh báo trùng lặp. |
-| **12** | `test_zero_secret_leakage_in_templates` | Tệp mẫu `.env.example` | Quét chuỗi bảo mật: Đảm bảo chỉ dùng chuỗi placeholder (như `your_virustotal_api_key_here`), tuyệt đối không rò rỉ mã token thật (Telegram bot token `\d{8,10}:[A-Za-z0-9_-]{35}` hoặc hash 64 ký tự). |
+| **1** | `test_xml_files_well_formed` | `local_rules.xml`<br/>`local_decoder.xml`<br/>`ossec.conf`<br/>`sysmon-config.xml` | Parses the XML DOM tree. Ensures all open/close tags and UTF-8 encodings are free of syntax errors, preventing `wazuh-analysisd` service crashes. |
+| **2** | `test_rule_ids_are_unique_and_valid` | All `<rule id="...">` tags | Validates the uniqueness of every Rule ID across the system. Ensures all custom IDs are integers and adhere to the convention user-defined namespace (`id >= 100000`). |
+| **3** | `test_rule_levels_in_valid_range` | `level` attribute of Rules | Checks that alert severity levels fall within Wazuh standard bounds (`0 <= level <= 16`), preventing misconfigured levels from corrupting filtering mechanisms. |
+| **4** | `test_mitre_attack_id_format` | `<mitre><id>` tags | Uses regex `^T\d{4}(\.\d{3})?$` to validate MITRE ATT&CK technique formatting (e.g., `T1110`, `T1059.001`), ensuring accurate rendering on the Heatmap matrix. |
+| **5** | `test_brute_force_rule` | Rule `100001` | Validates Scenario 1 configuration: `level="12"`, `frequency="5"`, `timeframe="60"`, inherits `if_matched_sid="60122"` and maps to technique `T1110`. |
+| **6** | `test_lfi_rule` | Rule `100002` | Validates Scenario 2 configuration: `level="10"`, inherits `if_sid="31100"`, maps to `T1190`, comprehensively detects Path Traversal strings: `win.ini`, `boot.ini`, `..%2f`, `..%252f`, `../`. |
+| **7** | `test_lfi_decoder_extracts_url` | Decoder `web-access-lfi` | Validates Apache Web log decoder: inherits parent `web-accesslog`, extracts `url` field via regex `GET (\S+)\sHTTP`. |
+| **8** | `test_killchain_rules_present_and_configured` | Rules `100004`, `100007`, `100006`, `100005` | Validates all 4 Windows Kill Chain stages: PowerShell Encoded (`T1059.001`), UAC Bypass `ms-settings` (`T1548.002`), Registry Run Key (`T1547.001`), and LSASS Memory Dump (`T1003.001`). |
+| **9** | `test_hierarchical_suppression_rules` | Rules `100008`, `100009`, `100010` | Ensures SOAR suppression rules have `level="0"`, correctly link to parent rules via `if_sid`, and apply strict AND logic with authorized user `socrunner` and WinRM processes (`cmd.exe`, `wsmprovhost.exe`). |
+| **10** | `test_decoder_and_rule_regexes_compile` | All `<regex>` and `<field type="pcre2">` | Compiles and validates all regular expressions using the `re.compile` engine. Catches syntax errors early to avoid regex hanging during scans. |
+| **11** | `test_single_n8n_integration_block` | `<integration>` tag in `ossec.conf` | Verifies that exactly one `custom-n8n` integration block exists pointing to webhook `/webhook/wazuh-alert`, avoiding duplicate alert distribution. |
+| **12** | `test_zero_secret_leakage_in_templates` | Template file `.env.example` | Scans for hardcoded secrets: ensures only placeholder strings are used (such as `your_virustotal_api_key_here`), strictly preventing leakage of real tokens (Telegram bot token `\d{8,10}:[A-Za-z0-9_-]{35}` or 64-character hashes). |
 
 ---
 
-## IV. CÁC BƯỚC THỰC THI & HƯỚNG DẪN CHỤP ẢNH MINH CHỨNG THỰC NGHIỆM
+## IV. EXECUTION STEPS & EXPERIMENTAL EVIDENCE INSTRUCTIONS
 
-Dưới đây là 5 bước thực nghiệm minh chứng cho toàn bộ chu trình hoạt động của CI/CD Pipeline. Mỗi bước đều đi kèm hình ảnh minh chứng và hướng dẫn chi tiết cách chụp ảnh màn hình đúng chuẩn.
+Below are the 5 experimental verification steps demonstrating the end-to-end operation of the CI/CD Pipeline. Each step includes verification screenshots and detailed guidelines.
 
 ---
 
-### 1. Bước 1: Kiểm thử Đơn vị Cục bộ (Local Unit Testing Execution)
+### 1. Step 1: Local Unit Testing Execution
 
-Trước khi thực hiện commit mã nguồn lên GitHub, kỹ sư thực hiện chạy kiểm thử cục bộ ngay trên máy trạm thông qua công cụ `pytest` kết hợp đo lường độ bao phủ mã nguồn (`pytest-cov`).
+Before committing source code to GitHub, the engineer executes local testing on the workstation using `pytest` combined with code coverage measurement (`pytest-cov`).
 
-* **Lệnh thực thi trên máy Host (PowerShell):**
+* **Execution Command on Host Machine (PowerShell):**
   ```powershell
-  # Chạy kiểm thử chi tiết qua pytest
+  # Run verbose tests via pytest
   pytest tests/unit/ -v --cov=tests/unit --cov-report=term-missing
 
-  # Hoặc kiểm tra đối soát với unittest tích hợp sẵn của Python
+  # Or perform comparative validation with Python's built-in unittest
   python -m unittest discover -s tests/unit -v
   ```
 
-* **Kết quả đạt được:** Cả 12 bài kiểm tra đều vượt qua thành công với thời gian thực thi cực nhanh:
+* **Achieved Results:** All 12 unit tests pass successfully with fast execution times:
 
-![Kết quả chạy 12 Unit Test cục bộ đạt 100% PASS](images/01_unit_tests_local_execution.png)
+![Local 12 Unit Tests execution results achieving 100% PASS](images/01_unit_tests_local_execution.png)
 
-### 2. Bước 2: Cấu trúc Tệp Cấu hình CI Workflow Trong Trình Soạn Thảo (IDE View)
+### 2. Step 2: CI Workflow Configuration Structure in Editor (IDE View)
 
-Trực quan hóa tệp cấu hình pipeline `.github/workflows/test.yml` và cấu trúc phân thư mục `tests/unit/` trên trình soạn thảo Visual Studio Code.
+Visualizing the pipeline configuration `.github/workflows/test.yml` and the `tests/unit/` folder structure in Visual Studio Code.
 
-* **Vị trí tệp tin:** [`.github/workflows/test.yml`](../../.github/workflows/test.yml) và [`tests/unit/test_detection_config.py`](../../tests/unit/test_detection_config.py).
+* **File Locations:** [`.github/workflows/test.yml`](../../.github/workflows/test.yml) and [`tests/unit/test_detection_config.py`](../../tests/unit/test_detection_config.py).
 
-### 3. Bước 3: Pipeline GitHub Actions Kích Hoạt Tự Động & Chạy Thành Công (CI Pipeline Run)
+### 3. Step 3: Automated GitHub Actions Pipeline Trigger & Successful Run (CI Pipeline Run)
 
-Khi kỹ sư thực hiện đẩy commit hoặc mở Pull Request cập nhật luật phát hiện mới lên GitHub, GitHub Actions sẽ lập tức phân bổ runner điện toán đám mây và kích hoạt pipeline kiểm tra tự động.
+When an engineer pushes a commit or opens a Pull Request updating detection rules on GitHub, GitHub Actions immediately provisions a cloud runner and triggers the automated testing pipeline.
 
-* **Đường dẫn trên GitHub:** `https://github.com/tofan0810/Wazuh-SOC-lab/actions`
+* **Repository Path on GitHub:** `https://github.com/tofan0810/Wazuh-SOC-lab/actions`
 * **Workflow Name:** `Detection Engineering CI`
-* **Kết quả:** Cả 2 công việc (jobs) trên môi trường **Python 3.10** và **Python 3.11** đều hoàn thành với biểu tượng tích xanh `Success` ✅.
+* **Result:** Both jobs across **Python 3.10** and **Python 3.11** complete with green checkmarks `Success` ✅.
 
-![Giao diện GitHub Actions thực thi pipeline thành công](images/02_github_actions_pipeline_run.png)
+![GitHub Actions pipeline successful execution interface](images/02_github_actions_pipeline_run.png)
 
-### 4. Bước 4: Bảng Tổng Kết Trạng Thái Kiểm Thử Trực Quan (GitHub Step Summary)
+### 4. Step 4: Visual Test Status Summary Table (GitHub Step Summary)
 
-Nhờ vào việc tích hợp xuất dữ liệu ra tệp `$GITHUB_STEP_SUMMARY` trong cấu hình workflow, GitHub Actions tự động kết xuất bảng đối soát chất lượng an ninh ngay tại trang chủ của lần chạy mà không cần kỹ sư phải vào lục tìm trong các dòng log dòng lệnh.
+By exporting data to `$GITHUB_STEP_SUMMARY` in the workflow configuration, GitHub Actions automatically renders a security quality validation summary directly on the run summary page without requiring engineers to inspect terminal logs.
 
-![Bảng báo cáo GitHub Step Summary trực quan trên GitHub Actions](images/03_github_step_summary.png)
-
+![GitHub Step Summary visual report on GitHub Actions](images/03_github_step_summary.png)

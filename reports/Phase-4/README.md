@@ -1,13 +1,13 @@
-# 🔄 Phase 4: Tự Động Hóa Kiểm Thử Hồi Quy (Regression Testing)
+# 🔄 Phase 4: Regression Test Automation
 
-Thư mục lưu trữ tài liệu và ảnh minh chứng thực nghiệm của **Phase 4**, tập trung vào việc tự động hóa quá trình kiểm thử hồi quy kịch bản tấn công và xác thực độ chính xác của tập luật SIEM.
+Directory containing documentation and experimental evidence for **Phase 4**, focusing on automating the regression testing lifecycle for attack scenarios and validating SIEM rule set accuracy.
 
 ---
 
-## 📌 Báo Cáo Kỹ Thuật Chính
-* **Tài liệu chi tiết:** [`Phase-4_Regression-Test-Automation.md`](Phase-4_Regression-Test-Automation.md)
-* **Nội dung:**
-  - Thiết kế bộ script kiểm thử E2E tự động hóa bằng Python (`tests/e2e/`).
-  - Kiểm tra kết nối và tính sẵn sàng của 3 máy ảo (`lab_health.py`).
-  - Tự động phát động tấn công từ xa qua SSH/WinRM, theo dõi luồng log `alerts.json` và xác nhận kết quả kiểm thử đạt 100%.
-  - Cơ chế tự động dọn dẹp hiện trường (Eradication & Cleanup) sau mỗi đợt kiểm thử.
+## 📌 Main Technical Report
+* **Detailed Report:** [`Phase-4_Regression-Test-Automation.md`](Phase-4_Regression-Test-Automation.md)
+* **Summary:**
+  - Designing the Python automated E2E testing suite (`tests/e2e/`).
+  - Verifying connectivity and readiness across all 3 virtual machines (`lab_health.py`).
+  - Automating remote attack execution via SSH/WinRM, tracking `alerts.json` log streams, and confirming 100% test pass rates.
+  - Automated environment eradication and cleanup mechanisms post-test.

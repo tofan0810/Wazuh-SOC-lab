@@ -1,48 +1,48 @@
-# Cơ sở lý thuyết về SMB và RDP
+# Theoretical Fundamentals of SMB and RDP
 
-## 1. Giao thức SMB (Server Message Block)
+## 1. SMB (Server Message Block) Protocol
 
-SMB là giao thức mạng được Microsoft phát triển nhằm hỗ trợ việc chia sẻ tài nguyên trong môi trường Windows như tập tin, thư mục, máy in và các dịch vụ mạng khác.
+SMB is a network sharing protocol developed by Microsoft to facilitate the sharing of resources such as files, directories, printers, and other network services in Windows environments.
 
-SMB hoạt động chủ yếu trên cổng TCP 445 và cho phép người dùng truy cập tài nguyên từ xa thông qua cơ chế xác thực tài khoản Windows.
+SMB operates primarily over TCP port 445 and allows users to access remote resources via Windows account authentication mechanisms.
 
-Trong môi trường doanh nghiệp, SMB thường được sử dụng để:
+In enterprise environments, SMB is commonly utilized for:
 
-* Chia sẻ thư mục dùng chung.
-* Truy cập máy chủ tập tin (File Server).
-* Quản lý tài nguyên trong mạng nội bộ.
+* Shared folder distribution.
+* File Server access.
+* Local network resource management.
 
-Do sử dụng cơ chế xác thực tài khoản Windows, SMB thường là mục tiêu của các cuộc tấn công Brute Force nhằm dò đoán tên đăng nhập và mật khẩu.
-
----
-
-## 2. Giao thức RDP (Remote Desktop Protocol)
-
-RDP là giao thức điều khiển máy tính từ xa do Microsoft phát triển, cho phép người dùng truy cập và thao tác trực tiếp trên giao diện Desktop của hệ điều hành Windows thông qua mạng.
-
-RDP hoạt động mặc định trên cổng TCP 3389.
-
-Các chức năng chính của RDP:
-
-* Điều khiển máy tính từ xa.
-* Hỗ trợ quản trị hệ thống.
-* Hỗ trợ làm việc từ xa.
-
-Do cung cấp quyền truy cập trực tiếp vào hệ thống, RDP là một trong những dịch vụ thường xuyên bị tấn công Brute Force trong môi trường doanh nghiệp.
-
-Theo MITRE ATT&CK, hành vi dò quét và thử nhiều mật khẩu liên tục trên RDP thuộc kỹ thuật T1110 – Brute Force.
+Because it relies on Windows account authentication mechanisms, SMB is frequently targeted by brute force attacks aiming to guess usernames and passwords.
 
 ---
 
-## 3. So sánh SMB và RDP
+## 2. RDP (Remote Desktop Protocol)
 
-| Tiêu chí                            | SMB                   | RDP                       |
-| ----------------------------------- | --------------------- | ------------------------- |
-| Mục đích                            | Chia sẻ tài nguyên    | Điều khiển máy tính từ xa |
-| Cổng mặc định                       | TCP 445               | TCP 3389                  |
-| Quyền truy cập                      | File, Folder, Printer | Toàn bộ Desktop           |
-| Mức độ nguy hiểm khi bị chiếm quyền | Trung bình            | Cao                       |
-| Thường bị Brute Force               | Có                    | Rất phổ biến              |
-| Mức độ xuất hiện trong doanh nghiệp | Cao                   | Rất cao                   |
+RDP is a proprietary protocol developed by Microsoft that provides a user with a graphical interface to connect to and control another computer over a network.
 
-Trong phạm vi đồ án này, giao thức RDP được lựa chọn để mô phỏng tấn công Brute Force do đây là một trong những hình thức tấn công phổ biến nhất đối với hệ thống Windows trong môi trường thực tế.
+RDP operates by default over TCP port 3389.
+
+Core use cases of RDP:
+
+* Remote desktop control.
+* System administration and support.
+* Remote workforce access.
+
+Because it grants interactive graphical access directly into the operating system, RDP is one of the most frequently targeted services for brute force attacks across enterprise networks.
+
+According to MITRE ATT&CK, the behavior of repeatedly guessing credentials against RDP belongs to technique T1110 – Brute Force.
+
+---
+
+## 3. Comparison Between SMB and RDP
+
+| Criteria | SMB | RDP |
+| --- | --- | --- |
+| Primary Purpose | Resource and file sharing | Remote desktop administration |
+| Default Port | TCP 445 | TCP 3389 |
+| Access Level Granted | File, Folder, Printer | Full Interactive Desktop Session |
+| Impact Level If Compromised | Medium | High |
+| Susceptibility to Brute Force | Yes | Very High / Frequent |
+| Enterprise Prevalence | High | Very High |
+
+Within the scope of this project, RDP was selected for simulating brute force attacks because it represents one of the most prevalent real-world attack vectors against Windows endpoints.

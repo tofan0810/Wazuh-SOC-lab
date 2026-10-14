@@ -1,30 +1,30 @@
-# BÁO CÁO TRIỂN KHAI TỰ ĐỘNG HÓA VẬN HÀNH AN NINH & PHẢN ỨNG SỰ CỐ VỚI SOAR (PHASE 5)
+# SOAR WORKFLOW AUTOMATION & INCIDENT RESPONSE IMPLEMENTATION REPORT (PHASE 5)
 
-## 🔹 XÂY DỰNG WORKFLOW AUTOMATION ENGINE (n8n), 2-WAY CHATOPS TELEGRAM, THREAT ENRICHMENT (ABUSEIPDB) VÀ TỰ ĐỘNG TẠO TICKET JIRA CLOUD
+## 🔹 BUILDING THE WORKFLOW AUTOMATION ENGINE (n8n), 2-WAY TELEGRAM CHATOPS, THREAT ENRICHMENT (ABUSEIPDB), AND AUTOMATED JIRA CLOUD INCIDENT TICKETING
 
-Tài liệu này tổng hợp toàn bộ quá trình thiết kế, triển khai kỹ thuật và thực nghiệm kiểm chứng hệ thống **SOAR (Security Orchestration, Automation, and Response)** tích hợp sâu vào kiến trúc SOC Lab. Bằng cách kết hợp **Wazuh SIEM Manager**, **n8n Automation Engine**, **Telegram Human-in-the-Loop ChatOps**, **AbuseIPDB Threat Intelligence**, và **Jira Cloud REST API v3**, hệ thống nâng tầm quy trình phản ứng sự cố từ bị động (manual triage) sang tự động hóa thông minh (orchestrated SecOps).
-
----
-
-## Mục tiêu
-
-1. **Triển khai SOAR Engine độc lập:** Đóng gói và vận hành **n8n Automation Engine** trên nền tảng Docker (`wazuh-vm`), tiếp nhận Webhook với độ trễ thấp (< 100ms) và tính sẵn sàng cao.
-2. **Cơ chế Dual-Mode IOC Resolution thông minh:** Tự động phân loại bản chất cuộc tấn công:
-   * **Network-based Attack:** Trích xuất Remote Attacker IP (`192.168.71.130`) từ gói tin mạng.
-   * **Endpoint/Host-based Attack:** Tự động fallback về Compromised Endpoint IP (`192.168.71.129` - `DESKTOP-A2AG7TR`) và tiến trình thực thi (`powershell.exe`), loại bỏ triệt để hiện tượng `Target/IOC: N/A`.
-3. **Tự động hóa luồng Triage & Threat Enrichment:** Phân loại Public IP vs Private IP và tự động tra cứu danh tiếng trên AbuseIPDB API v2 đối với các IP ngoại vi.
-4. **Phản ứng 2 chiều qua Human-in-the-Loop ChatOps:** Đẩy cảnh báo thời gian thực về kênh Telegram SOC kèm 3 nút bấm tương tác:
-   * **`[🚫 Khóa IP 24h]`**: Kích hoạt cách ly IP hoặc cô lập Endpoint tự động.
-   * **`[⚠️ Báo động giả]`**: Ghi nhận audit log phân loại False Positive.
-   * **`[📋 Mở Ticket Jira]`**: Tự động tạo Incident Ticket trên hệ thống quản lý sự cố Jira Cloud.
-5. **Cầu nối Callback Long-Polling (Telegram Bridge):** Vận hành `telegram_bridge.py` trên `wazuh-vm` để bắt sự kiện tương tác nút bấm từ Telegram Cloud và chuyển tiếp về webhook n8n trong mạng nội bộ lab mà không cần IP Public hay domain ngrok.
-6. **Tích hợp Quản lý Sự cố (Case Management) với Jira Cloud:** Kết nối Atlassian REST API v3 để tạo Issue trong Project `KAN`, tự động điền đầy đủ metadata (Alert ID, Rule ID, Target/IOC, Triage Operator) bằng **100% tiếng Anh chuẩn** và phản hồi link xem trực tiếp về Telegram.
-7. **Giám sát định kỳ sức khỏe hệ thống (Scheduled Healthcheck Cron):** Tự động kiểm tra trạng thái hoạt động của các thành phần trong lab mỗi 6 giờ và gửi báo cáo tóm tắt về Telegram.
-8. **Tự động hóa kiểm thử hồi quy E2E:** Hỗ trợ kịch bản kiểm thử toàn trình `tests/e2e/scenario_full_killchain.py` và `tests/e2e/test_soar_webhook.py`.
+This document details the complete design, engineering deployment, and empirical validation of the **SOAR (Security Orchestration, Automation, and Response)** platform deeply integrated into the SOC Lab architecture. By synergizing **Wazuh SIEM Manager**, **n8n Automation Engine**, **Telegram Human-in-the-Loop ChatOps**, **AbuseIPDB Threat Intelligence**, and **Jira Cloud REST API v3**, the system elevates the incident response workflow from manual triage to intelligent orchestrated SecOps.
 
 ---
 
-## Kiến trúc Tổng thể Hệ thống SOAR
+## Objectives
+
+1. **Deploy Standalone SOAR Engine:** Package and operate the **n8n Automation Engine** on Docker (`wazuh-vm`), ingesting Webhooks with low latency (< 100ms) and high availability.
+2. **Intelligent Dual-Mode IOC Resolution Mechanism:** Automatically classify attack types:
+   * **Network-based Attack:** Extract Remote Attacker IP (`192.168.71.130`) from network telemetry.
+   * **Endpoint/Host-based Attack:** Automatically fallback to Compromised Endpoint IP (`192.168.71.129` - `DESKTOP-A2AG7TR`) and triggering execution binary (`powershell.exe`), eliminating `Target/IOC: N/A` anomalies.
+3. **Automated Triage & Threat Enrichment Pipeline:** Differentiate Public vs. Private IPs, automatically querying reputation scoring from AbuseIPDB API v2 for external IP addresses.
+4. **2-Way Human-in-the-Loop ChatOps:** Dispatch real-time alerts to the Telegram SOC channel equipped with 3 interactive action buttons:
+   * **`[🚫 Block IP 24h]`**: Trigger automated IP blocking or endpoint containment.
+   * **`[⚠️ False Positive]`**: Log audit trails marking alerts as false positives.
+   * **`[📋 Open Jira Ticket]`**: Automatically open an Incident Ticket within Jira Cloud case management.
+5. **Long-Polling Callback Bridge (Telegram Bridge):** Run `telegram_bridge.py` daemon on `wazuh-vm` to capture Telegram Cloud button interactions and relay them to internal n8n webhooks without requiring public IPs or ngrok tunnels.
+6. **Case Management Integration with Jira Cloud:** Integrate Atlassian REST API v3 to create Issues in Project `KAN`, automatically populating comprehensive metadata (Alert ID, Rule ID, Target/IOC, Triage Operator) in **100% standard English** and returning clickable ticket links to Telegram.
+7. **Scheduled Infrastructure Healthchecks (Cron):** Periodically inspect lab component health every 6 hours and send executive summary reports to Telegram.
+8. **Automated E2E Regression Testing:** Support full regression pipelines via `tests/e2e/scenario_full_killchain.py` and `tests/e2e/test_soar_webhook.py`.
+
+---
+
+## Overall SOAR System Architecture
 
 ```text
        ┌────────────────────────────────────────────────────────┐
@@ -55,9 +55,9 @@ Tài liệu này tổng hợp toàn bộ quá trình thiết kế, triển khai 
         Query         ▼                          ▼ & Action Callbacks
        ┌────────────────────────┐      ┌────────────────────────┐
        │   AbuseIPDB Cloud API  │      │   TELEGRAM CHATOPS     │
-       │   Reputation / Abuse % │      │   [🚫 Khóa IP 24h]     │
-       │   Total Reports        │      │   [⚠️ Báo động giả]    │
-       └────────────────────────┘      │   [📋 Mở Ticket Jira]  │
+       │   Reputation / Abuse % │      │   [🚫 Block IP 24h]    │
+       │   Total Reports        │      │   [⚠️ False Positive]  │
+       └────────────────────────┘      │   [📋 Open Jira Ticket]│
                                        └───────────┬────────────┘
                                                    │
                                      Analyst Click │ Callback via telegram_bridge.py
@@ -72,11 +72,11 @@ Tài liệu này tổng hợp toàn bộ quá trình thiết kế, triển khai 
 
 ---
 
-## I. Cấu hình Triển khai n8n & Wazuh Integration
+## I. n8n Deployment & Wazuh Integration Configuration
 
-### 1. Triển khai n8n trên Docker (`deployment/docker-compose-n8n.yml`)
+### 1. Deploying n8n on Docker (`deployment/docker-compose-n8n.yml`)
 
-Engine n8n được đóng gói độc lập trên máy chủ `wazuh-vm` với cấu hình volume lưu trữ dữ liệu bền vững và DNS phân giải Internet:
+The n8n engine is packaged independently on the `wazuh-vm` host with persistent volume storage and public DNS resolvers:
 
 ```yaml
 version: '3.8'
@@ -114,29 +114,29 @@ volumes:
     name: n8n_soar_data
 ```
 
-Lệnh khởi động dịch vụ:
+Service startup command:
 ```bash
 ssh wazuh-vm "cd ~/n8n-docker && docker compose up -d"
 ```
 
-![Trạng thái container n8n đang chạy trên Wazuh VM](images/01_n8n_container_running.png)
+![Running state of n8n container on Wazuh VM](images/01_n8n_container_running.png)
 
-> **📸 Hướng dẫn chụp ảnh `01_n8n_container_running.png`:**
-> Chạy lệnh PowerShell sau từ máy host để lấy thông tin container n8n đang hoạt động, sau đó chụp ảnh cửa sổ terminal:
+> **📸 Screenshot Instructions for `01_n8n_container_running.png`:**
+> Run the following PowerShell command on the host to check active n8n container status and capture the terminal output:
 > ```powershell
 > ssh wazuh-vm "docker ps --filter name=n8n-soar-engine --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'"
 > ```
 
 ---
 
-### 2. Kịch bản tích hợp Wazuh-to-n8n (`custom-n8n.py`) & Cơ chế Dual-Mode IOC
+### 2. Wazuh-to-n8n Integration Script (`custom-n8n.py`) & Dual-Mode IOC Architecture
 
-Cơ chế `<integration>` của Wazuh truyền file JSON cảnh báo tạm thời qua tham số dòng lệnh `$1`. Kịch bản [`integrations/n8n/custom-n8n.py`](../../integrations/n8n/custom-n8n.py) đảm nhiệm chuẩn hóa dữ liệu với cơ chế **Dual-Mode IOC Resolution**:
-* **Xử lý Network Attack:** Trích xuất địa chỉ IP nguồn (`data.srcip`, `eventdata.ipAddress`).
-* **Xử lý Endpoint Attack (PowerShell, UAC Bypass, LSASS Dump, Run Key):** Tự động nhận diện không có IP mạng $\rightarrow$ kích hoạt fallback sang `agent.ip` (`192.168.71.129`), trích xuất tên tiến trình (`powershell.exe`) và gán nhãn `Compromised-Endpoint`.
-* Đóng gói payload JSON theo chuẩn SOAR Schema và POST tới endpoint `/webhook/wazuh-alert`.
+The Wazuh `<integration>` daemon passes temporary alert JSON files via command-line argument `$1`. The [`integrations/n8n/custom-n8n.py`](../../integrations/n8n/custom-n8n.py) script normalizes data utilizing **Dual-Mode IOC Resolution**:
+* **Handling Network Attacks:** Extracts source IP address (`data.srcip`, `eventdata.ipAddress`).
+* **Handling Endpoint Attacks (PowerShell, UAC Bypass, LSASS Dump, Run Key):** Detects lack of network IP $\rightarrow$ triggers fallback to `agent.ip` (`192.168.71.129`), extracts binary image (`powershell.exe`), and applies `Compromised-Endpoint` tag.
+* Packages the JSON payload into SOAR Schema and posts to `/webhook/wazuh-alert` endpoint.
 
-File cấu hình `/var/ossec/etc/ossec.conf` được kích hoạt cho các Rule trọng yếu:
+The configuration in `/var/ossec/etc/ossec.conf` is activated for core rules:
 
 ```xml
   <!-- SOAR Workflow Automation Integration (n8n Engine) -->
@@ -148,98 +148,98 @@ File cấu hình `/var/ossec/etc/ossec.conf` được kích hoạt cho các Rule
   </integration>
 ```
 
-![Cấu hình integration custom-n8n trong ossec.conf](images/02_ossec_conf_integration.png)
+![custom-n8n integration configuration in ossec.conf](images/02_ossec_conf_integration.png)
 
-> **📸 Hướng dẫn chụp ảnh `02_ossec_conf_integration.png`:**
-> Chạy lệnh sau để hiển thị khối cấu hình integration `custom-n8n` bên trong Wazuh Manager container:
+> **📸 Screenshot Instructions for `02_ossec_conf_integration.png`:**
+> Execute the following command to display the `custom-n8n` integration block inside the Wazuh Manager container:
 > ```powershell
 > ssh wazuh-vm "docker exec single-node-wazuh.manager-1 grep -A 7 '<name>custom-n8n</name>' /var/ossec/etc/ossec.conf"
 > ```
 
 ---
 
-### 3. Cầu nối Callback Telegram Long-Polling (`telegram_bridge.py`)
+### 3. Long-Polling Telegram Callback Bridge (`telegram_bridge.py`)
 
-Do máy chủ Lab nằm trong dải mạng riêng tư nội bộ (`192.168.71.128`), máy chủ Telegram Cloud không thể gửi HTTP Webhook trực tiếp vào bên trong máy ảo. Hệ thống sử dụng một tiến trình daemon siêu nhẹ [`integrations/n8n/telegram_bridge.py`](../../integrations/n8n/telegram_bridge.py) chạy trên `wazuh-vm`:
-* Kết nối liên tục qua phương thức Long-Polling (`getUpdates?timeout=20`).
-* Khi phát hiện Analyst bấm nút tương tác, lập tức chuyển tiếp đối tượng `callback_query` vào `http://127.0.0.1:5678/webhook/telegram-callback`.
-* Đảm bảo tính bảo mật và khả năng tương tác tức thì mà không cần mở port ra ngoài Internet.
+Because the lab host resides on an internal private network (`192.168.71.128`), Telegram Cloud servers cannot deliver inbound HTTP webhooks directly to virtual machines. The system deploys a lightweight daemon process [`integrations/n8n/telegram_bridge.py`](../../integrations/n8n/telegram_bridge.py) running on `wazuh-vm`:
+* Connects persistently via Long-Polling (`getUpdates?timeout=20`).
+* When an analyst clicks an interactive button, immediately forwards `callback_query` payloads to `http://127.0.0.1:5678/webhook/telegram-callback`.
+* Ensures security and instantaneous bidirectional responsiveness without public port forwarding.
 
 ---
 
-## II. Chi tiết 3 Workflows n8n Đã Xây Dựng
+## II. Detailed Breakdown of the 3 Implemented n8n Workflows
 
-Cả 3 file JSON workflow đều được lưu trữ hoàn chỉnh tại thư mục [`integrations/n8n/workflows/`](../../integrations/n8n/workflows/) và trên VM tại `~/n8n-docker/workflows/`.
+All 3 workflow JSON files are tracked in [`integrations/n8n/workflows/`](../../integrations/n8n/workflows/) and on the VM at `~/n8n-docker/workflows/`.
 
 ### 1. Workflow 1: `01_wazuh_soar_threat_enrichment.json`
-* **Nhiệm vụ:** Tiếp nhận cảnh báo từ Wazuh qua Webhook `/webhook/wazuh-alert` $\rightarrow$ Chuẩn hóa dữ liệu & Dual-Mode IOC Resolution $\rightarrow$ Kiểm tra IP $\rightarrow$ Tra cứu AbuseIPDB API (nếu là Public IP) $\rightarrow$ Biên soạn Card thông báo HTML trực quan $\rightarrow$ Gửi thông báo kèm 3 Inline Buttons đến Telegram.
+* **Role:** Ingest alerts from Wazuh via Webhook `/webhook/wazuh-alert` $\rightarrow$ Data Normalization & Dual-Mode IOC Resolution $\rightarrow$ IP Scoping $\rightarrow$ AbuseIPDB API Reputation Query (for Public IPs) $\rightarrow$ Compile visual HTML ChatOps card $\rightarrow$ Dispatch alert with 3 Inline Buttons to Telegram.
 
-![Giao diện n8n hiển thị Workflow 1 Threat Enrichment](images/03_n8n_workflow_1_enrichment.png)
+![n8n UI showing Workflow 1 Threat Enrichment](images/03_n8n_workflow_1_enrichment.png)
 
-> **📸 Hướng dẫn chụp ảnh `03_n8n_workflow_1_enrichment.png`:**
-> 1. Mở trình duyệt Web trên máy tính, truy cập: `http://192.168.71.128:5678`
-> 2. Mở workflow `01_Wazuh_SOAR_Threat_Enrichment_ChatOps`.
-> 3. Chụp toàn cảnh canvas workflow hiển thị các node: `Wazuh Webhook Ingest` $\rightarrow$ `Normalize & Triage` $\rightarrow$ `Is Public IP?` $\rightarrow$ `AbuseIPDB Threat Intel` $\rightarrow$ `Build Interactive ChatOps Card` $\rightarrow$ `Send Interactive Telegram Alert`.
+> **📸 Screenshot Instructions for `03_n8n_workflow_1_enrichment.png`:**
+> 1. Open a browser and navigate to: `http://192.168.71.128:5678`
+> 2. Open workflow `01_Wazuh_SOAR_Threat_Enrichment_ChatOps`.
+> 3. Capture the full canvas displaying the nodes: `Wazuh Webhook Ingest` $\rightarrow$ `Normalize & Triage` $\rightarrow$ `Is Public IP?` $\rightarrow$ `AbuseIPDB Threat Intel` $\rightarrow$ `Build Interactive ChatOps Card` $\rightarrow$ `Send Interactive Telegram Alert`.
 
 ---
 
 ### 2. Workflow 2: `02_containment_action_executor.json`
-* **Nhiệm vụ:** Tiếp nhận Callback từ Telegram Bridge qua webhook `telegram-callback` $\rightarrow$ Phân tích ý định (`action:block`, `action:ignore`, `action:jira`) $\rightarrow$ Trả lời `answerCallbackQuery` $\rightarrow$ Điều phối (Switch Node):
-  * **Nhánh `block`:** Thực thi cô lập IP trên Firewall Windows/Linux $\rightarrow$ Báo kết quả cách ly lên Telegram.
-  * **Nhánh `ignore`:** Đánh dấu cảnh báo giả $\rightarrow$ Ghi log vào SOAR Audit Trail $\rightarrow$ Báo xác nhận lên Telegram.
-  * **Nhánh `jira`:** Khởi tạo Issue Payload bằng tiếng Anh $\rightarrow$ Gửi request `POST /rest/api/3/issue` đến Atlassian Jira Cloud $\rightarrow$ Nhận Issue Key (ví dụ `KAN-12`) $\rightarrow$ Gửi thông báo xác nhận kèm Direct URL xem ticket về Telegram.
+* **Role:** Ingest callbacks from Telegram Bridge via webhook `telegram-callback` $\rightarrow$ Parse user intent (`action:block`, `action:ignore`, `action:jira`) $\rightarrow$ Respond to `answerCallbackQuery` $\rightarrow$ Route (Switch Node):
+  * **`block` branch:** Executes IP containment via Windows/Linux Firewall $\rightarrow$ Dispatches containment confirmation to Telegram.
+  * **`ignore` branch:** Marks as false positive $\rightarrow$ Records entry in SOAR Audit Trail $\rightarrow$ Dispatches acknowledgement to Telegram.
+  * **`jira` branch:** Formats Issue Payload in standard English $\rightarrow$ Dispatches `POST /rest/api/3/issue` request to Atlassian Jira Cloud $\rightarrow$ Receives Issue Key (e.g., `KAN-12`) $\rightarrow$ Returns confirmation message with Direct URL to Telegram.
 
-![Giao diện n8n hiển thị Workflow 2 Containment & Jira Dispatcher](images/04_n8n_workflow_2_containment_jira.png)
+![n8n UI showing Workflow 2 Containment & Jira Dispatcher](images/04_n8n_workflow_2_containment_jira.png)
 
-> **📸 Hướng dẫn chụp ảnh `04_n8n_workflow_2_containment_jira.png`:**
-> 1. Truy cập `http://192.168.71.128:5678`, mở workflow `02_Containment_Action_Executor`.
-> 2. Chụp toàn cảnh canvas workflow hiển thị các node: `Telegram Callback Ingest` $\rightarrow$ `Parse Callback & Intent` $\rightarrow$ `Acknowledge Callback` $\rightarrow$ `Route Action` (chia 3 nhánh: Block, Ignore, Jira).
+> **📸 Screenshot Instructions for `04_n8n_workflow_2_containment_jira.png`:**
+> 1. Navigate to `http://192.168.71.128:5678`, open workflow `02_Containment_Action_Executor`.
+> 2. Capture the full canvas displaying nodes: `Telegram Callback Ingest` $\rightarrow$ `Parse Callback & Intent` $\rightarrow$ `Acknowledge Callback` $\rightarrow$ `Route Action` (3 branches: Block, Ignore, Jira).
 
 ---
 
 ### 3. Workflow 3: `03_scheduled_healthcheck_cron.json`
-* **Nhiệm vụ:** Schedule Trigger định kỳ mỗi 6 giờ $\rightarrow$ Kiểm tra trạng thái của các container Docker, Wazuh Manager, Agent 003, n8n Engine $\rightarrow$ Tổng hợp báo cáo HTML đẹp mắt $\rightarrow$ Phát thanh tự động vào kênh Telegram SOC.
+* **Role:** Periodic Schedule Trigger every 6 hours $\rightarrow$ Check health status of Docker containers, Wazuh Manager, Agent 003, n8n Engine $\rightarrow$ Aggregate into styled HTML report $\rightarrow$ Broadcast automatically to Telegram SOC channel.
 
-![Giao diện n8n hiển thị Workflow 3 Scheduled Healthcheck Cron](images/05_n8n_workflow_3_healthcheck_cron.png)
+![n8n UI showing Workflow 3 Scheduled Healthcheck Cron](images/05_n8n_workflow_3_healthcheck_cron.png)
 
-> **📸 Hướng dẫn chụp ảnh `05_n8n_workflow_3_healthcheck_cron.png`:**
-> 1. Truy cập `http://192.168.71.128:5678`, mở workflow `03_Scheduled_Healthcheck_Cron`.
-> 2. Chụp giao diện canvas workflow hiển thị các node: `Schedule Trigger` $\rightarrow$ `Check Services & Infrastructure` $\rightarrow$ `Format Health Report` $\rightarrow$ `Broadcast Health Report Telegram`.
-
----
-
-## III. Bằng chứng Thực nghiệm & Kết quả Kiểm thử Toàn trình
+> **📸 Screenshot Instructions for `05_n8n_workflow_3_healthcheck_cron.png`:**
+> 1. Navigate to `http://192.168.71.128:5678`, open workflow `03_Scheduled_Healthcheck_Cron`.
+> 2. Capture the workflow canvas displaying nodes: `Schedule Trigger` $\rightarrow$ `Check Services & Infrastructure` $\rightarrow$ `Format Health Report` $\rightarrow$ `Broadcast Health Report Telegram`.
 
 ---
 
-### 1. Cảnh báo Tương tác Thời gian thực trên Telegram (Human-in-the-Loop ChatOps)
+## III. Empirical Verification & End-to-End Test Results
 
-Khi kịch bản tấn công thực thi (RDP Brute Force, Web LFI, hoặc Full Kill Chain), hệ thống lập tức đẩy thẻ cảnh báo thời gian thực về Telegram bot `@my_wazuh_soc_alert_bot`:
+---
 
-![Cảnh báo Telegram tương tác với 3 nút bấm phản ứng](images/06_telegram_interactive_alert.png)
+### 1. Real-Time Interactive Alerts on Telegram (Human-in-the-Loop ChatOps)
 
-> **📸 Hướng dẫn chụp ảnh `06_telegram_interactive_alert.png`:**
-> 1. Chạy lệnh kích hoạt tấn công từ PowerShell:
+When attack scenarios execute (RDP Brute Force, Web LFI, or Full Kill Chain), the platform immediately dispatches interactive alerts to Telegram bot `@my_wazuh_soc_alert_bot`:
+
+![Interactive Telegram alert with 3 response buttons](images/06_telegram_interactive_alert.png)
+
+> **📸 Screenshot Instructions for `06_telegram_interactive_alert.png`:**
+> 1. Launch attack execution from PowerShell:
 >    ```powershell
 >    python tests/e2e/scenario_full_killchain.py --execute
 >    ```
-> 2. Mở ứng dụng Telegram trên máy tính hoặc điện thoại trong chat `@my_wazuh_soc_alert_bot`.
-> 3. Chụp lại thẻ cảnh báo hiển thị Rule `100007` (hoặc `100001`/`100004`) với đầy đủ các trường:
+> 2. Open Telegram on PC or mobile in chat `@my_wazuh_soc_alert_bot`.
+> 3. Capture the alert card displaying Rule `100007` (or `100001`/`100004`) with complete metadata fields:
 >    - `🎯 Target IOC / Endpoint: 192.168.71.129 (DESKTOP-A2AG7TR)`
 >    - `🖥️ Scope / Origin: Host-Internal Execution`
->    - Kèm 3 nút bấm: `[🚫 Khóa IP 24h]`, `[⚠️ Báo động giả]`, `[📋 Mở Ticket Jira]`.
+>    - Accompanied by 3 buttons: `[🚫 Block IP 24h]`, `[⚠️ False Positive]`, `[📋 Open Jira Ticket]`.
 
 ---
 
-### 2. Thực nghiệm Hành động 1: Bấm nút `[🚫 Khóa IP 24h]` (Automated Containment)
+### 2. Action 1 Verification: Clicking `[🚫 Block IP 24h]` (Automated Containment)
 
-Khi SOC Analyst bấm nút **`[🚫 Khóa IP 24h]`**, popup thông báo tức thì hiển thị trên Telegram và n8n kích hoạt hành động cách ly đối tượng tấn công:
+When the SOC Analyst clicks **`[🚫 Block IP 24h]`**, an instant popup appears in Telegram and n8n triggers containment actions against the attacker target:
 
-![Thông báo Telegram xác nhận cách ly IP thành công](images/07_containment_success_telegram.png)
+![Telegram confirmation message for successful IP containment](images/07_containment_success_telegram.png)
 
-> **📸 Hướng dẫn chụp ảnh `07_containment_success_telegram.png`:**
-> 1. Bấm nút **`[🚫 Khóa IP 24h]`** trên một thẻ cảnh báo trong Telegram.
-> 2. Chụp lại thông báo phản hồi từ bot:
+> **📸 Screenshot Instructions for `07_containment_success_telegram.png`:**
+> 1. Click **`[🚫 Block IP 24h]`** on an alert card in Telegram.
+> 2. Capture the bot response message:
 >    ```text
 >    🔒 [SOAR CONTAINMENT EXECUTED]
 >    ━━━━━━━━━━━━━━━━━━━━━━
@@ -249,27 +249,27 @@ Khi SOC Analyst bấm nút **`[🚫 Khóa IP 24h]`**, popup thông báo tức th
 >    ✅ Status: Active Response firewall rule deployed (Inbound/Outbound DROP)
 >    ```
 
-Bằng chứng luật chặn tường lửa được thiết lập trên Windows Endpoint:
+Firewall blocking rule proof established on Windows Endpoint:
 
-![Windows Defender Firewall hiển thị Rule chặn IP tự động](images/08_windows_firewall_rule_blocked.png)
+![Windows Defender Firewall displaying automated IP blocking Rule](images/08_windows_firewall_rule_blocked.png)
 
-> **📸 Hướng dẫn chụp ảnh `08_windows_firewall_rule_blocked.png`:**
-> Mở PowerShell trên máy nạn nhân Windows 10 (hoặc chạy qua WinRM) và chụp ảnh kết quả:
+> **📸 Screenshot Instructions for `08_windows_firewall_rule_blocked.png`:**
+> Open PowerShell on Windows 10 victim host (or via WinRM) and capture output:
 > ```powershell
 > Get-NetFirewallRule | Where-Object { $_.DisplayName -like "*WAZUH*" -or $_.DisplayName -like "*SOAR*" } | Select-Object Name, DisplayName, Enabled, Direction, Action
 > ```
 
 ---
 
-### 3. Thực nghiệm Hành động 2: Bấm nút `[📋 Mở Ticket Jira]` (Jira Case Management)
+### 3. Action 2 Verification: Clicking `[📋 Open Jira Ticket]` (Jira Case Management)
 
-Khi sự cố phức tạp cần điều tra tầng sâu L2, Analyst bấm nút **`[📋 Mở Ticket Jira]`**. Hệ thống n8n kết nối đến Atlassian Jira Cloud REST API v3 và gửi link phản hồi trực tiếp:
+When an incident warrants deep Tier-2 investigation, the Analyst clicks **`[📋 Open Jira Ticket]`**. The n8n engine connects to Atlassian Jira Cloud REST API v3 and returns a direct ticket URL:
 
-![Thông báo Telegram xác nhận đã tạo Ticket Jira kèm Link](images/09_jira_ticket_opened_telegram.png)
+![Telegram confirmation message for created Jira ticket with link](images/09_jira_ticket_opened_telegram.png)
 
-> **📸 Hướng dẫn chụp ảnh `09_jira_ticket_opened_telegram.png`:**
-> 1. Bấm nút **`[📋 Mở Ticket Jira]`** trên một thẻ cảnh báo trong Telegram.
-> 2. Chụp lại tin nhắn phản hồi của bot chứa link trực tiếp tới Jira:
+> **📸 Screenshot Instructions for `09_jira_ticket_opened_telegram.png`:**
+> 1. Click **`[📋 Open Jira Ticket]`** on an alert card in Telegram.
+> 2. Capture the bot response message containing the direct link to Jira:
 >    ```text
 >    📋 [JIRA CASE MANAGEMENT - TICKET OPENED]
 >    ━━━━━━━━━━━━━━━━━━━━━━
@@ -281,19 +281,19 @@ Khi sự cố phức tạp cần điều tra tầng sâu L2, Analyst bấm nút 
 >    📌 Workflow Status: Incident ticket transferred to Tier-2 SOC Investigation Queue.
 >    ```
 
-Giao diện Jira Cloud hiển thị Ticket sự cố được tạo tự động với nội dung và định dạng chuẩn hóa bằng tiếng Anh:
+The Jira Cloud UI displays the automatically created incident issue formatted with standardized English content:
 
-![Giao diện Jira Cloud Incident Issue](images/10_jira_cloud_ticket_details.png)
+![Jira Cloud Incident Issue UI](images/10_jira_cloud_ticket_details.png)
 
-> **📸 Hướng dẫn chụp ảnh `10_jira_cloud_ticket_details.png`:**
-> 1. Mở trình duyệt Web truy cập đường link ticket trực tiếp:
->    `https://tn421015.atlassian.net/browse/KAN-12` (hoặc ticket mới nhất trên board `https://tn421015.atlassian.net/jira/software/projects/KAN/boards/2`).
-> 2. Chụp toàn cảnh màn hình chi tiết Ticket với các thông tin:
+> **📸 Screenshot Instructions for `10_jira_cloud_ticket_details.png`:**
+> 1. Open browser and access the direct ticket link:
+>    `https://tn421015.atlassian.net/browse/KAN-12` (or latest ticket on board `https://tn421015.atlassian.net/jira/software/projects/KAN/boards/2`).
+> 2. Capture the complete ticket details displaying:
 >    - **Summary:** `[Wazuh SOAR Incident] Rule 100007 on 192.168.71.129`
->    - **Description:** Chứa đầy đủ Alert ID, Triggered Rule ID, Attacker Source / Target: `192.168.71.129`, Triage Operator, Recommended Action (hoàn toàn bằng tiếng Anh).
+>    - **Description:** Alert ID, Triggered Rule ID, Attacker Source / Target: `192.168.71.129`, Triage Operator, Recommended Action (fully in English).
 >    - **Issue Type:** Task / Incident, Priority: High.
 
-*Cấu trúc JSON Issue thực tế được gửi tới Jira Cloud REST API v3:*
+*Actual JSON Issue payload dispatched to Jira Cloud REST API v3:*
 ```json
 {
   "fields": {
@@ -322,65 +322,65 @@ Giao diện Jira Cloud hiển thị Ticket sự cố được tạo tự động
 
 ---
 
-### 4. Báo cáo Tình trạng Hệ thống Định kỳ (Scheduled Healthcheck)
+### 4. Periodic Infrastructure Health Reports (Scheduled Healthcheck)
 
-Định kỳ mỗi 6 giờ, Workflow 3 tự động kích hoạt và gửi báo cáo tình trạng toàn bộ các máy ảo và dịch vụ lên Telegram:
+Every 6 hours, Workflow 3 triggers automatically and broadcasts status reports across all VMs and services to Telegram:
 
-![Thông báo kiểm tra sức khỏe hệ thống định kỳ trên Telegram](images/11_periodic_healthcheck_telegram.png)
+![Periodic system healthcheck notification on Telegram](images/11_periodic_healthcheck_telegram.png)
 
-> **📸 Hướng dẫn chụp ảnh `11_periodic_healthcheck_telegram.png`:**
-> 1. Chạy lệnh kiểm tra tình trạng hạ tầng từ máy host:
+> **📸 Screenshot Instructions for `11_periodic_healthcheck_telegram.png`:**
+> 1. Run infrastructure health audit from host:
 >    ```powershell
 >    python tests/e2e/lab_health.py
 >    ```
-> 2. Chụp màn hình terminal hiển thị kết quả kiểm tra `[PASS]` của cả 3 máy ảo (Wazuh, Windows, Kali).
+> 2. Capture terminal screen displaying `[PASS]` status across all 3 VMs (Wazuh, Windows, Kali).
 
 ---
 
-### 5. Kiểm thử Hồi quy Tự động Toàn trình (E2E Regression Testing)
+### 5. Automated End-to-End Regression Testing (E2E Regression Testing)
 
-Kịch bản kiểm thử toàn trình [`tests/e2e/scenario_full_killchain.py`](../../tests/e2e/scenario_full_killchain.py) và unit test [`tests/unit/test_detection_config.py`](../../tests/unit/test_detection_config.py) chứng minh độ tin cậy tuyệt đối của hệ thống:
-1. Phát hiện toàn bộ 4 giai đoạn tấn công Kill Chain (Execution, Privilege Escalation, Persistence, Credential Access).
-2. Tự động hóa gửi cảnh báo qua Webhook n8n và ChatOps Telegram.
-3. Nhận diện chuẩn xác địa chỉ IP mục tiêu mà không bao giờ bị `N/A`.
+The full regression script [`tests/e2e/scenario_full_killchain.py`](../../tests/e2e/scenario_full_killchain.py) and unit test [`tests/unit/test_detection_config.py`](../../tests/unit/test_detection_config.py) validate system reliability:
+1. Detects all 4 Kill Chain stages (Execution, Privilege Escalation, Persistence, Credential Access).
+2. Automates alert dispatch via n8n Webhook and Telegram ChatOps.
+3. Accurately identifies target IP addresses without `N/A` errors.
 
-![Kết quả chạy kiểm thử tự động scenario_full_killchain.py](images/12_e2e_soar_test_pass.png)
+![scenario_full_killchain.py automated test execution results](images/12_e2e_soar_test_pass.png)
 
-> **📸 Hướng dẫn chụp ảnh `12_e2e_soar_test_pass.png`:**
-> Chạy lệnh kiểm thử Full Kill Chain và chụp lại bảng tổng kết thành công trên terminal:
+> **📸 Screenshot Instructions for `12_e2e_soar_test_pass.png`:**
+> Run Full Kill Chain test and capture summary table on terminal:
 > ```powershell
 > python tests/e2e/scenario_full_killchain.py --execute
 > ```
 
 ---
 
-## IV. Đánh giá Hiệu năng & Đo lường Chỉ số SOC (Metrics)
+## IV. Performance Evaluation & SOC Metrics Measurement
 
-Việc đưa SOAR n8n, Dual-Mode IOC Resolution và Human-in-the-Loop ChatOps vào vận hành mang lại sự cải thiện vượt bậc đối với các chỉ số đo lường hiệu quả cốt lõi của Trung tâm Giám sát An ninh mạng (SOC):
+Deploying n8n SOAR, Dual-Mode IOC Resolution, and Human-in-the-Loop ChatOps substantially elevates core Security Operations Center (SOC) efficiency metrics:
 
-| Chỉ số SOC | Quy trình Thủ công Truyền thống (Manual) | Quy trình Tự động hóa SOAR (Phase 5) | Mức độ Cải thiện |
+| SOC Metric | Traditional Manual Workflow | SOAR Automated Workflow (Phase 5) | Improvement |
 | :--- | :--- | :--- | :--- |
-| **MTTA (Mean Time to Acknowledge)** | 10 – 15 phút (chờ trực ca kiểm tra dashboard) | **< 3 giây** (Thông báo tức thì qua Telegram) | **Nhanh hơn ~99%** |
-| **Enrichment Time (Tra cứu Threat Intel)** | 5 – 10 phút (mở trình duyệt tra cứu AbuseIPDB) | **0 giây** (SOAR tự động tra cứu và hiển thị) | **Tự động 100%** |
-| **MTTR (Mean Time to Respond / Contain)** | 20 – 30 phút (đăng nhập máy chủ cấu hình Firewall) | **< 20 giây** (Chỉ với 1 cú click trên điện thoại) | **Nhanh hơn ~98%** |
-| **Incident Case Logging (Tạo Ticket Jira)** | 5 – 10 phút (gõ thủ công thông tin sự cố vào Jira) | **< 2 giây** (Tự động khởi tạo chuẩn hóa qua API) | **Nhanh hơn ~99%** |
-| **Độ chính xác định danh IOC (No N/A Error)** | Dễ nhầm IP hoặc thiếu thông tin máy trạm | **100% chuẩn xác** (Tự động fallback về Endpoint IP) | **Tuyệt đối an toàn** |
-| **Tỷ lệ sai sót thao tác (Human Error)** | Dễ nhầm IP hoặc gõ sai cú pháp rule | **0%** (Lệnh được định dạng chính xác tự động) | **Tuyệt đối an toàn** |
+| **MTTA (Mean Time to Acknowledge)** | 10 – 15 mins (shift analyst checking dashboard) | **< 3 seconds** (Instant Telegram push) | **~99% faster** |
+| **Enrichment Time (Threat Intel Lookup)** | 5 – 10 mins (browser lookup on AbuseIPDB) | **0 seconds** (SOAR automated lookup & display) | **100% automated** |
+| **MTTR (Mean Time to Respond / Contain)** | 20 – 30 mins (SSH/RDP into host to configure firewall) | **< 20 seconds** (1-click on mobile device) | **~98% faster** |
+| **Incident Case Logging (Create Jira Ticket)** | 5 – 10 mins (manual entry into Jira portal) | **< 2 seconds** (Automated standardized API creation) | **~99% faster** |
+| **IOC Identification Accuracy (No N/A Error)** | Prone to wrong IP or missing endpoint data | **100% accurate** (Automated fallback to Endpoint IP) | **Zero defect** |
+| **Operational Error Rate (Human Error)** | Prone to wrong IP or syntax typos | **0%** (Automated precise command formatting) | **Zero defect** |
 
 ---
 
-## V. Kết luận Phase 5
+## V. Phase 5 Conclusion
 
-Phase 5 đã hiện thực hóa trọn vẹn mô hình **SecOps Automation hiện đại**:
-1. **Kiến trúc bền vững:** n8n chạy độc lập trên Docker giúp hệ sinh thái SOC linh hoạt, dễ dàng mở rộng và bảo trì mà không làm ảnh hưởng đến hiệu năng của Wazuh Manager.
-2. **Cơ chế Dual-Mode IOC thông minh:** Khắc phục triệt để bài toán thiếu IP mạng của các cuộc tấn công nội tại máy trạm, đảm bảo mọi hành động phản ứng và hồ sơ vụ việc trên Jira Cloud luôn được gắn đúng đích.
-3. **Cầu nối Telegram Bridge:** Giải quyết thách thức tương tác 2 chiều giữa Cloud Telegram và Lab nội bộ (RFC1918) một cách nhẹ nhàng, ổn định mà không cần phụ thuộc bên thứ ba.
-4. **Human-in-the-Loop ChatOps:** Kết hợp hoàn hảo giữa tốc độ tự động hóa của máy tính và trí tuệ phán đoán của con người, loại bỏ triệt để rủi ro chặn nhầm máy trạm hợp lệ (False Positive mitigation).
-5. **Chuẩn hóa Case Management:** Tích hợp trực tiếp với Jira Cloud REST API v3 (Project `KAN`), tạo mô tả 100% bằng tiếng Anh chuẩn, hoàn thiện mắt xích quan trọng nhất của quy trình quản trị sự cố an ninh thông tin theo chuẩn quốc tế (NIST SP 800-61 / ISO 27035).
+Phase 5 successfully implemented a complete **Modern SecOps Automation** model:
+1. **Resilient Architecture:** Operating n8n independently on Docker ensures agility, modular expansion, and maintainability without impacting Wazuh Manager performance.
+2. **Intelligent Dual-Mode IOC Resolution:** Completely overcomes the lack of remote network IPs for host-local attacks, ensuring all containment actions and Jira Cloud incident cases are correlated to the correct asset.
+3. **Telegram Bridge Connector:** Resolves 2-way communication between Cloud Telegram and the internal lab network (RFC1918) cleanly and reliably without third-party dependencies.
+4. **Human-in-the-Loop ChatOps:** Harmonizes automated processing speed with analyst intuition, mitigating false-positive service disruptions.
+5. **Standardized Case Management:** Directly integrates with Jira Cloud REST API v3 (Project `KAN`), formatting descriptions in 100% standard English to complete the vital case management tier according to international standards (NIST SP 800-61 / ISO 27035).
 
 ---
 
-## Tài liệu Tham khảo
+## References
 
 * [Wazuh Integration Daemon Documentation](https://documentation.wazuh.com/current/user-manual/manager/manual-integration.html)
 * [n8n Automation Platform Docs](https://docs.n8n.io/)

@@ -1,64 +1,64 @@
 # 💻 Wazuh Endpoint Provisioning Package (Windows 10)
 
-Thư mục đóng gói toàn diện các cấu hình, module bảo mật và kịch bản thiết lập cho máy trạm **Windows 10 Target (`192.168.71.129`)**.
+Comprehensive packaging of configurations, security modules, and setup scripts for the **Windows 10 Target endpoint (`192.168.71.129`)**.
 
 ---
 
-## ⚡ HƯỚNG DẪN TRIỂN KHAI 2 BƯỚC (QUICKSTART)
+## ⚡ 2-STEP QUICKSTART DEPLOYMENT
 
-### Bước 1: Cài đặt phần mềm nền tảng (Người dùng cài trước)
-Nếu máy Windows 10 mới hoàn toàn chưa có phần mềm, bạn tải và cài đặt 2 công cụ chính hãng sau:
+### Step 1: Install Base Software (User Pre-requisite)
+If configuring a fresh Windows 10 machine without software installed, download and install the following two official tools:
 
-1. **Cài đặt Wazuh Agent 4.14.5 (Chính hãng):**
-   * Tải bộ cài MSI: [wazuh-agent-4.14.5-1.msi](https://packages.wazuh.com/4.x/windows/wazuh-agent-4.14.5-1.msi)
-   * Chạy CMD (Run as Admin) và thực thi lệnh cài đặt:
+1. **Install Wazuh Agent 4.14.5 (Official):**
+   * Download the MSI installer: [wazuh-agent-4.14.5-1.msi](https://packages.wazuh.com/4.x/windows/wazuh-agent-4.14.5-1.msi)
+   * Open CMD (Run as Admin) and execute the installation command:
      ```cmd
      msiexec.exe /i wazuh-agent-4.14.5-1.msi /q WAZUH_MANAGER="192.168.71.128" WAZUH_REGISTRATION_SERVER="192.168.71.128"
      ```
 
-2. **Cài đặt Microsoft Sysmon v15.2 (Sysinternals):**
-   * Tải tệp zip: [Microsoft Sysinternals Sysmon.zip](https://download.sysinternals.com/files/Sysmon.zip)
-   * Giải nén file zip vào một thư mục (ví dụ `C:\Sysmon` hoặc để file `Sysmon64.exe` trong biến môi trường PATH).
-   * Chạy cài đặt ban đầu:
+2. **Install Microsoft Sysmon v15.2 (Sysinternals):**
+   * Download the zip package: [Microsoft Sysinternals Sysmon.zip](https://download.sysinternals.com/files/Sysmon.zip)
+   * Extract the zip file to a directory (e.g., `C:\Sysmon` or ensure `Sysmon64.exe` is available in PATH).
+   * Run initial installation:
      ```cmd
      Sysmon64.exe -accepteula -i
      ```
 
 ---
 
-### Bước 2: Chạy Script Tự Động Của Lab (1-Click Master Setup)
-Mở cửa sổ **PowerShell với quyền Administrator** trong thư mục này và gõ:
+### Step 2: Run Lab Master Script (1-Click Master Setup)
+Open a **PowerShell window with Administrator privileges** in this directory and execute:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\setup_endpoint.ps1 -WazuhManagerIP "192.168.71.128"
 ```
 
-**Script `setup_endpoint.ps1` sẽ tự động thực hiện 100% các công việc còn lại:**
-1. ✅ Nạp cấu hình lọc sự kiện Sysmon tối ưu theo MITRE ATT&CK (`config\sysmon-config.xml`).
-2. ✅ Nạp cấu hình Agent `ossec.conf` (bật FIM realtime cho `C:\Users\Public`, giám sát Sysmon Eventchannel và Apache log).
-3. ✅ Đăng ký các kịch bản Active Response (`kill-process.ps1`, `collect-evidence.ps1`) vào `C:\Program Files (x86)\ossec-agent\active-response\bin\`.
-4. ✅ Kích hoạt Windows Object Access Auditing (SACL Event 4663).
-5. ✅ Khởi tạo hệ sinh thái bẫy mồi Deception (Canary File `IT_Admin_Credentials.xlsx` và Honey-Account `backup_admin`).
-6. ✅ Cấu hình kênh quản trị an toàn WinRM (Port 5985) phục vụ phản ứng khép kín SOAR.
-7. ✅ Khởi động lại dịch vụ Wazuh Agent.
+**The `setup_endpoint.ps1` script automatically handles 100% of the remaining configuration:**
+1. ✅ Ingests the Sysmon event filtering configuration aligned with MITRE ATT&CK (`config\sysmon-config.xml`).
+2. ✅ Ingests the Agent `ossec.conf` configuration (enabling real-time FIM for `C:\Users\Public`, Sysmon Eventchannel monitoring, and Apache logs).
+3. ✅ Registers Active Response scripts (`kill-process.ps1`, `collect-evidence.ps1`) into `C:\Program Files (x86)\ossec-agent\active-response\bin\`.
+4. ✅ Activates Windows Object Access Auditing (SACL Event 4663).
+5. ✅ Initializes the Deception honey-token ecosystem (Canary File `IT_Admin_Credentials.xlsx` and Honey-Account `backup_admin`).
+6. ✅ Configures the secure WinRM management channel (Port 5985) for SOAR closed-loop response.
+7. ✅ Restarts the Wazuh Agent service.
 
 ---
 
-## 🗂️ Cấu Trúc Thư Mục `endpoint/`
+## 🗂️ Directory Structure `endpoint/`
 
 ```text
 endpoint/
-├── README.md                      # Hướng dẫn triển khai máy trạm Windows 10
-├── setup_endpoint.ps1             # Script master 1-Click tự động hóa toàn bộ cấu hình
+├── README.md                      # Windows 10 endpoint deployment guide
+├── setup_endpoint.ps1             # 1-Click master script automating full endpoint configuration
 ├── config/
-│   ├── ossec.conf                 # Cấu hình chuẩn của Wazuh Agent (FIM, Channels, AR)
-│   └── sysmon-config.xml          # Cấu hình Sysmon v15.2 tối ưu theo MITRE ATT&CK
-├── active-response/               # Kịch bản phản ứng tức thì trên Endpoint
-│   ├── kill-process.cmd / .ps1    # Diệt tiến trình độc hại (Safe Whitelist chống BSOD)
-│   └── collect-evidence.cmd / .ps1# Tự động nén RAM dump + netstat + EVTX thành .zip
-└── deception/                     # Mạng lưới bẫy mồi chủ động (0% False Positive)
-    ├── setup_canary.ps1           # Tạo file Canary SACL & tài khoản mồi backup_admin
-    ├── network_decoy.py           # Listener giả lập dịch vụ FTP Port 21
-    └── collect_evidence.ps1       # Script trích xuất chứng cứ pháp y số trực tiếp
+│   ├── ossec.conf                 # Wazuh Agent baseline configuration (FIM, Channels, AR)
+│   └── sysmon-config.xml          # Sysmon v15.2 configuration optimized for MITRE ATT&CK
+├── active-response/               # Instant endpoint response scripts
+│   ├── kill-process.cmd / .ps1    # Malicious process termination (Safe Whitelist preventing BSOD)
+│   └── collect-evidence.cmd / .ps1# Automated evidence bundle: RAM dump + netstat + EVTX into .zip
+└── deception/                     # Proactive deception decoy framework (0% False Positive)
+    ├── setup_canary.ps1           # Canary file SACL generation & decoy account backup_admin
+    ├── network_decoy.py           # Simulated FTP Port 21 decoy service listener
+    └── collect_evidence.ps1       # Live digital forensics evidence extraction script
 ```

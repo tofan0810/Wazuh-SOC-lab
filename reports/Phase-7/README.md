@@ -1,11 +1,11 @@
 # 📊 Phase 7: Executive Incident Dashboard
 
-Thư mục lưu trữ báo cáo kỹ thuật và minh chứng của **Phase 7**, thiết kế và triển khai giao diện trực quan hóa sự cố chuyên nghiệp trên nền tảng **OpenSearch Dashboards** (Wazuh Dashboard Port 443).
+Directory containing technical reports and proof-of-concept evidence for **Phase 7**, designing and deploying a professional incident visualization interface on **OpenSearch Dashboards** (Wazuh Dashboard Port 443).
 
 ---
 
-## 📌 Báo Cáo Kỹ Thuật Chính
-* **Tài liệu chi tiết:** [`Phase-7_Executive-Incident-Dashboard.md`](Phase-7_Executive-Incident-Dashboard.md)
-* **Nội dung:**
-  - Thiết kế Dashboard **`SOC Lab - Executive Incident Overview`** gồm 7 Visualizations chuyên biệt (KPI MTTA/MTTR, Donut chart phân bổ mức độ, Heatmap MITRE ATT&CK, Leaderboard IP kẻ tấn công, Bảng Endpoint & User, Malicious Processes, và Real-time Incident Stream).
-  - Tự động hóa xuất bản và nạp nhanh (1-Click Import) toàn bộ 9 Saved Objects qua REST API chỉ trong 1.5 giây bằng script [`scripts/import_dashboard.py`](../../scripts/import_dashboard.py).
+## 📌 Main Technical Report
+* **Detailed Document:** [`Phase-7_Executive-Incident-Dashboard.md`](Phase-7_Executive-Incident-Dashboard.md)
+* **Contents:**
+  - Design of the **`SOC Lab - Executive Incident Overview`** Dashboard comprising 7 specialized visualizations (MTTA/MTTR KPIs, Severity Distribution Donut chart, MITRE ATT&CK Heatmap, Attacker IP Leaderboard, Endpoint & User table, Malicious Processes telemetry, and Real-time Incident Stream).
+  - Automated publishing and rapid 1-click import of all 9 Saved Objects via REST API in just 1.5 seconds using the [`scripts/import_dashboard.py`](../../scripts/import_dashboard.py) script.

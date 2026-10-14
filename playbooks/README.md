@@ -1,57 +1,57 @@
-# 📘 BỘ QUY TRÌNH ỨNG PHÓ SỰ CỐ AN NINH MẠNG (SOC INCIDENT RESPONSE PLAYBOOKS)
+# 📘 SOC INCIDENT RESPONSE PLAYBOOKS
 
-Tài liệu này chuẩn hóa quy trình tiếp nhận, điều tra, cô lập, khôi phục và bảo tồn chứng cứ số (Standard Operating Procedures - SOP) dành cho đội ngũ vận hành **SOC Analyst (L1/L2)**, **Incident Responder** và **DFIR Specialist**, tuân thủ theo tiêu chuẩn quốc tế **NIST SP 800-61 Rev. 2** và chu trình **SANS PICERL**.
+This document standardizes the procedures for reception, investigation, containment, recovery, and digital evidence preservation (Standard Operating Procedures - SOP) for **SOC Analyst (L1/L2)**, **Incident Responder**, and **DFIR Specialist** teams, adhering to international standards **NIST SP 800-61 Rev. 2** and the **SANS PICERL** framework.
 
 ---
 
-## 🧭 Khung Quy Trình Ứng Phó Sự Cố (NIST / SANS Framework)
+## 🧭 Incident Response Framework (NIST / SANS Framework)
 
 ```
        ┌────────────────────────┐
-       │   1. PREPARATION       │ (Chuẩn bị: Cấu hình Sysmon, Rules, Suricata, Deception Grid)
+       │   1. PREPARATION       │ (Preparation: Configure Sysmon, Rules, Suricata, Deception Grid)
        └───────────┬────────────┘
                    ▼
        ┌────────────────────────┐
-       │   2. IDENTIFICATION    │ (Phát hiện & Phân loại: Triage, Severity, Zero False Positive)
+       │   2. IDENTIFICATION    │ (Detection & Triage: Triage, Severity, Zero False Positive)
        └───────────┬────────────┘
                    ▼
        ┌────────────────────────┐
-       │   3. CONTAINMENT       │ (Cô lập: 1-Click Safe Host Isolation, Active Response, WinRM Drop)
+       │   3. CONTAINMENT       │ (Containment: 1-Click Safe Host Isolation, Active Response, WinRM Drop)
        └───────────┬────────────┘
                    ▼
        ┌────────────────────────┐
-       │   4. ERADICATION       │ (Diệt trừ: Diệt tiến trình, Dọn Registry Run, Khóa tài khoản)
+       │   4. ERADICATION       │ (Eradication: Kill processes, Clean Registry Run keys, Disable accounts)
        └───────────┬────────────┘
                    ▼
        ┌────────────────────────┐
-       │   5. RECOVERY          │ (Khôi phục: 1-Click Rollback 5s, Đổi mật khẩu, Giám sát tăng cường)
+       │   5. RECOVERY          │ (Recovery: 1-Click Rollback 5s, Password reset, Enhanced monitoring)
        └───────────┬────────────┘
                    ▼
        ┌────────────────────────┐
-       │   6. LESSONS LEARNED   │ (Hậu sự cố: Họp rút kinh nghiệm, Tối ưu Sigma Rules, Jira RCA)
+       │   6. LESSONS LEARNED   │ (Post-Incident: Lessons learned meeting, Optimize Sigma Rules, Jira RCA)
        └────────────────────────┘
 ```
 
 ---
 
-## 📊 Ma Trận Phân Loại Mức Độ Nghiêm Trọng (Severity Matrix)
+## 📊 Severity Classification Matrix (Severity Matrix)
 
-| Cấp độ | Định nghĩa | Tiêu chí kích hoạt | SLA Phản hồi |
+| Level | Definition | Trigger Criteria | Response SLA |
 | :--- | :--- | :--- | :---: |
-| **P1 - Critical** | Sự cố nghiêm trọng đe dọa toàn bộ hệ thống; lộ thông tin xác thực quản trị hoặc chạm vào bẫy mồi Deception. | • Tương tác bẫy mồi Deception Honey-File / Honey-Account (0% FP).<br/>• Dump bộ nhớ `lsass.exe` thành công.<br/>• Đăng nhập thành công sau chuỗi Brute Force (Event 4624 Type 10). | **< 15 phút**<br/>*(Tự động tức thì)* |
-| **P2 - High** | Tấn công có chủ đích đang diễn ra; thực thi mã độc hoặc leo quyền UAC trên máy trạm. | • Kích hoạt PowerShell mã hóa Base64 (`T1059.001`).<br/>• Hijack registry UAC Bypass `ms-settings` (`T1548.002`).<br/>• Web LFI đọc thành công file cấu hình hệ thống trên dây mạng. | **< 30 phút** |
-| **P3 - Medium** | Hoạt động do thám mạng hoặc tấn công tự động số lượng lớn đã bị Active Response chặn. | • Quét cổng Nmap Stealth SYN bắt bởi Suricata NIDS (`T1046`).<br/>• Máy quét lỗ hổng tự động (Nikto, Gobuster) thăm dò cổng Web.<br/>• RDP Brute Force bị chặn thành công bởi Firewall. | **< 2 giờ** |
-| **P4 - Low** | Hoạt động bất thường đơn lẻ, khả năng cao là người dùng nhập nhầm mật khẩu. | • 1–3 lần đăng nhập thất bại từ máy người dùng nội bộ.<br/>• Request HTTP lỗi cú pháp 404 thông thường. | **< 8 giờ** |
+| **P1 - Critical** | Critical incident threatening the entire system; administrative credential disclosure or Deception canary tripped. | • Interaction with Deception Honey-File / Honey-Account decoy (0% FP).<br/>• Successful memory dump of `lsass.exe`.<br/>• Successful login following a Brute Force sequence (Event 4624 Type 10). | **< 15 minutes**<br/>*(Instant automated)* |
+| **P2 - High** | Targeted attack in progress; malware execution or workstation UAC elevation. | • Execution of Base64 encoded PowerShell (`T1059.001`).<br/>• Registry hijack for UAC Bypass `ms-settings` (`T1548.002`).<br/>• Web LFI successfully reading system configuration files over the network. | **< 30 minutes** |
+| **P3 - Medium** | Network reconnaissance activity or high-volume automated attacks blocked by Active Response. | • Nmap Stealth SYN port scan detected by Suricata NIDS (`T1046`).<br/>• Automated vulnerability scanners (Nikto, Gobuster) probing Web ports.<br/>• RDP Brute Force successfully blocked by Firewall. | **< 2 hours** |
+| **P4 - Low** | Isolated anomalous activity, high probability of legitimate user mistyping credentials. | • 1–3 failed login attempts from an internal user workstation.<br/>• Common HTTP 404 syntax error requests. | **< 8 hours** |
 
 ---
 
-## 🗂️ Danh Mục Toàn Diện 6 Playbook Vận Hành (SOP-01 Đến SOP-06)
+## 🗂️ Comprehensive Catalog of 6 Operational Playbooks (SOP-01 to SOP-06)
 
-| Mã SOP | Tên Quy Trình Chuẩn (Standard Operating Procedure) | Kỹ Thuật MITRE | Phân Hệ Áp Dụng |
+| SOP Code | Standard Operating Procedure | MITRE Technique | Applied Subsystem |
 | :---: | :--- | :---: | :--- |
-| [**SOP-01**](SOP-01_RDP_Brute_Force_Response.md) | **Ứng phó Tấn công Dò quét Mật khẩu RDP** | **T1110.001** | Windows Security Event ID 4625 & Netsh Firewall Drop |
-| [**SOP-02**](SOP-02_Web_LFI_Mitigation.md) | **Ứng phó Khai thác Lỗ hổng Ứng dụng Web LFI & Path Traversal** | **T1190** | Apache Access Logs, Sysmon Event ID 1 & 11 |
-| [**SOP-03**](SOP-03_SOAR_Automated_Containment.md) | **Ứng phó Tự động hóa qua SOAR & Phản ứng Khép kín (Rollback 5s)** | **T1110, T1190, T1059** | n8n SOAR, Telegram ChatOps 2-Way, Jira Cloud REST v3 |
-| [**SOP-04**](SOP-04_Endpoint_Kill_Chain_Response.md) | **Ứng phó Chuỗi Tấn công Malware & Chiếm đoạt LSASS Credentials** | **T1059, T1548, T1547, T1003** | Sysmon Event ID 1, 10, 12, 13 & Active Response `kill-process` |
-| [**SOP-05**](SOP-05_Network_NIDS_Suricata_Response.md) | **Ứng phó Xâm nhập Tầng mạng Suricata NIDS & Tương quan XDR** | **T1046, T1595, T1190** | Suricata 8.0.7 EVE JSON Stream (`ens33`) & Packet Analysis |
-| [**SOP-06**](SOP-06_Deception_Honeypot_and_Forensics.md) | **Ứng phó Bẫy mồi Deception (0% FP) & Thu thập Pháp y số DFIR** | **T1083, T1078, T1046** | Windows SACL 4663, Honey-Account, FTP Decoy & RAM MiniDump |
+| [**SOP-01**](SOP-01_RDP_Brute_Force_Response.md) | **RDP Password Brute-Force Attack Response** | **T1110.001** | Windows Security Event ID 4625 & Netsh Firewall Drop |
+| [**SOP-02**](SOP-02_Web_LFI_Mitigation.md) | **Web Application LFI & Path Traversal Exploitation Response** | **T1190** | Apache Access Logs, Sysmon Event ID 1 & 11 |
+| [**SOP-03**](SOP-03_SOAR_Automated_Containment.md) | **SOAR Automated Response & Closed-Loop Containment (Rollback 5s)** | **T1110, T1190, T1059** | n8n SOAR, Telegram ChatOps 2-Way, Jira Cloud REST v3 |
+| [**SOP-04**](SOP-04_Endpoint_Kill_Chain_Response.md) | **Malware Kill Chain & LSASS Credential Dumping Response** | **T1059, T1548, T1547, T1003** | Sysmon Event ID 1, 10, 12, 13 & Active Response `kill-process` |
+| [**SOP-05**](SOP-05_Network_NIDS_Suricata_Response.md) | **Suricata NIDS Network Intrusion & XDR Correlation Response** | **T1046, T1595, T1190** | Suricata 8.0.7 EVE JSON Stream (`ens33`) & Packet Analysis |
+| [**SOP-06**](SOP-06_Deception_Honeypot_and_Forensics.md) | **Deception Canary Decoy Response (0% FP) & DFIR Digital Forensics** | **T1083, T1078, T1046** | Windows SACL 4663, Honey-Account, FTP Decoy & RAM MiniDump |

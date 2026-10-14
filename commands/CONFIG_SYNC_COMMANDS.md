@@ -1,90 +1,90 @@
-# 🔄 Cẩm Nang Đồng Bộ Cấu Hình & Biến Môi Trường (.env)
+# 🔄 Configuration & Environment Variables (.env) Synchronization Guide
 
-Tài liệu hướng dẫn quy trình cập nhật và đồng bộ cấu hình từ file `.env` lên toàn bộ hệ thống Wazuh SIEM, n8n SOAR, Telegram Bridge và Jira Cloud.
+Guide on updating and synchronizing configuration from the `.env` file across the entire Wazuh SIEM, n8n SOAR, Telegram Bridge, and Jira Cloud ecosystem.
 
 ---
 
-## 🚀 Cách 1: Sử Dụng Công Cụ Tự Động Hóa 1-Click (Khuyên Dùng)
+## 🚀 Method 1: Using the 1-Click Automation Tool (Recommended)
 
-Bất cứ khi nào bạn chỉnh sửa file `.env` (thay đổi Token Telegram, Chat ID, Jira Token, API Key VirusTotal / AbuseIPDB, hoặc đổi IP máy ảo):
+Whenever you modify the `.env` file (updating Telegram Token, Chat ID, Jira Token, VirusTotal / AbuseIPDB API Keys, or changing VM IP addresses):
 
-### 1. Nhấp đúp chuột (Double-Click):
-Chỉ cần nhấp đúp vào file [`sync_env.bat`](../../sync_env.bat) nằm ngay tại thư mục gốc của dự án.
+### 1. Double-Click:
+Simply double-click the [`sync_env.bat`](../../sync_env.bat) file located at the project root directory.
 
-### 2. Hoặc chạy từ Terminal (PowerShell / CMD):
+### 2. Or run from Terminal (PowerShell / CMD):
 ```powershell
-# Chạy script Python điều phối:
+# Run the Python orchestration script:
 python scripts/sync_env.py
 
-# Hoặc chạy file batch:
+# Or run the batch file:
 .\sync_env.bat
 ```
 
 ---
 
-## ⚙️ Các Thao Tác Script Sẽ Tự Động Thực Hiện
+## ⚙️ Automated Actions Performed by the Script
 
-1. **Kiểm tra hợp lệ API Keys (Pre-flight Validation):**
-   - Gửi yêu cầu kiểm tra tới Telegram API (`/getMe`).
-   - Gửi xác thực Basic Auth tới Jira Cloud API (`/rest/api/3/myself`).
-   - Kiểm tra hạn ngạch AbuseIPDB (`/api/v2/check`).
-2. **Cập nhật cấu hình cục bộ:**
-   - Cập nhật các khối `<integration>` trong [`deployment/ossec.conf`](../../deployment/ossec.conf).
-   - Cập nhật các template Workflow trong [`integrations/n8n/workflows/`](../../integrations/n8n/workflows/).
-3. **Đẩy sang máy chủ Wazuh qua SSH/SCP:**
-   - Đẩy `.env` sang `/home/nguyentoan/n8n-docker/.env`.
-   - Nạp `ossec.conf` mới vào container `single-node-wazuh.manager-1`.
-   - Đồng bộ các file workflow JSON sang thư mục Docker của n8n.
-4. **Tái khởi động và áp dụng dịch vụ:**
-   - Tự động gọi `/var/ossec/bin/wazuh-control restart`.
-   - Tự động cập nhật container `n8n-soar-engine` (`docker compose up -d`).
-   - Tự động khởi động lại daemon ngầm `telegram_bridge.py`.
-5. **In bảng báo cáo sức khỏe (Health Check Report) trực quan.**
+1. **Pre-flight API Key Validation:**
+   - Sends verification requests to the Telegram API (`/getMe`).
+   - Sends Basic Auth verification requests to the Jira Cloud API (`/rest/api/3/myself`).
+   - Checks AbuseIPDB quota status (`/api/v2/check`).
+2. **Local Configuration Updates:**
+   - Updates the `<integration>` blocks in [`deployment/ossec.conf`](../../deployment/ossec.conf).
+   - Updates workflow templates in [`integrations/n8n/workflows/`](../../integrations/n8n/workflows/).
+3. **Deployment to Wazuh Server via SSH/SCP:**
+   - Deploys `.env` to `/home/nguyentoan/n8n-docker/.env`.
+   - Injects the updated `ossec.conf` into the `single-node-wazuh.manager-1` container.
+   - Synchronizes workflow JSON files to the n8n Docker directory.
+4. **Service Restart & Application:**
+   - Automatically invokes `/var/ossec/bin/wazuh-control restart`.
+   - Automatically refreshes the `n8n-soar-engine` container (`docker compose up -d`).
+   - Automatically restarts the background daemon `telegram_bridge.py`.
+5. **Displays a visual Health Check Report table.**
 
 ---
 
-## 🛠️ Cách 2: Quy Trình Cập Nhật Thủ Công Từng Bước (Manual Fallback)
+## 🛠️ Method 2: Step-by-Step Manual Update Process (Manual Fallback)
 
-Nếu trong trường hợp không có Python hoặc cần thao tác thủ công từng thành phần:
+If Python is unavailable or if individual component operations are required:
 
-### Bước 1: Sao chép file `.env` sang `wazuh-vm`
+### Step 1: Copy `.env` to `wazuh-vm`
 ```powershell
 scp .env wazuh-vm:/home/nguyentoan/n8n-docker/.env
 ```
 
-### Bước 2: Nạp cấu hình vào Wazuh Manager Container
+### Step 2: Load Configuration into Wazuh Manager Container
 ```powershell
 scp deployment/ossec.conf wazuh-vm:/tmp/ossec.conf
 ssh wazuh-vm "docker cp /tmp/ossec.conf single-node-wazuh.manager-1:/var/ossec/etc/ossec.conf"
 ssh wazuh-vm "docker exec single-node-wazuh.manager-1 /var/ossec/bin/wazuh-control restart"
 ```
 
-### Bước 3: Khởi động lại n8n Container
+### Step 3: Restart n8n Container
 ```powershell
 ssh wazuh-vm "cd /home/nguyentoan/n8n-docker && docker compose up -d"
 ```
 
-### Bước 4: Khởi động lại daemon Telegram Bridge
+### Step 4: Restart the Telegram Bridge Daemon
 ```powershell
 ssh wazuh-vm "/home/nguyentoan/n8n-docker/restart_bridge.sh"
 ```
 
 ---
 
-## 🔍 Khắc Phục Sự Cố Thường Gặp (Troubleshooting)
+## 🔍 Troubleshooting
 
-### 1. Báo lỗi `Không thể kết nối SSH tới wazuh-vm`:
-- Kiểm tra máy ảo Ubuntu Wazuh đã khởi động trên VMware chưa.
-- Kiểm tra cấu hình SSH alias trong `C:\Users\<User>\.ssh\config`:
-  ```text
-  Host wazuh-vm
-      HostName 192.168.71.128
-      User nguyentoan
-  ```
+### 1. `Cannot connect via SSH to wazuh-vm` error:
+- Verify that the Ubuntu Wazuh VM has booted in VMware.
+- Check the SSH alias configuration in `C:\Users\<User>\.ssh\config`:
+   ```text
+   Host wazuh-vm
+       HostName 192.168.71.128
+       User nguyentoan
+   ```
 
-### 2. Telegram Bot không phản hồi nút bấm Callback:
-- Kiểm tra log của daemon bridge:
-  ```powershell
-  ssh wazuh-vm "tail -n 20 /home/nguyentoan/n8n-docker/telegram_bridge.log"
-  ```
-- Nếu thấy thông báo `Unauthorized` $\rightarrow$ Token bot trong `.env` chưa đúng, hãy cập nhật lại và chạy `.\sync_env.bat`.
+### 2. Telegram Bot does not respond to button callbacks:
+- Check the daemon bridge logs:
+   ```powershell
+   ssh wazuh-vm "tail -n 20 /home/nguyentoan/n8n-docker/telegram_bridge.log"
+   ```
+- If an `Unauthorized` message appears $\rightarrow$ the bot token in `.env` is invalid; update it and run `.\sync_env.bat`.

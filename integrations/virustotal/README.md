@@ -1,63 +1,64 @@
-# 🌐 TÍCH HỢP THREAT INTELLIGENCE: VIRUSTOTAL API VÀO WAZUH SIEM
+# 🌐 THREAT INTELLIGENCE INTEGRATION: VIRUSTOTAL API IN WAZUH SIEM
 
-Tài liệu này hướng dẫn chi tiết cách kết nối hệ thống **Wazuh Manager** với cơ sở dữ liệu tình báo mối đe dọa (Threat Intelligence - TI) của **VirusTotal** để tự động tra cứu danh tiếng của các tệp tin lạ, tệp tin tải về hoặc mã độc trên máy Windows Endpoint.
+This document provides detailed instructions for connecting the **Wazuh Manager** system with the **VirusTotal** Threat Intelligence (TI) database to automatically query the reputation of suspicious files, downloaded binaries, or malware on Windows Endpoints.
 
 ---
 
-## 📌 1. NGUYÊN LÝ HOẠT ĐỘNG (THREAT INTEL PIPELINE)
+## 📌 1. OPERATING PRINCIPLE (THREAT INTEL PIPELINE)
 
 ```
  [Windows Endpoint]
          │
-         │ (1) Phát hiện file mới trong thư mục giám sát (FIM / Syscheck)
+         │ (1) Detects new file in monitored directory (FIM / Syscheck)
          ▼
  [Wazuh Agent]
          │
-         │ (2) Tính toán hash SHA256/MD5 và gửi Alert về Manager
+         │ (2) Calculates SHA256/MD5 hash and forwards Alert to Manager
          ▼
  [Wazuh Manager]
          │
-         │ (3) wazuh-integratord bóc tách hash và gọi VirusTotal REST API v3
+         │ (3) wazuh-integratord extracts hash and invokes VirusTotal REST API v3
          ▼
  [VirusTotal Cloud Engine]
          │
-         │ (4) Đối soát hash với >70 Antivirus Engines (Kaspersky, Microsoft, CrowdStrike...)
+         │ (4) Cross-checks hash against >70 Antivirus Engines (Kaspersky, Microsoft, CrowdStrike...)
          ▼
  [Wazuh Manager]
          │
-         │ (5) Nếu có >= 1 Engine báo độc -> Kích hoạt Rule 87105 (Level 12 - High Severity)
+         │ (5) If >= 1 Engine flags malicious -> Triggers Rule 87105 (Level 12 - High Severity)
          ▼
  [Wazuh Dashboard]
-   Hiển thị chi tiết: Tên file, số lượng engine phát hiện, đường dẫn permalink tới VirusTotal
+   Displays comprehensive details: Filename, detection engine count, permalink to VirusTotal
 ```
 
 ---
 
-## 🔑 2. BƯỚC 1: ĐĂNG KÝ API KEY MIỄN PHÍ CỦA VIRUSTOTAL
+## 🔑 2. STEP 1: REGISTER FREE VIRUSTOTAL API KEY
 
-1. Truy cập trang web chính thức: [https://www.virustotal.com/gui/join-us](https://www.virustotal.com/gui/join-us)
-2. Điền thông tin đăng ký tài khoản miễn phí (Free Community Account).
-3. Đăng nhập và nhấp vào ảnh đại diện cá nhân ở góc trên bên phải -> Chọn **API Key**.
-4. Sao chép chuỗi mã API Key (dạng chuỗi 64 ký tự hex).
-   > *Lưu ý: Tài khoản Free Community cho phép 4 requests/phút và 500 requests/ngày*
-5. Chạy file [test_virustotal_lookup.py](test_virustotal_lookup.py) để chạy thử coi đã thành công chưa
+1. Visit the official registration page: [https://www.virustotal.com/gui/join-us](https://www.virustotal.com/gui/join-us)
+2. Register for a free account (Free Community Account).
+3. Log in and click your profile avatar in the top right corner -> Select **API Key**.
+4. Copy your API Key string (64-character hexadecimal string).
+   > *Note: Free Community accounts permit 4 requests/minute and 500 requests/day.*
+5. Run [test_virustotal_lookup.py](test_virustotal_lookup.py) to test whether the lookup succeeds.
+
 ---
 
-## ⚙️ 3. BƯỚC 2: CẤU HÌNH TRÊN WAZUH MANAGER
+## ⚙️ 3. STEP 2: CONFIGURE WAZUH MANAGER
 
-### 3.1. Thêm khối `<integration>` vào `ossec.conf`
-Đăng nhập SSH vào máy chủ Ubuntu Wazuh và sửa file cấu hình:
+### 3.1. Add `<integration>` block to `ossec.conf`
+SSH into the Ubuntu Wazuh server and edit the configuration file:
 
 ```bash
-# Vào container hoặc sửa trực tiếp qua Docker:
+# Access container or edit directly via Docker:
 sudo docker exec -it single-node-wazuh.manager-1 bash
 nano /var/ossec/etc/ossec.conf
 ```
 
-Tìm đến phần cấu hình `<ossec_config>` và bổ sung khối sau (thay thế `<YOUR_VIRUSTOTAL_API_KEY>` bằng API key thật):
+Locate the `<ossec_config>` section and append the following block (replace `<YOUR_VIRUSTOTAL_API_KEY>` with your actual API key):
 
 ```xml
-  <!-- Cấu hình Threat Intelligence Integration với VirusTotal -->
+  <!-- VirusTotal Threat Intelligence Integration Configuration -->
   <integration>
     <name>virustotal</name>
     <api_key>YOUR_VIRUSTOTAL_API_KEY_HERE</api_key>
@@ -66,24 +67,24 @@ Tìm đến phần cấu hình `<ossec_config>` và bổ sung khối sau (thay t
   </integration>
 ```
 
-> 💡 **Giải thích:**
-> * `<name>virustotal</name>`: Sử dụng module tích hợp sẵn của Wazuh (nằm tại `/var/ossec/integrations/virustotal`).
-> * `<group>syscheck,</group>`: Tự động kích hoạt tra cứu mỗi khi module kiểm tra tính toàn vẹn tệp tin (FIM - Syscheck) phát hiện có file mới hoặc file bị thay đổi trên Endpoint.
-> * `<alert_format>json</alert_format>`: Đảm bảo dữ liệu gửi nhận chuẩn JSON.
+> 💡 **Explanation:**
+> * `<name>virustotal</name>`: Utilizes Wazuh built-in integration module (located at `/var/ossec/integrations/virustotal`).
+> * `<group>syscheck,</group>`: Automatically triggers lookups whenever the File Integrity Monitoring module (FIM - Syscheck) detects a new or modified file on an Endpoint.
+> * `<alert_format>json</alert_format>`: Ensures JSON-formatted data transmission.
 
-### 3.2. Khởi động lại dịch vụ Wazuh Manager
+### 3.2. Restart Wazuh Manager Service
 ```bash
 /var/ossec/bin/wazuh-control restart
 ```
-Sau khi khởi động lại, dịch vụ `wazuh-integratord` sẽ tự động chuyển sang trạng thái **`running`** (trước đây là clean exit vì chưa có integration).
+Following the restart, the `wazuh-integratord` service transitions to **`running`** state (previously exited cleanly when no integrations were configured).
 
 ---
 
-## 📂 4. BƯỚC 3: CẤU HÌNH FIM (SYSCHECK) TRÊN WINDOWS AGENT
+## 📂 4. STEP 3: CONFIGURE FIM (SYSCHECK) ON WINDOWS AGENT
 
-Để Wazuh tính toán hash và gửi về cho VirusTotal kiểm tra, cần chỉ định các thư mục nhạy cảm trên máy Windows Endpoint.
+To enable Wazuh to compute file hashes and forward them to VirusTotal for inspection, designate sensitive directories on the Windows Endpoint.
 
-Mở file `C:\Program Files (x86)\ossec-agent\ossec.conf` trên máy Windows 10 (bằng quyền Administrator), tìm thẻ `<syscheck>` và bổ sung:
+Open `C:\Program Files (x86)\ossec-agent\ossec.conf` on Windows 10 (as Administrator), locate the `<syscheck>` block, and add:
 
 ```xml
   <syscheck>
@@ -91,55 +92,54 @@ Mở file `C:\Program Files (x86)\ossec-agent\ossec.conf` trên máy Windows 10 
     <frequency>300</frequency>
     <scan_on_start>yes</scan_on_start>
 
-    <!-- Giám sát realtime thư mục test (Lưu ý: Có khoảng trắng giữa realtime="yes" và check_all="yes") -->
+    <!-- Real-time directory monitoring (Note: space between realtime="yes" and check_all="yes") -->
     <directories realtime="yes" check_all="yes">C:\Users\Public</directories>
     <directories realtime="yes" check_all="yes">C:\xampp\htdocs</directories>
     <directories realtime="yes" check_all="yes">C:\Users\testw\Downloads</directories>
   </syscheck>
 ```
 
-Khởi động lại dịch vụ Wazuh Agent trên Windows:
+Restart Wazuh Agent service on Windows:
 ```powershell
 Restart-Service WazuhSvc
 ```
 
 ---
 
-## 🧪 5. BƯỚC 4: THỰC THI KIỂM CHỨNG & THU THẬP MINH CHỨNG (POC)
+## 🧪 5. STEP 4: VERIFICATION & EVIDENCE COLLECTION (POC)
 
-### Thử nghiệm 1: Thêm loại trừ Defender & Thả file mã độc mẫu EICAR
-> ⚠️ **Lưu ý:** Windows Defender sẽ tự động cách ly (Quarantine) file EICAR trước khi Wazuh kịp tính hash. Do đó cần thêm thư mục test vào danh sách loại trừ (Exclusion) của Defender trước khi tạo file.
+### Test 1: Add Defender Exclusion & Deploy EICAR Test File
+> ⚠️ **Note:** Windows Defender will automatically quarantine the EICAR file before Wazuh can compute its hash. Therefore, add the test directory to Defender exclusions prior to creating the file.
 
-Mở PowerShell (Run as Administrator) trên máy Windows 10 và chạy:
+Open PowerShell (Run as Administrator) on Windows 10 and execute:
 
 ```powershell
-# 1. Thêm thư mục C:\Users\Public vào danh sách loại trừ của Windows Defender:
+# 1. Add C:\Users\Public to Windows Defender exclusion list:
 Add-MpPreference -ExclusionPath "C:\Users\Public"
 
-# 2. Tạo file mã độc kiểm thử chuẩn quốc tế EICAR:
+# 2. Generate standard EICAR anti-malware test file:
 Set-Content -Path "C:\Users\Public\eicar.com" -Value 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'
 ```
 
-### Thử nghiệm 2: Quan sát kết quả trên Wazuh SIEM
-1. **Wazuh Agent** phát hiện file `eicar.com` được tạo trong `C:\Users\Public`, tính toán mã băm SHA256: `275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f` và gửi Alert về Manager.
-2. **Wazuh Manager** (`wazuh-integratord`) tự động bắt lấy hash và gửi request tới VirusTotal API.
-3. **VirusTotal** trả về kết quả đối soát >65 hãng bảo mật nhận diện độc hại.
-4. **Wazuh Dashboard** kích hoạt cảnh báo đặc biệt:
+### Test 2: Observe Results in Wazuh SIEM
+1. **Wazuh Agent** detects `eicar.com` created in `C:\Users\Public`, computes the SHA256 hash: `275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f`, and forwards the Alert to the Manager.
+2. **Wazuh Manager** (`wazuh-integratord`) captures the hash and queries the VirusTotal API.
+3. **VirusTotal** returns threat intelligence results with >65 security vendors flagging the sample as malicious.
+4. **Wazuh Dashboard** fires an alert:
    * **Rule ID 87105 (Level 12):** `Virustotal: Alert - C:\Users\Public\eicar.com - 65 engines detected this file`
-   * Bấm vào chi tiết Alert để xem: danh sách các hãng nhận diện (`Kaspersky`, `Microsoft`, `Sophos`), điểm đánh giá độc hại, và link trực tiếp sang VirusTotal.
+   * Click on Alert details to view: detecting vendor list (`Kaspersky`, `Microsoft`, `Sophos`), threat score, and direct permalink to VirusTotal.
 
 ![Wazuh dashboard evidence](images/wazuh_dashboard_evidence.png)
 ![Document details evidence](images/document_details_evidence.png)
 ---
 
-## 📊 6. CÁC QUY TẮC PHÁT HIỆN LIÊN QUAN TRONG WAZUH
+## 📊 6. ASSOCIATED DETECTION RULES IN WAZUH
 
-Wazuh đã tích hợp sẵn nhóm quy tắc `virustotal` trong file `/var/ossec/ruleset/rules/0490-virustotal_rules.xml`:
+Wazuh bundles default `virustotal` rules in `/var/ossec/ruleset/rules/0490-virustotal_rules.xml`:
 
-| Rule ID | Level | Mô tả | Ý nghĩa thực tế trong SOC |
+| Rule ID | Level | Description | Practical Operational Context in SOC |
 | :--- | :--- | :--- | :--- |
-| **87101** | 0 | `Virustotal: Integration started` | Ghi nhận dịch vụ tích hợp bắt đầu hoạt động. |
-| **87104** | 3 | `Virustotal: File not found or clean` | File không có trong database hoặc 0/70 engine nhận diện độc hại. |
-| **87105** | **12** | `Virustotal: Alert - Engines detected this file` | **Mã độc xác định!** Cần kích hoạt ngay quy trình cách ly và diệt trừ theo SOP. |
-| **87106** | 0 | `Virustotal: Error querying API` | Lỗi API (hết quota hoặc sai API key). |
-
+| **87101** | 0 | `Virustotal: Integration started` | Records that integration service has started. |
+| **87104** | 3 | `Virustotal: File not found or clean` | File not found in database or 0/70 engines flagged as malicious. |
+| **87105** | **12** | `Virustotal: Alert - Engines detected this file` | **Confirmed Malware!** Immediately trigger containment and eradication procedures per SOP. |
+| **87106** | 0 | `Virustotal: Error querying API` | API error (quota exceeded or invalid API key). |

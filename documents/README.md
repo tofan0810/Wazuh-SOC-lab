@@ -1,14 +1,14 @@
 # 📚 Documents & Theoretical Knowledge Base
 
-Thư mục chứa toàn bộ tài liệu học thuật, sổ tay hướng dẫn thực hành và kiến thức lý thuyết nền tảng về **Wazuh SIEM, SOAR và Vận hành SOC**.
+This directory contains academic documentation, practical handbooks, and foundational theoretical knowledge covering **Wazuh SIEM, SOAR, and SOC Operations**.
 
 ---
 
-## 📌 Danh Mục Tài Liệu
+## 📌 Document Directory
 
-| Tài Liệu | Mục Đích & Nội Dung |
+| Document | Purpose & Content |
 | :--- | :--- |
-| [`SOC_LAB_HANDBOOK.md`](SOC_LAB_HANDBOOK.md) | **Cẩm nang toàn diện của đồ án:** Hướng dẫn từ A-Z về kiến trúc, cấu hình 3 máy ảo, kịch bản tấn công, vận hành SOAR, cứu hộ sự cố và tiêu chuẩn đánh giá. |
-| [`siem-wazuh-theory.md`](siem-wazuh-theory.md) | **Lý thuyết chuyên sâu Wazuh:** Cơ chế nạp log qua Analysisd, cấu trúc bộ giải mã (Decoders), cú pháp XML Rules, thứ bậc quan hệ cha-con và luồng tích hợp Integrator. |
-| [`fundamentals.md`](fundamentals.md) | **Kiến thức an ninh mạng cốt lõi:** Tổng quan về SIEM/SOAR/XDR, mô hình kim tự tháp Pyramid of Pain, ma trận MITRE ATT&CK và chu trình ứng phó NIST SP 800-61. |
-| [`common-commands.md`](common-commands.md) | **Bảng tra cứu lệnh nhanh:** Tập hợp các câu lệnh Linux, Docker, PowerShell và Wazuh CLI thường dùng trong quá trình vận hành lab. |
+| [`SOC_LAB_HANDBOOK.md`](SOC_LAB_HANDBOOK.md) | **Comprehensive Project Handbook:** End-to-end guide on system architecture, 3-VM configuration, attack scenarios, SOAR operations, troubleshooting, and evaluation standards. |
+| [`siem-wazuh-theory.md`](siem-wazuh-theory.md) | **In-Depth Wazuh Theory:** Log ingestion mechanisms via Analysisd, Decoder structures, XML Rule syntax, parent-child hierarchical relationships, and the Integrator daemon pipeline. |
+| [`fundamentals.md`](fundamentals.md) | **Core Cybersecurity Fundamentals:** Overview of SIEM/SOAR/XDR, the Pyramid of Pain model, the MITRE ATT&CK matrix, and the NIST SP 800-61 incident handling lifecycle. |
+| [`common-commands.md`](common-commands.md) | **Quick Command Reference:** Collection of frequently used Linux, Docker, PowerShell, and Wazuh CLI commands during lab operations. |

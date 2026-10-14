@@ -1,24 +1,24 @@
 # 🍯 Deception Technology & Digital Forensics (Phase 10)
 
-Thư mục lưu trữ các kịch bản triển khai công nghệ bẫy mồi chủ động (**Active Defense / Deception Grid**) và module tự động thu thập chứng cứ pháp y số (**Live Forensics Preservation**).
+This directory contains deployment scripts for proactive deception technology (**Active Defense / Deception Grid**) and automated digital forensic evidence collection modules (**Live Forensics Preservation**).
 
 ---
 
-## 📌 Danh Mục Thành Phần
+## 📌 Component Directory
 
-| Tệp Tin | Loại Bẫy / Chức Năng | Cơ Chế Kích Hoạt | Wazuh Rule & Phản Ứng |
+| File | Decoy Type / Function | Trigger Mechanism | Wazuh Rule & Response |
 | :--- | :--- | :--- | :--- |
-| `setup_canary.ps1` | **Canary Honey-File & Honey-Account** | Tạo file `C:\Users\Public\IT_Admin_Credentials.xlsx` kèm SACL Audit quyền Read; tạo tài khoản mồi `backup_admin`. | **Rule 100014** (Canary File read - Event 4663)<br/>**Rule 100015** (Honey-Account logon - Event 4625)<br/>*Tỷ lệ cảnh báo giả 0% (Zero FP)*. |
-| `network_decoy.py`<br/>`network_decoy.ps1` | **Network Service Decoy (FTP 21)** | Socket listener mở cổng TCP 21, phản hồi banner `220 Microsoft FTP Service`, ghi nhận hành vi dò quét dịch vụ (T1046). | **Rule 100016** (FTP Decoy Touch)<br/>Khóa IP kẻ tấn công tức thì. |
-| `collect_evidence.ps1` | **Automated DFIR Triage** | Tự động trích xuất RAM mini-dump của tiến trình vi phạm, bảng kết nối mạng, active sessions và security EVTX nén thành `Evidence_<AlertId>.zip`. | Tự động đính kèm lên **Jira Cloud Incident Ticket**. |
+| `setup_canary.ps1` | **Canary Honey-File & Honey-Account** | Creates `C:\Users\Public\IT_Admin_Credentials.xlsx` with SACL Audit for Read operations; creates decoy user account `backup_admin`. | **Rule 100014** (Canary File read - Event 4663)<br/>**Rule 100015** (Honey-Account logon - Event 4625)<br/>*0% False Positive rate (Zero FP)*. |
+| `network_decoy.py`<br/>`network_decoy.ps1` | **Network Service Decoy (FTP 21)** | Socket listener binding TCP port 21, returning banner `220 Microsoft FTP Service`, logging service reconnaissance (T1046). | **Rule 100016** (FTP Decoy Touch)<br/>Instantly blocks attacker IP. |
+| `collect_evidence.ps1` | **Automated DFIR Triage** | Automatically captures process RAM mini-dump, network connection tables, active sessions, and security EVTX logs compressed into `Evidence_<AlertId>.zip`. | Automatically attached to the **Jira Cloud Incident Ticket**. |
 
 ---
 
-## ⚡ Lệnh Triển Khai Trên Windows Endpoint
+## ⚡ Deployment Commands on Windows Endpoint
 ```powershell
-# 1. Kích hoạt bẫy mồi Canary File & Honey-Account
+# 1. Activate Canary File & Honey-Account traps
 powershell -ExecutionPolicy Bypass -File deployment\deception\setup_canary.ps1
 
-# 2. Khởi chạy Network Decoy (FTP Port 21)
+# 2. Start Network Decoy (FTP Port 21)
 python deployment\deception\network_decoy.py
 ```
