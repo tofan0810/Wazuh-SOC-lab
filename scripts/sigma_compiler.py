@@ -412,8 +412,7 @@ def main():
     args = parser.parse_args()
 
     if not (args.compile or args.check or args.validate):
-        parser.print_help()
-        sys.exit(1)
+        args.check = True
 
     compiler = SigmaToWazuhCompiler(args.sigma_dir)
 

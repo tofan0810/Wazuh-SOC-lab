@@ -152,9 +152,9 @@ def run_scenario(
 
 def main():
     parser = argparse.ArgumentParser(description="E2E Suricata NIDS Verification Scenario")
-    parser.add_argument("--kali-host", default=os.getenv("KALI_HOST", "192.168.71.130"))
-    parser.add_argument("--target-host", default=os.getenv("WINDOWS_HOST", "192.168.71.129"))
-    parser.add_argument("--wazuh-host", default=os.getenv("WAZUH_HOST", "192.168.71.128"))
+    parser.add_argument("--kali-host", default=os.getenv("LAB_KALI_HOST", os.getenv("KALI_HOST", "kali-vm")))
+    parser.add_argument("--target-host", default=os.getenv("LAB_WINDOWS_IP", os.getenv("WINDOWS_HOST", "192.168.71.129")))
+    parser.add_argument("--wazuh-host", default=os.getenv("LAB_WAZUH_HOST", os.getenv("WAZUH_HOST", "wazuh-vm")))
     parser.add_argument("--port", type=int, default=80)
     parser.add_argument("--dry-run", action="store_true", help="Simulate without network calls")
     args = parser.parse_args()
